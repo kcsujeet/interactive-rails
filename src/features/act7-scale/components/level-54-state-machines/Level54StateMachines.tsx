@@ -938,7 +938,7 @@ end`,
 			language: 'ruby',
 			code: `gem "rails", "~> 8.0.0"
 gem "aasm"
-gem "paper_trail"  # installed in L43`,
+gem "paper_trail"  # installed in L31`,
 			highlight: [2],
 		});
 	}

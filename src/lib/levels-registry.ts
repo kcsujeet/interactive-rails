@@ -25,7 +25,7 @@
  * - Middleware, CORS, Rate Limiting, Safe Migrations, Recurring Jobs, Data Lifecycle, Error Monitoring, Observability, API Versioning, Deployment (Kamal), Feature Flags
  *
  * Act 7: Scale (L51-L58, 8 levels)
- * - Read Replicas, Sharding, Multi-Tenancy, State Machines, Modular Monolith, Domain Events, API Gateway, The Architect (Capstone)
+ * - Read Replicas, Multi-Tenancy, Sharding, State Machines, Modular Monolith, Domain Events, API Gateway, The Architect (Capstone)
  */
 
 import { type ComponentType, type LazyExoticComponent, lazy } from 'react';
@@ -434,19 +434,19 @@ const LEVEL_COMPONENTS: Record<string, LazyLevel> = {
 			),
 		'Level51MultiDatabase',
 	),
-	'act7-level52-sharding': lazyNamed(
+	'act7-level52-multi-tenancy': lazyNamed(
 		() =>
 			import(
-				'@/features/act7-scale/components/level-52-sharding/Level52Sharding'
+				'@/features/act7-scale/components/level-52-multi-tenancy/Level52MultiTenancy'
 			),
-		'Level52Sharding',
+		'Level52MultiTenancy',
 	),
-	'act7-level53-multi-tenancy': lazyNamed(
+	'act7-level53-sharding': lazyNamed(
 		() =>
 			import(
-				'@/features/act7-scale/components/level-53-multi-tenancy/Level53MultiTenancy'
+				'@/features/act7-scale/components/level-53-sharding/Level53Sharding'
 			),
-		'Level53MultiTenancy',
+		'Level53Sharding',
 	),
 	'act7-level54-state-machines': lazyNamed(
 		() =>

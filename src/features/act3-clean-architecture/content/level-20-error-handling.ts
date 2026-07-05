@@ -135,7 +135,7 @@ The set in the example covers the common ones, but production APIs also return:
 - \`429 Too Many Requests\` (rate-limited) with a \`Retry-After\` header so clients can back off correctly. Bare 403 trains clients to give up; 429 trains them to wait.
 - \`503 Service Unavailable\` (circuit breaker open, dependency down) with \`Retry-After\` so clients distinguish "your bug" from "our bug, try again in 30 seconds."
 - \`409 Conflict\` for optimistic-lock failures (\`ActiveRecord::StaleObjectError\`).
-- \`410 Gone\` for sunset endpoints (signaled in the L40 deprecation flow).
+- \`410 Gone\` for sunset endpoints (signaled in the L48 deprecation flow).
 - \`408 Request Timeout\` if your middleware enforces a per-request budget (slow-client kicks).
 
 Each one is a distinct signal to the client. Returning 500 for all of them tells the client nothing.

@@ -125,8 +125,8 @@ Every level exists because the app **needs** it at that stage, not because Rails
 | # | Name | Concept | Scenario |
 |---|------|---------|----------|
 | 51 | Multi-Database | `connects_to`, read replicas, `connected_to` | Reads are 90% of traffic and compete with writes. Split read/write to separate databases. |
-| 52 | Database Sharding | Horizontal sharding, tenant isolation | 10M users. Writes bottlenecked, vertical scaling at its ceiling. Shard by tenant. |
-| 53 | Multi-Tenancy | ActsAsTenant, tenant isolation | B2B SaaS: each company must only see their own data. One leaked query could expose another company. |
+| 52 | Multi-Tenancy | ActsAsTenant, tenant isolation | B2B SaaS: each company must only see their own data. One leaked query could expose another company. |
+| 53 | Database Sharding | Horizontal sharding, tenant isolation | 10M users. Writes bottlenecked, vertical scaling at its ceiling. Shard by the tenant boundary drawn in L52. |
 | 54 | State Machines | AASM, transition guards, audit trail | An order went from "shipped" back to "pending" because status is just a string column. Guard the transitions. |
 | 55 | Modular Monolith | Packwerk, CODEOWNERS, enforced boundaries | 200 files, 12 engineers, no ownership. A billing change breaks notifications. Enforce boundaries without extracting services. |
 | 56 | Domain Events & Decoupling | Pub/Sub, domain events, event-driven architecture | Checkout directly calls Email, Inventory, Analytics, and Shipping. One slow service blocks the entire order. |

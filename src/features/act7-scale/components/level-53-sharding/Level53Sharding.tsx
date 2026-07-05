@@ -1,5 +1,5 @@
 /**
- * Level 52: Database Sharding
+ * Level 53: Database Sharding
  *
  * Sequential phase flow: observe -> build -> reward
  *
@@ -80,7 +80,7 @@ import { registerLevelCode } from '@/lib/codebase-registry';
 import type { LevelComponentProps } from '@/lib/levels-registry';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 
-registerLevelCode('act7-level52-sharding', () =>
+registerLevelCode('act7-level53-sharding', () =>
 	getCodeFiles('reward', STEP_DEFS.length),
 );
 
@@ -1783,7 +1783,7 @@ const shardEdgeTypes = { shard: ShardEdge };
 
 // ─── Main component ───────────────────────────────────────────────────
 
-export function Level52Sharding({ onComplete }: LevelComponentProps) {
+export function Level53Sharding({ onComplete }: LevelComponentProps) {
 	const [phase, setPhase] = useState<Phase>('observe');
 	const isReward = phase === 'reward';
 
@@ -2459,4 +2459,4 @@ export function Level52Sharding({ onComplete }: LevelComponentProps) {
 	);
 }
 
-export default Level52Sharding;
+export default Level53Sharding;

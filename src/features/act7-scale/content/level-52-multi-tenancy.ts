@@ -1,9 +1,9 @@
 import type { Level } from '@/types';
 
-export const level53MultiTenancy: Level = {
-	id: 'act7-level53-multi-tenancy',
+export const level52MultiTenancy: Level = {
+	id: 'act7-level52-multi-tenancy',
 	actId: 7,
-	levelNumber: 53,
+	levelNumber: 52,
 	name: 'Multi-Tenancy',
 	requiresTests: true,
 	trigger: {
@@ -135,7 +135,7 @@ In a row-level deployment, one tenant's giant query slows everyone else down bec
 - Per-session \`statement_timeout\` so a runaway query gets killed before it starves the pool.
 - Per-tenant rate limits at the app layer (\`rack-attack\` keyed on \`tenant_id\`).
 - Graduate the noisiest tenant to a read replica (or to its own DB) before they take down everyone.
-- Track per-tenant query latency in your APM (L52). Tenants that breach a threshold get an automatic ticket.
+- Track per-tenant query latency in your APM (L47). Tenants that breach a threshold get an automatic ticket.
 
 **Tenant-aware caching:**
 

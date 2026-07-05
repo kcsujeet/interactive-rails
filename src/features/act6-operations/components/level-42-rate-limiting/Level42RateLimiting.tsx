@@ -1454,7 +1454,7 @@ export function Level42RateLimiting({ onComplete }: LevelComponentProps) {
 							Scenario
 						</h3>
 						<p className="text-sm text-muted-foreground mb-2">
-							In Level 41, you added middleware to intercept requests before
+							In Level 40, you added middleware to intercept requests before
 							Rails. Now a bot is sending 10,000 requests per second from a
 							single IP, and the login endpoint is being brute-forced.
 						</p>

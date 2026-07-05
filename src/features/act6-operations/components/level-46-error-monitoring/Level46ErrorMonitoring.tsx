@@ -183,7 +183,7 @@ const PROBES = [
 		story: [
 			'Customer browses your store, clicks on product #999.',
 			'Product was deleted last week. Rails raises RecordNotFound.',
-			'L41 request logger captures the request, but not the exception itself.',
+			'L40 request logger captures the request, but not the exception itself.',
 			'No error context: no user_id, no breadcrumbs, no stack trace captured.',
 			'The team finds out when the customer tweets about it.',
 		],

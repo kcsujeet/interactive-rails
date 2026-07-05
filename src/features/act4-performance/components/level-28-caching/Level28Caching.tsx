@@ -24,7 +24,7 @@
  *
  * Teaches: Solid Cache, Rails.cache.fetch, expires_in, touch: true, cache invalidation
  *
- * NOTE: HTTP caching (ETags, stale?, Cache-Control, CDNs) belongs to Level 31.
+ * NOTE: HTTP caching (ETags, stale?, Cache-Control, CDNs) belongs to Level 29.
  * This level focuses on server-side caching only.
  */
 

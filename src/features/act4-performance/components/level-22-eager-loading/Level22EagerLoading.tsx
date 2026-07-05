@@ -1349,7 +1349,7 @@ export function Level22EagerLoading({ onComplete }: LevelComponentProps) {
 							Scenario
 						</h3>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							Level 23 exposed the N+1 problem. Now you need to choose the right{' '}
+							Level 21 exposed the N+1 problem. Now you need to choose the right{' '}
 							<span className="text-foreground font-medium">strategy</span> to
 							fix it. Not all eager loading methods work for every scenario.
 						</p>

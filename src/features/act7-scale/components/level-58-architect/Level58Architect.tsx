@@ -1447,7 +1447,7 @@ dependencies:
   end
 end
 
-# Subscribers enqueue Solid Queue jobs (L22+)
+# Subscribers enqueue Solid Queue jobs (L36+)
 Wisper.subscribe(ReceiptSubscriber.new)
 
 class ReceiptSubscriber

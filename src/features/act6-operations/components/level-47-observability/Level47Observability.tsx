@@ -1006,7 +1006,7 @@ function getCodeFiles(phase: Phase, completedStep: number) {
   end
 end
 
-# L41's middleware logs basics, but:
+# L40's middleware logs basics, but:
 # - No JSON format (cannot index or search by field)
 # - No request_id or user_id correlation
 # - No distributed tracing across services

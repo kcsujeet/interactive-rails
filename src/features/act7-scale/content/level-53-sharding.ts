@@ -1,14 +1,14 @@
 import type { Level } from '@/types';
 
-export const level52Sharding: Level = {
-	id: 'act7-level52-sharding',
+export const level53Sharding: Level = {
+	id: 'act7-level53-sharding',
 	actId: 7,
-	levelNumber: 52,
+	levelNumber: 53,
 	name: 'Database Sharding',
 	trigger: {
 		type: 'scaling',
 		description:
-			'10M users. Single database at capacity. Writes are bottlenecked. Vertical scaling has hit its ceiling. Time to shard by tenant.',
+			'10M users. Single database at capacity. Writes are bottlenecked. Vertical scaling has hit its ceiling. Time to shard by tenant, the isolation boundary you drew in L52.',
 	},
 	startingPipeline: { nodes: [], connections: [] },
 	problem: {

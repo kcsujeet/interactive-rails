@@ -98,28 +98,28 @@ end
 		goal: `In this capstone level, you'll:\n- extract a full service from a monolith step by step.\n- combine state machines, domain events, API gateway routing, and observability patterns from earlier levels.\n- learn the critical judgment call: when extraction is worth the complexity, and when keeping it in the monolith is the smarter choice.`,
 		conceptExplanation: `This is the capstone. You are extracting a billing service from a monolith using every concept from the game:
 
-**1. Multi-Database (Act 7, Level 47):**
+**1. Multi-Database (Act 7, Level 51):**
 Billing gets its own database. Read replicas for reporting queries.
 
-**2. State Machines (Act 7, Level 48):**
+**2. State Machines (Act 7, Level 54):**
 Payment status transitions are guarded: pending -> processing -> completed/failed. No invalid transitions.
 
-**3. Multi-Tenancy (Act 7, Level 49):**
+**3. Multi-Tenancy (Act 7, Level 53):**
 Each tenant's billing data is isolated. Queries are automatically scoped.
 
-**4. Observability (Act 7, Level 50):**
+**4. Observability (Act 6, Level 47):**
 Structured logs, distributed tracing across the gateway and billing service, health checks, and alerting.
 
-**5. Modular Monolith (Act 7, Level 51):**
+**5. Modular Monolith (Act 7, Level 55):**
 Enforce domain boundaries with Packwerk before extracting. Define packages with public APIs and dependency rules.
 
 **6. Domain Events (Act 7, Level 56):**
 Payment events (payment.succeeded, payment.failed) are published. Notifications, inventory, and analytics subscribe independently.
 
-**7. API Gateway (Act 8, Level 54):**
+**7. API Gateway (Act 7, Level 57):**
 The gateway routes billing requests, handles auth at the edge, and provides circuit breakers.
 
-**8. Sharding (Act 8, Level 55):**
+**8. Sharding (Act 7, Level 52):**
 Billing data is sharded by tenant for write scalability.
 
 **Modular monolith with Packwerk (before extracting):**

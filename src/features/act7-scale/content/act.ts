@@ -1,7 +1,7 @@
 import type { Act } from '@/types';
 import { level51MultiDatabase } from './level-51-multi-database';
-import { level52Sharding } from './level-52-sharding';
-import { level53MultiTenancy } from './level-53-multi-tenancy';
+import { level52MultiTenancy } from './level-52-multi-tenancy';
+import { level53Sharding } from './level-53-sharding';
 import { level54StateMachines } from './level-54-state-machines';
 import { level55ModularMonolith } from './level-55-modular-monolith';
 import { level56DomainEvents } from './level-56-domain-events';
@@ -16,8 +16,8 @@ export const actSeven: Act = {
 		'You have shipped a real Rails app. Now scale past your starting limits: past one database, one tenant, one workflow, one codebase, one app. Then prove you can compose what you have learned.',
 	levels: [
 		level51MultiDatabase,
-		level52Sharding,
-		level53MultiTenancy,
+		level52MultiTenancy,
+		level53Sharding,
 		level54StateMachines,
 		level55ModularMonolith,
 		level56DomainEvents,
