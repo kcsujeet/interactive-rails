@@ -58,9 +58,9 @@ export function ObservePhase({
 						Scenario
 					</h3>
 					<p className="text-sm text-muted-foreground leading-relaxed">
-						Your app is feature-complete but still lives on your laptop. The
-						current "deploy process" is a few lines of shell. Fire the probes
-						below and see what breaks.
+						Your app serves real traffic, but every release still ships by hand:
+						the "deploy process" is a few lines of shell run from your laptop.
+						Fire the probes below and see what breaks.
 					</p>
 				</div>
 				<div className="p-4">

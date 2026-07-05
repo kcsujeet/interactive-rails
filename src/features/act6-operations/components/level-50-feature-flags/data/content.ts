@@ -78,7 +78,7 @@ These are not the same thing.
 Flipper ships an admin UI you can mount at \`/flipper\`. It is the operational tool your oncall uses during an incident. Two things to get right:
 
 1. **Auth.** Mount it inside an \`authenticate\` block that gates on \`current_user.admin?\`. An unauthenticated \`/flipper\` route is the same as printing your kill switches on a billboard.
-2. **Audit log.** Every flag flip should produce a log line you can correlate with incident timelines: who flipped what, when. The default Flipper instrumentation hooks into ActiveSupport::Notifications and you can pipe that to your APM (L52) or your structured error monitoring (L48).
+2. **Audit log.** Every flag flip should produce a log line you can correlate with incident timelines: who flipped what, when. The default Flipper instrumentation hooks into ActiveSupport::Notifications and you can pipe that to your APM (L47) or your structured error monitoring (L46).
 
 **Flag debt:**
 

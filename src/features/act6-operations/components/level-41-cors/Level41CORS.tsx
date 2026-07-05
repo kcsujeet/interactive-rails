@@ -763,23 +763,24 @@ export function Level41CORS({ onComplete }: LevelComponentProps) {
 							Scenario
 						</h3>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							Your API is secured and tested. Until now, you have been using{' '}
-							<code className="text-foreground text-xs bg-muted px-1 py-0.5 rounded">
-								curl
-							</code>{' '}
-							to send requests directly. But a React frontend on{' '}
+							The storefront and the API have always shared one origin, so the
+							browser never blocked a request. Now the frontend is splitting
+							onto its own origin:{' '}
 							<code className="text-foreground text-xs bg-muted px-1 py-0.5 rounded">
 								localhost:3001
 							</code>{' '}
-							needs to call the API on{' '}
+							in development, calling the API on{' '}
 							<code className="text-foreground text-xs bg-muted px-1 py-0.5 rounded">
 								localhost:3000
 							</code>
 							. Browsers block cross-origin requests by default.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							curl bypasses this entirely, which is why you never noticed. You
-							need the{' '}
+							<code className="text-foreground text-xs bg-muted px-1 py-0.5 rounded">
+								curl
+							</code>{' '}
+							bypasses this entirely, which is why terminal probes never
+							noticed. You need the{' '}
 							<span className="text-foreground font-medium">rack-cors</span> gem
 							to tell the browser which origins are allowed.
 						</p>

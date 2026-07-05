@@ -12,13 +12,13 @@ export const level41CORS: Level = {
 	trigger: {
 		type: 'security_audit',
 		description:
-			'Your API is secured, tested, and ready. Now a React frontend needs to call it from the browser, but cross-origin requests are blocked by default. Configure CORS to open the gate.',
+			'The storefront and the API have always shared one origin, so the browser never blocked a request. Now the frontend is splitting onto its own origin, and every browser call to the API dies with a CORS error. Open the gate deliberately.',
 	},
 	problem: {
 		observation:
-			'You have been testing with curl, which bypasses browser security. But when the React frontend at localhost:3001 tries to call the API at localhost:3000, the browser blocks it: "Access to XMLHttpRequest has been blocked by CORS policy."',
+			'Same-origin requests sailed through, and curl bypasses browser security entirely. But now the frontend runs on its own origin (localhost:3001 in development), and the browser blocks its calls to the API at localhost:3000: "Access to XMLHttpRequest has been blocked by CORS policy."',
 		rootCause:
-			'curl sends requests directly, so CORS never mattered until now. Browsers enforce the Same-Origin Policy, blocking requests between different origins (ports count). The API must explicitly allow the frontend origin with CORS headers.',
+			'Browsers enforce the Same-Origin Policy, blocking requests between different origins (ports count). Same-origin requests never triggered it, and curl sends requests directly, so CORS never mattered until the origins split. The API must explicitly allow the frontend origin with CORS headers.',
 		codeExample: `# Browser console:
 # "Access to XMLHttpRequest at 'http://localhost:3000/api/products'
 #  from origin 'http://localhost:3001' has been blocked by CORS policy"

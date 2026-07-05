@@ -105,7 +105,7 @@ Every level exists because the app **needs** it at that stage, not because Rails
 | # | Name | Concept | Scenario |
 |---|------|---------|----------|
 | 40 | Middleware & Rack | Rack middleware stack, custom middleware | Production errors are untraceable and bots scrape undetected. Requests arrive and leave with no visibility. |
-| 41 | CORS | rack-cors, cross-origin configuration | A React frontend needs to call the API from the browser, but cross-origin requests are blocked by default. |
+| 41 | CORS | rack-cors, cross-origin configuration | The frontend splits onto its own origin and browsers start blocking its API calls. Open the cross-origin gate deliberately. |
 | 42 | Rate Limiting | Rails 8 `rate_limit`, per-user/per-IP throttling | Bots hammer the API at 10K req/sec from one IP. The login endpoint is being brute-forced. |
 | 43 | Safe Migrations | `strong_migrations`, zero-downtime patterns | A deploy changes a column type on a large table and locks it for 30 seconds. API returns 500s. |
 | 44 | Recurring Jobs & Scheduling | Solid Queue recurring tasks, data maintenance | Expired tokens pile up, sessions never clean, stale cache bloats the DB. One-off jobs exist; nothing runs on a schedule. |
@@ -113,7 +113,7 @@ Every level exists because the app **needs** it at that stage, not because Rails
 | 46 | Structured Error Monitoring | Exception tracking, error context, error budgets | 500s in production but nobody notices until users complain. Exceptions have no context, grouping, or alerts. |
 | 47 | Observability | Structured logging, APM, distributed tracing | PagerDuty fires at 3 AM: "High error rate." No metrics, no traces, just a wall of unformatted text. |
 | 48 | API Versioning | Version namespaces, deprecation, breaking changes | Order totals must change from integer cents to a money object, but 200 partners depend on the current format. |
-| 49 | Deployment | Kamal 2, Dockerized zero-downtime deploy, rollback, health checks | The app still lives on your laptop. Hand-shipping drops traffic, has no rollback, and breaks with a second server. |
+| 49 | Deployment | Kamal 2, Dockerized zero-downtime deploy, rollback, health checks | The app serves real traffic but releases ship by hand. Each deploy drops traffic, has no rollback, and breaks with a second server. |
 | 50 | Feature Flags & Staged Rollouts | Rollout strategies, kill switches, gradual exposure | Ship a half-built payment processor now, launch it Tuesday 9am, and kill a flaky integration faster than a redeploy. |
 
 ---

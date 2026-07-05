@@ -12,7 +12,7 @@ export const level11Authorization: Level = {
 	trigger: {
 		type: 'security_incident',
 		description:
-			"Users can authenticate, data is validated, and emails are normalized. But User A can still edit and delete User B's products. Authentication tells us WHO is making the request, but nothing checks whether they are ALLOWED to do what they are asking.",
+			"Users can authenticate, and their personal data is encrypted at rest. But User A can still edit and delete User B's products. Authentication tells us WHO is making the request, but nothing checks whether they are ALLOWED to do what they are asking.",
 	},
 	problem: {
 		observation:

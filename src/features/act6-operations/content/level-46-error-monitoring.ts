@@ -9,12 +9,12 @@ export const level46ErrorMonitoring: Level = {
 	trigger: {
 		type: 'user_complaint',
 		description:
-			'500 errors in production but nobody notices until users complain on Twitter. Request logging (L41) captures requests, but exceptions are not tracked with context, grouped, or alerted on.',
+			'500 errors in production but nobody notices until users complain on Twitter. Request logging (L40) captures requests, but exceptions are not tracked with context, grouped, or alerted on.',
 	},
 	startingPipeline: middlewarePipeline({ modelLabel: 'User' }),
 	problem: {
 		observation:
-			'Request logging from L41 captures requests, but when exceptions occur, they are written to the log with no error-specific context. The team only finds out about 500 errors when users tweet about it.',
+			'Request logging from L40 captures requests, but when exceptions occur, they are written to the log with no error-specific context. The team only finds out about 500 errors when users tweet about it.',
 		rootCause:
 			'No structured error monitoring. Exceptions are logged but not captured with user context, grouped by type, or alerted on. Request logging shows what happened, but not why it failed.',
 		codeExample: `# Current error handling: nothing
@@ -54,7 +54,7 @@ end
 - route errors to a monitoring service for grouping, alerting, and prioritization.`,
 		conceptExplanation: `Your app crashes sometimes. When it does, you need to know **when it crashed**, **who it crashed for**, and **what they were doing**. Without that, you find out about errors the same way customers do: someone tweets, someone files a support ticket, hours later. Error monitoring closes that gap.
 
-This level is about the EXCEPTION layer of observability. (L53 covers the broader picture: logs, metrics, traces. Cross-reference there for latency, performance, and request-flow monitoring.)
+This level is about the EXCEPTION layer of observability. (L47 covers the broader picture: logs, metrics, traces. Cross-reference there for latency, performance, and request-flow monitoring.)
 
 **Without error monitoring:**
 \`\`\`
@@ -89,7 +89,7 @@ Tomorrow:       0.18% error rate, budget exhausted -> freeze risky deploys until
 
 The error budget turns "should we deploy this risky change?" from a gut call into a measurement. If budget is healthy, ship; if exhausted, fix reliability first.
 
-(L53 covers the latency-side equivalent: latency SLOs measured in p95/p99 percentiles. Error monitoring tools track the error-rate side; metrics tools track the latency side.)
+(L47 covers the latency-side equivalent: latency SLOs measured in p95/p99 percentiles. Error monitoring tools track the error-rate side; metrics tools track the latency side.)
 
 **Layers of error handling:**
 1. **Rescue + respond:** Handle known errors gracefully (404 for missing record, 422 for validation failure).

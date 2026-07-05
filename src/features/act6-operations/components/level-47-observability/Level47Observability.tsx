@@ -1709,7 +1709,7 @@ export function Level47Observability({ onComplete }: LevelComponentProps) {
 							Scenario
 						</h3>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							Your RequestLogger middleware from L41 logs basic request/response
+							Your RequestLogger middleware from L40 logs basic request/response
 							data, but it is not enough. Exceptions lack context, there is no
 							per-field search, no distributed tracing across services, and no
 							health endpoint for load balancers.

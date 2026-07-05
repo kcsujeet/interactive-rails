@@ -168,7 +168,7 @@ const PROBES = [
 				color: 'red' as const,
 			},
 			{
-				text: '# Request logged (L41), but exception not captured',
+				text: '# Request logged (L40), but exception not captured',
 				color: 'yellow' as const,
 			},
 			{

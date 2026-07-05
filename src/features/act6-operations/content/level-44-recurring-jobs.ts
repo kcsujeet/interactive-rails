@@ -9,7 +9,7 @@ export const level44RecurringJobs: Level = {
 	trigger: {
 		type: 'data_growth',
 		description:
-			'Expired tokens pile up. Old sessions never cleaned. Stale cache entries bloat the database. You have Solid Queue (L22) for one-off jobs, but nothing runs on a schedule.',
+			'Expired tokens pile up. Old sessions never cleaned. Stale cache entries bloat the database. You have Solid Queue (L36) for one-off jobs, but nothing runs on a schedule.',
 	},
 	startingPipeline: {
 		nodes: [

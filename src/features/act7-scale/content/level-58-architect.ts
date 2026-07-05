@@ -113,7 +113,7 @@ Structured logs, distributed tracing across the gateway and billing service, hea
 **5. Modular Monolith (Act 7, Level 51):**
 Enforce domain boundaries with Packwerk before extracting. Define packages with public APIs and dependency rules.
 
-**6. Domain Events (Act 7, Level 52):**
+**6. Domain Events (Act 7, Level 56):**
 Payment events (payment.succeeded, payment.failed) are published. Notifications, inventory, and analytics subscribe independently.
 
 **7. API Gateway (Act 8, Level 54):**

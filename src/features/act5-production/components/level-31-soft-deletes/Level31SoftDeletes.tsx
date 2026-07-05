@@ -1356,8 +1356,8 @@ export function Level31SoftDeletes({ onComplete }: LevelComponentProps) {
 							Scenario
 						</h3>
 						<p className="text-sm text-muted-foreground mb-2">
-							Your API is protected from bots (L42), but internal mistakes are
-							just as dangerous. An admin runs User.find(42).destroy and the
+							Outside attackers are locked out by auth and authorization, but
+							internal mistakes are just as dangerous. An admin runs User.find(42).destroy and the
 							user is permanently deleted. No undo. No record of who did it.
 						</p>
 						<p className="text-sm text-muted-foreground">

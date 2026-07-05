@@ -9,7 +9,7 @@ export const level49Deployment: Level = {
 	trigger: {
 		type: 'incident',
 		description:
-			'The app is feature-complete but still lives on your laptop. Shipping it by hand drops traffic, leaves no rollback path, and breaks the moment you add a second server.',
+			'The app serves real traffic, but every release still ships by hand: scp the code, ssh in, restart. Each deploy drops traffic for 8 seconds, leaves no rollback path, and breaks the moment you add a second server.',
 	},
 	startingPipeline: standardPipeline({ modelLabel: 'User' }),
 	problem: {
@@ -77,7 +77,7 @@ kamal app exec --reuse 'bin/rails db:migrate'
 \`\`\`
 Per the Kamal docs, \`kamal app exec\` runs a one-off command inside the app container. The \`--reuse\` flag connects to the currently running container instead of starting a new one ([source](https://kamal-deploy.org/docs/commands/running-commands-on-servers/)).
 
-Either pattern only works if migrations are **backward-compatible** (covered in L44 Safe Migrations). A migration that adds a NOT NULL column without a default will break the old containers the moment it commits. Backward-compatible migrations + Kamal's traffic gate = zero-downtime deploy.
+Either pattern only works if migrations are **backward-compatible** (covered in L43 Safe Migrations). A migration that adds a NOT NULL column without a default will break the old containers the moment it commits. Backward-compatible migrations + Kamal's traffic gate = zero-downtime deploy.
 
 (Kamal also supports lifecycle hooks via \`.kamal/hooks/<name>\` executable files. The official docs describe \`pre-deploy\` as the place for "final checks before deploying, e.g., checking CI completed" rather than a prescribed migrations location, so this curriculum picks one of the two patterns above instead.)
 
