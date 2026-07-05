@@ -102,7 +102,7 @@ end
 A failed \`Product.find\` raises \`ActiveRecord::RecordNotFound\`, which the centralized error handler (taught in L20) converts to a 404. With a single source of truth for "load the product," you get consistent behavior across actions for free.
 
 **A note on parameter handling at this level:**
-Rails wraps the request body in an \`ActionController::Parameters\` object at \`params[:product]\`. To pass it to \`Model.new\` or \`record.update\`, you call \`.to_unsafe_h\` to get a plain hash. This is the simplest thing that works, and the lesson here is about the controller layer itself, not about parameter filtering. \`to_unsafe_h\` skips strong-params filtering entirely — a later level reveals this as a security gap and introduces a proper whitelist; for now, lean on the naive shortcut.`,
+Rails wraps the request body in an \`ActionController::Parameters\` object at \`params[:product]\`. To pass it to \`Model.new\` or \`record.update\`, you call \`.to_unsafe_h\` to get a plain hash. This is the simplest thing that works, and the lesson here is about the controller layer itself, not about parameter filtering. \`to_unsafe_h\` skips strong-params filtering entirely, a later level reveals this as a security gap and introduces a proper whitelist; for now, lean on the naive shortcut.`,
 		railsCodeExample: `# app/controllers/api/products_controller.rb
 class Api::ProductsController < ApplicationController
   def index
@@ -158,6 +158,17 @@ end
 			{
 				title: 'Action Controller Overview',
 				url: 'https://guides.rubyonrails.org/action_controller_overview.html',
+			},
+		],
+		homework: [
+			{
+				task: 'Create app/controllers/api/v1/products_controller.rb with index and show actions that render JSON, then hit the endpoint for real.',
+				commands: [
+					'bin/rails server',
+					'curl http://localhost:3000/api/v1/products',
+				],
+				verify:
+					'curl returns a JSON array (empty is fine) instead of a 500 about an uninitialized constant.',
 			},
 		],
 	},

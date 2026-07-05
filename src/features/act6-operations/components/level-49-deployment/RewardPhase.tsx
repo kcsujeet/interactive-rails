@@ -31,6 +31,10 @@ interface RewardPhaseProps {
 	onComplete: () => void;
 }
 
+// A deploy flows through every edge of the pipeline, so a scenario fire
+// activates all of them as a single-pass burst. Dormant until the first fire.
+const REWARD_CONNECTION_IDS = rewardConnections.map((c) => `${c.from}-${c.to}`);
+
 export function RewardPhase({
 	stressTest,
 	codeFiles,
@@ -93,7 +97,14 @@ export function RewardPhase({
 				/>
 				<div className="flex-1 flex flex-col bg-background overflow-auto">
 					<div className="flex-1 p-6 min-h-[280px]">
-						<PipelineFlow connections={rewardConnections} stages={stages} />
+						<PipelineFlow
+							activeConnections={
+								stressTest.results.length > 0 ? REWARD_CONNECTION_IDS : []
+							}
+							animationTick={stressTest.results.length}
+							connections={rewardConnections}
+							stages={stages}
+						/>
 					</div>
 					<div className="border-t border-border p-4">
 						<StressTestPanel

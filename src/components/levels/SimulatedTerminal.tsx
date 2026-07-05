@@ -1,13 +1,20 @@
 /**
  * Simulated Terminal Component
  *
- * Clickable command buttons with animated line-by-line output.
- * Dark background, monospace font, colored output, auto-scroll.
+ * Free-input first: the player types the command at the prompt (recall).
+ * After FREE_INPUT_MISS_LIMIT failed attempts the clickable command buttons
+ * appear as the recognition fallback. Animated line-by-line output,
+ * monospace font, colored output, auto-scroll.
  */
 
 import { Terminal } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import {
+	matchTypedCommand,
+	shouldRevealOptions,
+} from '@/components/levels/terminal-input-matching';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 
 export interface TerminalCommand {
 	id: string;
@@ -57,10 +64,12 @@ export function SimulatedTerminal({
 		useState<TerminalHistoryEntry[]>(initialHistory);
 	const [animating, setAnimating] = useState(false);
 	const [visibleLines, setVisibleLines] = useState(0);
+	const [typedInput, setTypedInput] = useState('');
+	const [missCount, setMissCount] = useState(0);
 	const scrollRef = useRef<HTMLDivElement>(null);
 
 	// Auto-scroll to bottom whenever new output appears. The deps `history`
-	// and `visibleLines` aren't read inside the effect — they're scroll
+	// and `visibleLines` aren't read inside the effect, they're scroll
 	// triggers: every time history grows (new step output) or visibleLines
 	// changes (typed-out animation step), this re-runs and scrolls to keep
 	// up with the new line. Without these deps the effect runs only on mount.
@@ -117,6 +126,39 @@ export function SimulatedTerminal({
 			onWrong(feedback);
 		}
 	};
+
+	const handleTypedSubmit = () => {
+		if (disabled || animating || completed) return;
+		const typed = typedInput.trim();
+		if (typed.length === 0) return;
+
+		const match = matchTypedCommand(typedInput, commands);
+		setTypedInput('');
+		if (match.kind === 'match') {
+			if (!match.command.correct) setMissCount((count) => count + 1);
+			handleCommand(match.command);
+			return;
+		}
+		// Unrecognized input: echo it with a shell-style error. It counts as
+		// a miss toward revealing the options, but not as a wrong answer (a
+		// typo is not a choice), so onWrong is not called.
+		setMissCount((count) => count + 1);
+		setHistory((prev) => [
+			...prev,
+			{
+				command: typed,
+				output: [
+					{
+						text: 'command not recognized. Check the spelling and try again.',
+						color: 'red' as const,
+					},
+				],
+				isError: true,
+			},
+		]);
+	};
+
+	const optionsRevealed = shouldRevealOptions(missCount);
 
 	const colorClass = (color?: TerminalOutputLine['color']) => {
 		switch (color) {
@@ -181,37 +223,57 @@ export function SimulatedTerminal({
 					</div>
 				))}
 
-				{/* Cursor */}
+				{/* Prompt line with free input */}
 				{!completed && (
 					<div className="flex items-center gap-2">
-						<span className="text-emerald-600 dark:text-emerald-400">
+						<span className="text-emerald-600 dark:text-emerald-400 shrink-0">
 							{prompt}
 						</span>
-						<span className="w-2 h-4 bg-foreground/50 animate-pulse" />
+						<Input
+							aria-label="Type a command"
+							autoComplete="off"
+							className="h-5 flex-1 rounded-none border-0 bg-transparent dark:bg-transparent px-0 py-0 font-mono text-sm shadow-none focus-visible:ring-0 focus-visible:border-0"
+							disabled={disabled || animating}
+							onChange={(event) => setTypedInput(event.target.value)}
+							onKeyDown={(event) => {
+								if (event.key === 'Enter') handleTypedSubmit();
+							}}
+							spellCheck={false}
+							value={typedInput}
+						/>
 					</div>
 				)}
 			</div>
 
-			{/* Command buttons */}
+			{/* Free-input hint + fallback command buttons */}
 			{!completed && (
 				<div className="p-3 border-t border-border bg-muted/50">
-					<div className="text-xs text-muted-foreground mb-2">
-						Choose a command:
-					</div>
-					<div className="flex flex-wrap gap-2">
-						{commands.map((cmd) => (
-							<Button
-								className="font-mono text-xs bg-muted hover:bg-muted/80 text-foreground border-border"
-								disabled={disabled || animating}
-								key={cmd.id}
-								onClick={() => handleCommand(cmd)}
-								size="sm"
-								variant="outline"
-							>
-								{cmd.label}
-							</Button>
-						))}
-					</div>
+					{optionsRevealed ? (
+						<>
+							<div className="text-xs text-muted-foreground mb-2">
+								Choose a command:
+							</div>
+							<div className="flex flex-wrap gap-2">
+								{commands.map((cmd) => (
+									<Button
+										className="font-mono text-xs bg-muted hover:bg-muted/80 text-foreground border-border"
+										disabled={disabled || animating}
+										key={cmd.id}
+										onClick={() => handleCommand(cmd)}
+										size="sm"
+										variant="outline"
+									>
+										{cmd.label}
+									</Button>
+								))}
+							</div>
+						</>
+					) : (
+						<div className="text-xs text-muted-foreground">
+							Type the command and press Enter.
+							{missCount > 0 && ' One more miss reveals the options.'}
+						</div>
+					)}
 				</div>
 			)}
 		</div>

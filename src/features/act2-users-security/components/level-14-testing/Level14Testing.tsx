@@ -224,7 +224,7 @@ const PROBE_DISCOVERY_MAP: Record<string, string> = {
 // ──────────────────────────────────────────────
 //
 // Same three regressions (1:1 with probes) plus a clean-refactor scenario.
-// All four set expectedResult: 'allowed' — from the customer's perspective,
+// All four set expectedResult: 'allowed', from the customer's perspective,
 // "allowed = customer sees nothing wrong." The spec catches the regressions
 // locally; the dashboard stays clean.
 
@@ -413,7 +413,7 @@ const addRspecCommands: TerminalCommand[] = [
 		command: 'bundle add rspec-rails',
 		correct: false,
 		feedback:
-			'bundle add without a group puts the gem in the default group. That ships it to production, where you never run specs — wasted memory and a larger Gemfile.lock for nothing. Pick the option that scopes the gem to the groups where it is actually used.',
+			'bundle add without a group puts the gem in the default group. That ships it to production, where you never run specs, wasted memory and a larger Gemfile.lock for nothing. Pick the option that scopes the gem to the groups where it is actually used.',
 	},
 	{
 		id: 'wrong-test-only',
@@ -498,7 +498,7 @@ const addFactoryBotCommands: TerminalCommand[] = [
 		command: 'bundle add factory_bot --group "development, test"',
 		correct: false,
 		feedback:
-			'That is the plain Ruby variant. The Rails variant auto-discovers spec/factories/*.rb and integrates with the Rails test runner — you would have to wire all of that up by hand otherwise.',
+			'That is the plain Ruby variant. The Rails variant auto-discovers spec/factories/*.rb and integrates with the Rails test runner, you would have to wire all of that up by hand otherwise.',
 	},
 	{
 		id: 'correct',
@@ -597,7 +597,7 @@ end`,
 require_relative "../spec/support/factory_bot"`,
 		correct: false,
 		feedback:
-			'spec_helper.rb is the framework-only helper that loads before Rails is booted. Loading FactoryBot from there fails — the gem requires Rails to be loaded first.',
+			'spec_helper.rb is the framework-only helper that loads before Rails is booted. Loading FactoryBot from there fails, the gem requires Rails to be loaded first.',
 	},
 	{
 		id: 'correct',
@@ -762,7 +762,7 @@ bundler: command not found: rspec
 # spec/ directory: does not exist yet.
 # test/ ships from \`rails new\` but only contains
 # the empty Minitest scaffolding (test_helper.rb,
-# models/, controllers/, system/) — no real specs.
+# models/, controllers/, system/), no real specs.
 
 # When a teammate edits a controller or runs a
 # migration, nothing in the project asserts that
@@ -1191,7 +1191,7 @@ export function Level14Testing({ onComplete }: LevelComponentProps) {
 	// ── Reward-phase toast ──
 	// In reward, every regression scenario fires a toast describing the
 	// rspec catch. The clean-refactor scenario fires "All checks pass".
-	// The dashboard stays clean across all four scenarios — the spec runs
+	// The dashboard stays clean across all four scenarios, the spec runs
 	// before the change ever reaches a customer.
 	const lastResult = stressTest.results[stressTest.results.length - 1];
 

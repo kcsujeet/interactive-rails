@@ -310,7 +310,7 @@ class Api::ProductsController < ApplicationController
 end
 
 # Reuse from a CSV exporter (any caller can compose
-# the same query — controllers, scripts, later you'll
+# the same query, controllers, scripts, later you'll
 # see this called from a background job too):
 class CsvProductExport
   def initialize(filters)

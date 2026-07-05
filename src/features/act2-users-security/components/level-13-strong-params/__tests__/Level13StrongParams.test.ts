@@ -66,7 +66,7 @@ const FILTERING_OPTIONS: OptionShape[] = [
 		label: 'params[:product].to_unsafe_h',
 		correct: false,
 		feedback:
-			'That is what the controller already does. The Rails docs literally call it "an unsafe, unfiltered representation" — extra fields like featured and user_id pass straight through.',
+			'That is what the controller already does. The Rails docs literally call it "an unsafe, unfiltered representation", extra fields like featured and user_id pass straight through.',
 	},
 	{
 		id: 'permit-all',
@@ -88,7 +88,7 @@ const WHITELIST_OPTIONS: OptionShape[] = [
 		label: 'params.expect(product: [:name, :description, :price, :featured])',
 		correct: false,
 		feedback:
-			'featured is the admin-curated homepage flag. If users can set it through request params, they can self-promote — exactly the attack you just observed. Admin-only columns belong out of the whitelist.',
+			'featured is the admin-curated homepage flag. If users can set it through request params, they can self-promote, exactly the attack you just observed. Admin-only columns belong out of the whitelist.',
 	},
 	{
 		id: 'with-user-id',
@@ -147,7 +147,7 @@ const CORRECT_ANSWER_KEYWORDS: string[][] = [
 // Tests
 // ─────────────────────────────────────────────
 
-describe('Level 13: Strong Params — probe / discovery wiring', () => {
+describe('Level 13: Strong Params: probe / discovery wiring', () => {
 	test('every probe has a discovery mapping', () => {
 		for (const id of PROBE_IDS) {
 			expect(PROBE_DISCOVERY_MAP[id]).toBeDefined();
@@ -173,7 +173,7 @@ describe('Level 13: Strong Params — probe / discovery wiring', () => {
 	});
 });
 
-describe('Level 13: Strong Params — probe / scenario coverage', () => {
+describe('Level 13: Strong Params: probe / scenario coverage', () => {
 	test('every observe probe has a matching reward scenario', () => {
 		for (const probeId of PROBE_IDS) {
 			expect(SCENARIO_IDS.includes(probeId as never)).toBe(true);
@@ -204,7 +204,7 @@ describe('Level 13: Strong Params — probe / scenario coverage', () => {
 	});
 });
 
-describe('Level 13: Strong Params — build step quality', () => {
+describe('Level 13: Strong Params: build step quality', () => {
 	test('every step has exactly one correct option', () => {
 		for (const options of ALL_STEP_OPTIONS) {
 			const correctCount = options.filter((o) => o.correct).length;
@@ -251,7 +251,7 @@ describe('Level 13: Strong Params — build step quality', () => {
 	});
 });
 
-describe('Level 13: Strong Params — narrative consistency', () => {
+describe('Level 13: Strong Params: narrative consistency', () => {
 	test('the correct filtering answer uses params.expect, not require/permit', () => {
 		const correct = FILTERING_OPTIONS.find((o) => o.correct);
 		expect(correct?.label).toContain('params.expect');

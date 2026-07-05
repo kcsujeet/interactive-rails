@@ -9,7 +9,7 @@ export const level14Testing: Level = {
 	trigger: {
 		type: 'incident',
 		description:
-			"By Act 2 you've built strong params, authorization, and encryption. Each one prevents a real customer-facing failure. But nothing is automatically checking that those rules still hold after the next refactor. The next regression that ships will reach customers — a spam product pinned FEATURED on the homepage, a stranger deleting someone's listing, a column rename taking login down overnight — and you'll find out hours later, after the damage is done.",
+			"By Act 2 you've built strong params, authorization, and encryption. Each one prevents a real customer-facing failure. But nothing is automatically checking that those rules still hold after the next refactor. The next regression that ships will reach customers, a spam product pinned FEATURED on the homepage, a stranger deleting someone's listing, a column rename taking login down overnight, and you'll find out hours later, after the damage is done.",
 	},
 	startingPipeline: {
 		nodes: [
@@ -98,7 +98,7 @@ export const level14Testing: Level = {
 #    through the encrypted email column. Renaming
 #    that column breaks login for every customer.
 
-# Running \`bundle exec rspec\` does nothing — rspec
+# Running \`bundle exec rspec\` does nothing, rspec
 # is not even installed. No automated check runs
 # when a teammate edits the controller, a policy,
 # or a migration. The first signal that something

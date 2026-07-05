@@ -548,19 +548,19 @@ const ADD_DISCARD_COMMANDS = [
 
 const ADD_COLUMN_COMMANDS = [
 	{
-		id: 'correct',
-		label: 'rails g migration AddDiscardToUsers discarded_at:datetime:index',
-		command:
-			'rails g migration AddDiscardToUsers discarded_at:datetime:index && rails db:migrate',
-		correct: true,
-	},
-	{
 		id: 'wrong-no-index',
 		label: 'rails g migration AddDiscardToUsers discarded_at:datetime',
 		command: 'rails g migration AddDiscardToUsers discarded_at:datetime',
 		correct: false,
 		feedback:
 			'Without an index on discarded_at, every query filtering by discard status requires a full table scan. Add :index for performance.',
+	},
+	{
+		id: 'correct',
+		label: 'rails g migration AddDiscardToUsers discarded_at:datetime:index',
+		command:
+			'rails g migration AddDiscardToUsers discarded_at:datetime:index && rails db:migrate',
+		correct: true,
 	},
 	{
 		id: 'wrong-boolean',
@@ -656,14 +656,6 @@ end`,
 
 const ADD_PAPER_TRAIL_COMMANDS = [
 	{
-		id: 'correct',
-		label:
-			'bundle add paper_trail && rails generate paper_trail:install && rails db:migrate',
-		command:
-			'bundle add paper_trail && rails generate paper_trail:install && rails db:migrate',
-		correct: true,
-	},
-	{
 		id: 'wrong-audited',
 		label: 'bundle add audited',
 		command: 'bundle add audited',
@@ -678,6 +670,14 @@ const ADD_PAPER_TRAIL_COMMANDS = [
 		correct: false,
 		feedback:
 			'PaperTrail needs a versions table. After installing the gem, run the generator to create the migration, then migrate.',
+	},
+	{
+		id: 'correct',
+		label:
+			'bundle add paper_trail && rails generate paper_trail:install && rails db:migrate',
+		command:
+			'bundle add paper_trail && rails generate paper_trail:install && rails db:migrate',
+		correct: true,
 	},
 ];
 

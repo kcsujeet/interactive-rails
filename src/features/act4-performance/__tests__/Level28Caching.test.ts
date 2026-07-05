@@ -212,7 +212,7 @@ const dbPrepareCommands: TerminalCommand[] = [
 		command: 'bin/rails db:setup',
 		correct: false,
 		feedback:
-			'db:setup drops and recreates. db:prepare is safer: it creates only if the database does not exist yet.',
+			'db:setup drops and recreates the database, wiping existing data. You need the non-destructive task that only creates what is missing.',
 	},
 ];
 

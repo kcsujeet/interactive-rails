@@ -148,7 +148,7 @@ const ALL_STEPS: { name: string; options: OptionShape[] }[] = [
 // enough to be the actual answer giveaway, not the bare verb (which
 // shows up legitimately in conceptual prose).
 const CORRECT_ANSWER_KEYWORDS: Record<string, string[]> = {
-	// Correct: `Product.create(...)` — the giveaway is the literal call.
+	// Correct: `Product.create(...)`, the giveaway is the literal call.
 	create: ['Product.create', '.create('],
 	// Correct: `Product.find(1)`.
 	read: ['Product.find', '.find('],
@@ -167,7 +167,7 @@ const CORRECT_ANSWER_KEYWORDS: Record<string, string[]> = {
 // Tests
 // ─────────────────────────────────────────────
 
-describe('Level 5: CRUD Operations — build step quality', () => {
+describe('Level 5: CRUD Operations: build step quality', () => {
 	test('every step has exactly one correct option', () => {
 		for (const { name, options } of ALL_STEPS) {
 			const correctCount = options.filter((o) => o.correct).length;
@@ -225,7 +225,7 @@ describe('Level 5: CRUD Operations — build step quality', () => {
 	});
 });
 
-describe('Level 5: CRUD Operations — narrative consistency', () => {
+describe('Level 5: CRUD Operations: narrative consistency', () => {
 	test('create step uses Product.create (validates + persists)', () => {
 		const correct = CREATE_OPTIONS.find((o) => o.correct);
 		expect(correct?.label).toContain('Product.create(');

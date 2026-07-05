@@ -177,6 +177,29 @@ product.destroy          # => reviews go with it, no orphans left behind`,
 				url: 'https://guides.rubyonrails.org/association_basics.html',
 			},
 		],
+		homework: [
+			{
+				task: 'Generate a Review model that references Product, and migrate.',
+				commands: [
+					'bin/rails generate model Review product:references rating:integer body:text',
+					'bin/rails db:migrate',
+				],
+				verify:
+					'The reviews table in db/schema.rb has a product_id column with an index and a foreign key.',
+			},
+			{
+				task: 'Add `has_many :reviews, dependent: :destroy` to app/models/product.rb, then prove the cascade delete works in the console.',
+				commands: [
+					'bin/rails console',
+					'product = Product.create!(name: "Mug", price: 12.5)',
+					'product.reviews.create!(rating: 5, body: "Great")',
+					'product.destroy',
+					'Review.count',
+				],
+				verify:
+					'Review.count returns 0 after the product is destroyed: the review went with it.',
+			},
+		],
 	},
 	hint: {
 		delay: 25,

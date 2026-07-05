@@ -59,7 +59,7 @@ describe('Level 49 Deployment: shared pedagogy lints', () => {
 	}
 });
 
-// Level-specific assertions — counts, exact ids, theme-word matching that
+// Level-specific assertions, counts, exact ids, theme-word matching that
 // the shared helpers cannot know about.
 describe('Level 49 Deployment: level-specific shape', () => {
 	test('exactly 5 discoveries with unique labels', () => {

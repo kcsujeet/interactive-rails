@@ -201,7 +201,7 @@ const CONFIGURE_OPTIONS: StepOption[] = [
 		label: 'Pagy::DEFAULT[:items] = 25',
 		correct: false,
 		feedback:
-			'That is the old Pagy API (pre-v43). The current version uses OPTIONS and :limit instead of DEFAULT and :items.',
+			'That is the old Pagy API (pre-v43). Both the constant and the option key were renamed in the current version.',
 	},
 	{
 		id: 'correct',
@@ -216,7 +216,7 @@ const WIRE_INDEX_OPTIONS: StepOption[] = [
 		label: '@products = result.scope.page(params[:page]).per(25)',
 		correct: false,
 		feedback:
-			'That is Kaminari syntax. Pagy uses a different API: the pagy() method returns both metadata and the paginated collection.',
+			'That is Kaminari syntax, a different pagination gem. The gem you installed exposes a single call that returns the metadata object and the paginated records together.',
 	},
 	{
 		id: 'wrong-manual',

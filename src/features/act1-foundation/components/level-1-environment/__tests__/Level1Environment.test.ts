@@ -175,7 +175,7 @@ const CORRECT_ANSWER_KEYWORDS: Record<string, string[]> = {
 // Tests
 // ─────────────────────────────────────────────
 
-describe('Level 1: The Environment — build step quality', () => {
+describe('Level 1: The Environment: build step quality', () => {
 	test('every step has exactly one correct option', () => {
 		for (const { name, options } of ALL_STEPS) {
 			const correctCount = options.filter((o) => o.correct).length;
@@ -239,7 +239,7 @@ describe('Level 1: The Environment — build step quality', () => {
 	});
 });
 
-describe('Level 1: The Environment — narrative consistency', () => {
+describe('Level 1: The Environment: narrative consistency', () => {
 	test('install-mise correct answer uses brew (macOS package manager)', () => {
 		const correct = INSTALL_MISE_OPTIONS.find((o) => o.correct);
 		expect(correct?.label).toBe('brew install mise');

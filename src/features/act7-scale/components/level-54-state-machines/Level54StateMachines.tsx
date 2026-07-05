@@ -812,16 +812,16 @@ const DEFINE_TRANSITIONS_OPTIONS: StepOption[] = [
 
 const ADD_GUARDS_OPTIONS: StepOption[] = [
 	{
-		id: 'correct',
-		name: 'event :ship do\n  transitions from: :confirmed, to: :shipped,\n    guard: :tracking_number_present?\nend',
-		correct: true,
-	},
-	{
 		id: 'no-guard',
 		name: 'event :ship do\n  transitions from: :confirmed, to: :shipped\nend',
 		correct: false,
 		feedback:
 			'Without a guard, any confirmed order can be shipped even without a tracking number. Guards enforce business rules on transitions.',
+	},
+	{
+		id: 'correct',
+		name: 'event :ship do\n  transitions from: :confirmed, to: :shipped,\n    guard: :tracking_number_present?\nend',
+		correct: true,
 	},
 	{
 		id: 'validates',

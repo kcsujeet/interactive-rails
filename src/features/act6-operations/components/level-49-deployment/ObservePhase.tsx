@@ -83,7 +83,11 @@ export function ObservePhase({
 				/>
 				<div className="flex-1 flex flex-col bg-background overflow-auto">
 					<div className="flex-1 p-6 min-h-[280px]">
-						<PipelineFlow connections={observeConnections} stages={stages} />
+						<PipelineFlow
+							activeConnections={[]}
+							connections={observeConnections}
+							stages={stages}
+						/>
 					</div>
 					<div className="border-t border-border p-4">
 						<ProbeTerminal

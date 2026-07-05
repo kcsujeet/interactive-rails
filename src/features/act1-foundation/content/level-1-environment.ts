@@ -82,6 +82,28 @@ rails --version # => Rails 8.1.3`,
 				url: 'https://guides.rubyonrails.org/getting_started.html',
 			},
 		],
+		homework: [
+			{
+				task: 'Install mise on your own machine and confirm it responds.',
+				commands: ['brew install mise', 'mise --version'],
+				verify: 'mise prints its version number.',
+			},
+			{
+				task: 'Create a practice folder, pin Ruby to it, and confirm the pinned version is the one your shell now uses.',
+				commands: [
+					'mkdir rails-practice && cd rails-practice',
+					'mise use ruby@3.4',
+					'ruby -v',
+				],
+				verify:
+					'ruby -v prints the 3.4.x version you just pinned, and a mise config file appeared in the folder.',
+			},
+			{
+				task: 'Install Rails into that Ruby.',
+				commands: ['gem install rails', 'rails -v'],
+				verify: 'rails -v prints a Rails 8 version.',
+			},
+		],
 	},
 	hint: {
 		delay: 30,

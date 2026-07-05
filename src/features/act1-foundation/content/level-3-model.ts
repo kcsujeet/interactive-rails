@@ -91,6 +91,22 @@ end`,
 				url: 'https://guides.rubyonrails.org/active_record_migrations.html',
 			},
 		],
+		homework: [
+			{
+				task: 'Generate the Product model in your store_api app, exactly like you did in the game.',
+				commands: [
+					'bin/rails generate model Product name:string description:text price:decimal',
+				],
+				verify:
+					'A migration file appears under db/migrate/ and app/models/product.rb exists.',
+			},
+			{
+				task: 'Run the migration and inspect what it did to the schema.',
+				commands: ['bin/rails db:migrate', 'cat db/schema.rb'],
+				verify:
+					'db/schema.rb now defines a products table with your three columns plus timestamps.',
+			},
+		],
 	},
 	hint: {
 		delay: 20,

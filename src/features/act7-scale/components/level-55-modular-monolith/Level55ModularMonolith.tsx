@@ -939,7 +939,7 @@ const initPackwerkCommands: TerminalCommand[] = [
 		command: 'rails generate packwerk:install',
 		correct: false,
 		feedback:
-			'Packwerk uses its own binary, not Rails generators. The init command creates the root packwerk.yml configuration.',
+			'Packwerk does not hook into Rails generators. It ships its own tooling for creating the root configuration.',
 	},
 	{
 		id: 'correct',
@@ -953,7 +953,7 @@ const initPackwerkCommands: TerminalCommand[] = [
 		command: 'rake packwerk:init',
 		correct: false,
 		feedback:
-			'Packwerk provides its own CLI binary, not Rake tasks. Use bin/packwerk for all Packwerk commands.',
+			'Packwerk does not register Rake tasks. Its commands run through a dedicated executable instead.',
 	},
 ];
 

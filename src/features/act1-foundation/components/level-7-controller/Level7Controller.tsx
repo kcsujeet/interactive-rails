@@ -78,6 +78,7 @@ const DISCOVERY_DEFS: DiscoveryDef[] = [
 	{ id: 'no-controller', label: "Controller class doesn't exist" },
 	{ id: 'get-fails', label: 'GET requests fail at controller' },
 	{ id: 'post-fails', label: 'Write requests also fail' },
+	{ id: 'all-actions-dead', label: 'All five REST actions are dead' },
 ];
 
 // ──────────────────────────────────────────────
@@ -164,9 +165,12 @@ const PROBES: ProbeConfig[] = [
 
 // Map probe IDs to discovery IDs they trigger
 const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
-	'get-index': ['routes-work', 'get-fails'],
-	'post-create': ['routes-work', 'post-fails'],
-	'delete-destroy': ['routes-work', 'post-fails'],
+	// 1:1 with DISCOVERY_DEFS probe-sourced entries: each probe unlocks
+	// exactly one discovery, so the gate cannot clear without every probe.
+	// (routes-work and no-controller come from stage clicks, not probes.)
+	'get-index': ['get-fails'],
+	'post-create': ['post-fails'],
+	'delete-destroy': ['all-actions-dead'],
 };
 
 // Map probe IDs to pipeline node display during observe

@@ -103,6 +103,20 @@ curl -I http://localhost:3000/up
 				url: 'https://guides.rubyonrails.org/8_0_release_notes.html',
 			},
 		],
+		homework: [
+			{
+				task: 'Inside your rails-practice folder, create a real API-only Rails app.',
+				commands: ['rails new store_api --api', 'cd store_api'],
+				verify:
+					'A store_api directory exists with app/, config/, db/, and a Gemfile inside.',
+			},
+			{
+				task: 'Boot the server and see the app respond, then stop it.',
+				commands: ['bin/rails server'],
+				verify:
+					'http://localhost:3000 shows the Rails welcome screen. Ctrl+C stops the server.',
+			},
+		],
 	},
 	hint: {
 		delay: 30,

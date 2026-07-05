@@ -65,7 +65,7 @@ export function ProbeTerminal({
 	const scrollRef = useRef<HTMLDivElement>(null);
 
 	// Auto-scroll to bottom whenever new output appears. The deps `history`
-	// and `visibleLines` aren't read inside the effect — they're scroll
+	// and `visibleLines` aren't read inside the effect, they're scroll
 	// triggers: every time history grows (new probe response) or visibleLines
 	// changes (typed-out animation step), this re-runs and scrolls to keep
 	// up with the new line. Without these deps the effect runs only on mount.

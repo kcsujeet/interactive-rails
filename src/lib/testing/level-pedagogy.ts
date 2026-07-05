@@ -54,7 +54,7 @@ export function expectAllDiscoveriesRequired(opts: {
 }
 
 /**
- * `PROBE_DISCOVERY_MAP` must be strictly 1:1 — each probe unlocks exactly
+ * `PROBE_DISCOVERY_MAP` must be strictly 1:1, each probe unlocks exactly
  * one distinct discovery, and each discovery is unlocked by exactly one
  * probe. Catches the silent gating bug where a probe maps to no discovery
  * (player can never advance) or duplicate discoveries (player can advance
@@ -131,7 +131,7 @@ export function expectProbeDiscoveryMapOneToOne(opts: {
  * `story` field" (Dialog content for the info icon).
  *
  * Each bullet must be a real sentence, not a one-word placeholder. The
- * 20-character minimum below is heuristic — it catches the common "TODO"
+ * 20-character minimum below is heuristic, it catches the common "TODO"
  * / "fix this" placeholders without rejecting legitimate short bullets.
  */
 export function expectStoriesPresent(opts: {

@@ -47,7 +47,7 @@ const { title, fullscreen = false } = Astro.props;
     /* Make this a flex container so the LevelLayout's <Group> child gets
        a definite height to inherit. Without display:flex+flex-direction,
        the child resolves to natural content height and percentage-based
-       sizing (h-full / flex-1 / h-[N%]) inside the level breaks silently —
+       sizing (h-full / flex-1 / h-[N%]) inside the level breaks silently,
        which is what caused L15's terminal to be pushed off-screen. */
     display: flex;
     flex-direction: column;

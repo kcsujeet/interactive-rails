@@ -583,7 +583,7 @@ const REWARD_CONNECTIONS: PipelineConnection[] = [
 // flash a single dot pulse when the probe / scenario fires.
 // Observe: every probe shows the request reaching the model with no
 // policy gate enforced (the policy stage exists in the diagram but is
-// "missing" — the request flows past it to the model anyway).
+// "missing", the request flows past it to the model anyway).
 const PROBE_OBSERVE_CONNECTIONS = [
 	'request-controller',
 	'controller-policy',

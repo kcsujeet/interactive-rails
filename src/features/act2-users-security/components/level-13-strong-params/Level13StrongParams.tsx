@@ -229,7 +229,7 @@ const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 		stageId: 'controller',
 		title: 'ProductsController (uses to_unsafe_h)',
 		description:
-			'The controller calls .to_unsafe_h on params[:product]. Per Rails docs, to_unsafe_h returns "an unsafe, unfiltered representation of the parameters" — every key the attacker sent reaches the model. The controller is doing zero filtering.',
+			'The controller calls .to_unsafe_h on params[:product]. Per Rails docs, to_unsafe_h returns "an unsafe, unfiltered representation of the parameters", every key the attacker sent reaches the model. The controller is doing zero filtering.',
 		code: `def create
   product = Current.user.products.new(params[:product].to_unsafe_h)
   authorize product
@@ -270,7 +270,7 @@ params.expect(product: [:name, :description, :price])
 		stageId: 'model',
 		title: 'Product Model',
 		description:
-			"The model has a featured boolean column (admin-curated homepage flag). Validations cover blank/malformed values on user-settable fields, but Active Record will mass-assign ANY column the controller hands it. The model cannot tell which fields are user-settable and which are admin-only — that is the controller's job.",
+			"The model has a featured boolean column (admin-curated homepage flag). Validations cover blank/malformed values on user-settable fields, but Active Record will mass-assign ANY column the controller hands it. The model cannot tell which fields are user-settable and which are admin-only, that is the controller's job.",
 	},
 };
 
@@ -362,14 +362,14 @@ interface StepOption {
 // Step 0: Replace the to_unsafe_h call with a real filter.
 // Rails 8's production-safe default is `params.expect`. The naive
 // `to_unsafe_h` (the status quo from L7-L12) and `permit!` are both
-// wrong-option foils — neither filters anything.
+// wrong-option foils, neither filters anything.
 const FILTERING_OPTIONS: StepOption[] = [
 	{
 		id: 'unsafe-h',
 		label: 'params[:product].to_unsafe_h',
 		correct: false,
 		feedback:
-			'That is what the controller already does. The Rails docs literally call it "an unsafe, unfiltered representation" — extra fields like featured and user_id pass straight through.',
+			'That is what the controller already does. The Rails docs literally call it "an unsafe, unfiltered representation", extra fields like featured and user_id pass straight through.',
 	},
 	{
 		id: 'permit-all',
@@ -392,7 +392,7 @@ const WHITELIST_OPTIONS: StepOption[] = [
 		label: 'params.expect(product: [:name, :description, :price, :featured])',
 		correct: false,
 		feedback:
-			'featured is the admin-curated homepage flag. If users can set it through request params, they can self-promote — exactly the attack you just observed. Admin-only columns belong out of the whitelist.',
+			'featured is the admin-curated homepage flag. If users can set it through request params, they can self-promote, exactly the attack you just observed. Admin-only columns belong out of the whitelist.',
 	},
 	{
 		id: 'with-user-id',

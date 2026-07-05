@@ -461,7 +461,7 @@ describe('Level 15: Callbacks & Normalizations', () => {
 	describe('Player-visible vocabulary (cumulative-pattern axis)', () => {
 		// Every player-visible string must:
 		// 1. Use email_address, never `email:` (the User column was renamed at L9).
-		// 2. Avoid future-axis words (Deploy, CI, staging) — those belong to Acts 7-8.
+		// 2. Avoid future-axis words (Deploy, CI, staging), those belong to Acts 7-8.
 		// 3. Avoid the old zone-lane labels (Incoming Request, Normalizes (Product),
 		//    After Save, Product Model, "(skipped)") -- those were the data-pipeline
 		//    lens that the customer-impact dashboard redesign replaced.

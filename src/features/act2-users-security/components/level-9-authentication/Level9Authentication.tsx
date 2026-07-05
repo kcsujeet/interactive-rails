@@ -323,7 +323,7 @@ const generateAuthCommands: TerminalCommand[] = [
 		command: 'rails generate devise:install',
 		correct: false,
 		feedback:
-			'Devise is a third-party gem. Rails 8 ships its own authentication generator built-in.',
+			'Devise is a third-party gem. Rails 8 ships this capability built-in; no external engine needed.',
 	},
 	{
 		id: 'correct',
@@ -720,7 +720,7 @@ end`,
 	// the player can see the full protection chain end-to-end:
 	//   - Authentication concern declares `before_action :require_authentication`
 	//     in its `included` block (default-block).
-	//   - ApplicationController `include Authentication` — applies that
+	//   - ApplicationController `include Authentication`, applies that
 	//     before_action to every controller that inherits from it.
 	//   - Api::ProductsController inherits from ApplicationController, so
 	//     every action requires a valid bearer token automatically. No auth

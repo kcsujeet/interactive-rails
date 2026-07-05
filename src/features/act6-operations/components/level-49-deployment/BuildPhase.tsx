@@ -122,7 +122,11 @@ export function BuildPhase({
 				<div className="flex-1 relative bg-background p-6 overflow-auto">
 					<div className="max-w-4xl mx-auto space-y-6">
 						<div className="rounded-lg border border-border bg-card/50 p-4 min-h-52">
-							<PipelineFlow connections={buildConnections} stages={stages} />
+							<PipelineFlow
+								activeConnections={[]}
+								connections={buildConnections}
+								stages={stages}
+							/>
 						</div>
 					</div>
 					<div className="max-w-2xl mx-auto space-y-6 mt-6">

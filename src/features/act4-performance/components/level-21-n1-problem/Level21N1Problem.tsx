@@ -373,7 +373,7 @@ const addProsopiteCommands: TerminalCommand[] = [
 		command: 'bundle add prosopite',
 		correct: false,
 		feedback:
-			'Prosopite needs pg_query for SQL fingerprinting on PostgreSQL. Without it, Prosopite cannot group similar queries to detect N+1 patterns.',
+			'Prosopite alone cannot fingerprint SQL on PostgreSQL. It needs a companion SQL parser gem to group similar queries and detect N+1 patterns.',
 	},
 	{
 		id: 'correct',

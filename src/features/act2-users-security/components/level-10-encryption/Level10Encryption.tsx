@@ -831,7 +831,7 @@ end`,
 				},
 			];
 		}
-		// All steps complete: show the final state — model with all
+		// All steps complete: show the final state, model with all
 		// encrypts declarations matching myapp at the level-10 tag.
 		return [
 			{
@@ -847,7 +847,7 @@ end`,
 		];
 	}
 
-	// reward — matches real myapp at the level-10 git tag.
+	// reward, matches real myapp at the level-10 git tag.
 	// Service-object lookup (FindUser) and email validators are deferred to
 	// later levels (L16 Service Objects, L18 Validation Contracts); showing
 	// them here is premature pedagogy. Active Storage (has_one_attached) is
@@ -898,7 +898,7 @@ User.find_by(email_address: "joe@example.com")
 # does a normal SQL equality match against the stored ciphertext.
 
 # Non-deterministic encryption (address): can decrypt on read but
-# cannot find_by — every save produces a different ciphertext.
+# cannot find_by, every save produces a different ciphertext.
 User.find_by(address: "123 Main St")
 # => returns nil even if a user has that address.`,
 		},

@@ -1141,7 +1141,7 @@ end`,
 	if (phase === 'build') {
 		const files: { filename: string; language: string; code: string }[] = [];
 
-		// Step 0 done: routes wrapped in v1 (refactor — same behaviour, nested
+		// Step 0 done: routes wrapped in v1 (refactor, same behaviour, nested
 		// namespace). Controller file moved + class renamed.
 		if (completedStep >= 0 && completedStep < 1) {
 			files.push({

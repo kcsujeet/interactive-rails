@@ -72,7 +72,7 @@ const PROBE_STORIES: Record<string, string[]> = {
 
 // Probe -> discovery (must be 1:1 per pedagogy.md).
 // Note: `no-auth-layer` is unlocked by clicking the auth stage inspector,
-// not by a probe — so it is intentionally NOT in this map. The 1:1
+// not by a probe, so it is intentionally NOT in this map. The 1:1
 // invariant we test is over the probes, not over all discoveries.
 const PROBE_DISCOVERY_MAP: Record<string, string> = {
 	'delete-no-token': 'anonymous-delete',
@@ -133,7 +133,7 @@ const GENERATE_AUTH_OPTIONS: OptionShape[] = [
 		label: 'rails generate devise:install',
 		correct: false,
 		feedback:
-			'Devise is a third-party gem. Rails 8 ships its own authentication generator built-in.',
+			'Devise is a third-party gem. Rails 8 ships this capability built-in; no external engine needed.',
 	},
 	{
 		id: 'correct',
@@ -266,7 +266,7 @@ const CORRECT_ANSWER_KEYWORDS: Record<string, string[]> = {
 // Tests
 // ─────────────────────────────────────────────
 
-describe('Level 9: Authentication — discovery / probe wiring', () => {
+describe('Level 9: Authentication: discovery / probe wiring', () => {
 	test('every probe maps to a known discovery', () => {
 		for (const probeId of PROBE_IDS) {
 			const discoveryId = PROBE_DISCOVERY_MAP[probeId];
@@ -316,7 +316,7 @@ describe('Level 9: Authentication — discovery / probe wiring', () => {
 	});
 });
 
-describe('Level 9: Authentication — probe / scenario coverage', () => {
+describe('Level 9: Authentication: probe / scenario coverage', () => {
 	test('every observe probe id appears as a reward scenario id', () => {
 		for (const probeId of PROBE_IDS) {
 			expect(
@@ -362,7 +362,7 @@ describe('Level 9: Authentication — probe / scenario coverage', () => {
 	});
 });
 
-describe('Level 9: Authentication — build step quality', () => {
+describe('Level 9: Authentication: build step quality', () => {
 	test('every step has exactly one correct option', () => {
 		for (const { name, options } of ALL_STEPS) {
 			const correctCount = options.filter((o) => o.correct).length;
@@ -420,7 +420,7 @@ describe('Level 9: Authentication — build step quality', () => {
 	});
 });
 
-describe('Level 9: Authentication — narrative consistency', () => {
+describe('Level 9: Authentication: narrative consistency', () => {
 	test('generate-auth uses the Rails 8 built-in generator', () => {
 		const correct = GENERATE_AUTH_OPTIONS.find((o) => o.correct);
 		expect(correct?.label).toBe('bin/rails generate authentication');

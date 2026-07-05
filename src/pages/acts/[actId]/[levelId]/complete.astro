@@ -11,6 +11,7 @@ import {
 	ArrowRight,
 	AlertTriangle,
 	BookOpen,
+	TerminalSquare,
 } from 'lucide-react';
 
 const { actId, levelId } = Astro.params;
@@ -103,6 +104,43 @@ const scoreMessage =
               <CodeBlock client:load code={learningContent.railsCodeExample} language="ruby" />
             </div>
           </div>
+
+          {/* Homework: do it for real */}
+          {learningContent.homework && learningContent.homework.length > 0 && (
+            <div>
+              <h3 class="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                <TerminalSquare className="w-4 h-4 text-primary" />
+                Now do it for real
+              </h3>
+              <p class="text-sm text-muted-foreground mb-4">
+                Open a real terminal in your companion Rails project and work
+                through these. The game taught the concept; this is where it
+                becomes muscle memory.
+              </p>
+              <div class="space-y-4">
+                {learningContent.homework.map((exercise, index) => (
+                  <div class="bg-card rounded-xl border border-border p-5">
+                    <div class="flex items-start gap-3 mb-3">
+                      <span class="text-primary font-bold text-sm mt-0.5">{index + 1}.</span>
+                      <p class="text-sm text-foreground">{exercise.task}</p>
+                    </div>
+                    {exercise.commands && exercise.commands.length > 0 && (
+                      <div class="rounded-lg border border-border overflow-hidden mb-3">
+                        <CodeBlock
+                          client:load
+                          code={exercise.commands.join('\n')}
+                          language="bash"
+                        />
+                      </div>
+                    )}
+                    <p class="text-xs text-muted-foreground">
+                      <span class="font-semibold">Verify:</span> {exercise.verify}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Common Mistakes */}
           {learningContent.commonMistakes.length > 0 && (

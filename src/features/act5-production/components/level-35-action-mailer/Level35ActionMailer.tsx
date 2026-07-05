@@ -570,6 +570,15 @@ const REWARD_CONNECTIONS: PipelineConnection[] = [
 	{ from: 'mailer', to: 'response', dots: 'clean' },
 ];
 
+// Every probe/scenario is a request traversing the full pipeline, so a fire
+// activates every edge as a single-pass burst. Dormant until the first fire.
+const OBSERVE_CONNECTION_IDS = OBSERVE_CONNECTIONS.map(
+	(c) => `${c.from}-${c.to}`,
+);
+const REWARD_CONNECTION_IDS = REWARD_CONNECTIONS.map(
+	(c) => `${c.from}-${c.to}`,
+);
+
 // ──────────────────────────────────────────────
 // Code preview helper
 // ──────────────────────────────────────────────
@@ -755,6 +764,7 @@ export function Level35ActionMailer({ onComplete }: LevelComponentProps) {
 		new Set(),
 	);
 	const [lastProbeId, setLastProbeId] = useState<string | null>(null);
+	const [probeTick, setProbeTick] = useState(0);
 
 	// ── Build observe stages dynamically (tracks inspected + last probe) ──
 	const probeDisplay = lastProbeId ? PROBE_PIPELINE_MAP[lastProbeId] : null;
@@ -863,6 +873,7 @@ export function Level35ActionMailer({ onComplete }: LevelComponentProps) {
 	const handleProbe = useCallback(
 		(probeId: string) => {
 			setLastProbeId(probeId);
+			setProbeTick((tick) => tick + 1);
 			const discoveryId = PROBE_DISCOVERY_MAP[probeId];
 			if (discoveryId) {
 				discoveryGating.discover(discoveryId);
@@ -1021,6 +1032,8 @@ export function Level35ActionMailer({ onComplete }: LevelComponentProps) {
 						<div className="flex-1 flex flex-col">
 							<div className="flex-1 relative">
 								<PipelineFlow
+									activeConnections={lastProbeId ? OBSERVE_CONNECTION_IDS : []}
+									animationTick={probeTick}
 									connections={OBSERVE_CONNECTIONS}
 									onNodeClick={handleStageClick}
 									stages={observeStages}
@@ -1166,6 +1179,10 @@ export function Level35ActionMailer({ onComplete }: LevelComponentProps) {
 						<div className="flex-1 flex flex-col">
 							<div className="flex-1 relative">
 								<PipelineFlow
+									activeConnections={
+										stressTest.results.length > 0 ? REWARD_CONNECTION_IDS : []
+									}
+									animationTick={stressTest.results.length}
 									connections={REWARD_CONNECTIONS}
 									stages={rewardStages}
 								/>

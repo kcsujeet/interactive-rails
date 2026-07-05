@@ -216,6 +216,22 @@ export interface SuccessCondition {
 	maxLines?: number;
 }
 
+/**
+ * A real-terminal exercise the player performs OUTSIDE the game, in their
+ * companion Rails project. The game teaches recognition and recall; the
+ * homework converts it into hands-on practice where expertise actually
+ * forms. Commands must be verified against canonical docs before authoring
+ * (per the project's doc-verification rule).
+ */
+export interface HomeworkExercise {
+	/** Plain-English instruction: what to do and why */
+	task: string;
+	/** Terminal commands or console lines to run, in order */
+	commands?: string[];
+	/** What the player should observe when it worked */
+	verify: string;
+}
+
 export interface LearningContent {
 	title: string;
 	/** Markdown bullet list of concrete learning outcomes */
@@ -230,6 +246,8 @@ export interface LearningContent {
 	whenToUse: string;
 	/** Links to further reading */
 	furtherReading: Array<{ title: string; url: string }>;
+	/** "Now do it for real" exercises in the companion Rails project */
+	homework?: HomeworkExercise[];
 }
 
 // ============================================

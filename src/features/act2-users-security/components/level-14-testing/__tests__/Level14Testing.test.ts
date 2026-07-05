@@ -167,7 +167,7 @@ const SCENARIO_RESPONSE_LINES_NONEMPTY: Record<string, boolean> = {
 	'helper-rename-clean-refactor': true,
 };
 
-// Sampled lines from the rspec output animations — used to assert that the
+// Sampled lines from the rspec output animations, used to assert that the
 // reward terminal animates real rspec output (not generic placeholders).
 const SCENARIO_RESPONSE_KEY_LINES: Record<string, string[]> = {
 	'spam-product-on-homepage': [
@@ -205,7 +205,7 @@ const ADD_RSPEC_OPTIONS: OptionShape[] = [
 		label: 'bundle add rspec-rails',
 		correct: false,
 		feedback:
-			'bundle add without a group puts the gem in the default group. That ships it to production, where you never run specs — wasted memory and a larger Gemfile.lock for nothing. Pick the option that scopes the gem to the groups where it is actually used.',
+			'bundle add without a group puts the gem in the default group. That ships it to production, where you never run specs, wasted memory and a larger Gemfile.lock for nothing. Pick the option that scopes the gem to the groups where it is actually used.',
 	},
 	{
 		id: 'wrong-test-only',
@@ -235,7 +235,7 @@ const ADD_FACTORY_BOT_OPTIONS: OptionShape[] = [
 		label: 'bundle add factory_bot --group "development, test"',
 		correct: false,
 		feedback:
-			'That is the plain Ruby variant. The Rails variant auto-discovers spec/factories/*.rb and integrates with the Rails test runner — you would have to wire all of that up by hand otherwise.',
+			'That is the plain Ruby variant. The Rails variant auto-discovers spec/factories/*.rb and integrates with the Rails test runner, you would have to wire all of that up by hand otherwise.',
 	},
 	{
 		id: 'correct',
@@ -285,7 +285,7 @@ const UNCOMMENT_GLOB_OPTIONS: OptionShape[] = [
 			'# spec/spec_helper.rb\nrequire_relative "../spec/support/factory_bot"',
 		correct: false,
 		feedback:
-			'spec_helper.rb is the framework-only helper that loads before Rails is booted. Loading FactoryBot from there fails — the gem requires Rails to be loaded first.',
+			'spec_helper.rb is the framework-only helper that loads before Rails is booted. Loading FactoryBot from there fails, the gem requires Rails to be loaded first.',
 	},
 	{
 		id: 'correct',
@@ -371,7 +371,7 @@ const CORRECT_ANSWER_KEYWORDS: string[][] = [
 // Tests
 // ─────────────────────────────────────────────
 
-describe('Level 14: Testing — probe / discovery wiring', () => {
+describe('Level 14: Testing: probe / discovery wiring', () => {
 	test('every probe has a discovery mapping', () => {
 		for (const id of PROBE_IDS) {
 			expect(PROBE_DISCOVERY_MAP[id]).toBeDefined();
@@ -404,7 +404,7 @@ describe('Level 14: Testing — probe / discovery wiring', () => {
 	});
 });
 
-describe('Level 14: Testing — probe damage payloads', () => {
+describe('Level 14: Testing: probe damage payloads', () => {
 	test('every probe has a damage payload', () => {
 		for (const id of PROBE_IDS) {
 			expect(PROBE_DAMAGE[id]).toBeDefined();
@@ -467,7 +467,7 @@ describe('Level 14: Testing — probe damage payloads', () => {
 	});
 });
 
-describe('Level 14: Testing — probe response lines (observe terminal)', () => {
+describe('Level 14: Testing: probe response lines (observe terminal)', () => {
 	test('every probe has non-empty responseLines', () => {
 		for (const id of PROBE_IDS) {
 			expect(PROBE_RESPONSE_LINES[id]).toBeDefined();
@@ -484,7 +484,7 @@ describe('Level 14: Testing — probe response lines (observe terminal)', () => 
 	});
 });
 
-describe('Level 14: Testing — probe / scenario coverage', () => {
+describe('Level 14: Testing: probe / scenario coverage', () => {
 	test('every observe probe has a matching reward scenario', () => {
 		for (const probeId of PROBE_IDS) {
 			expect(SCENARIO_IDS.includes(probeId as never)).toBe(true);
@@ -519,7 +519,7 @@ describe('Level 14: Testing — probe / scenario coverage', () => {
 	});
 });
 
-describe('Level 14: Testing — scenario response lines (rspec terminal)', () => {
+describe('Level 14: Testing: scenario response lines (rspec terminal)', () => {
 	test('every scenario has non-empty responseLines', () => {
 		for (const id of SCENARIO_IDS) {
 			expect(SCENARIO_RESPONSE_LINES_NONEMPTY[id]).toBe(true);
@@ -559,7 +559,7 @@ describe('Level 14: Testing — scenario response lines (rspec terminal)', () =>
 	});
 });
 
-describe('Level 14: Testing — build step quality', () => {
+describe('Level 14: Testing: build step quality', () => {
 	test('every step has exactly one correct option', () => {
 		for (const options of ALL_STEP_OPTIONS) {
 			const correctCount = options.filter((o) => o.correct).length;
@@ -606,7 +606,7 @@ describe('Level 14: Testing — build step quality', () => {
 	});
 });
 
-describe('Level 14: Testing — narrative consistency with myapp level-14', () => {
+describe('Level 14: Testing: narrative consistency with myapp level-14', () => {
 	test('rspec gem add correct command uses --group "development, test"', () => {
 		const correct = ADD_RSPEC_OPTIONS.find((o) => o.correct);
 		expect(correct?.label).toContain('rspec-rails');
@@ -656,7 +656,7 @@ describe('Level 14: Testing — narrative consistency with myapp level-14', () =
 	});
 });
 
-describe('Level 14: Testing — visualization vocabulary (curriculum state)', () => {
+describe('Level 14: Testing: visualization vocabulary (curriculum state)', () => {
 	test('every probe label uses customer-impact language, not editor / runner / deploy / CI', () => {
 		for (const probeId of PROBE_IDS) {
 			const label = PROBE_LABELS[probeId];

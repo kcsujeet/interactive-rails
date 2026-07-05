@@ -98,6 +98,22 @@ Returning a silently-invalid record is the source of "the record did not save an
 				url: 'https://guides.rubyonrails.org/active_record_querying.html',
 			},
 		],
+		homework: [
+			{
+				task: 'Run the full create-read-update-destroy cycle by hand in the Rails console.',
+				commands: [
+					'bin/rails console',
+					'p = Product.create!(name: "Desk", price: 199.0)',
+					'Product.count',
+					'p.update!(price: 149.0)',
+					'p.reload.price',
+					'p.destroy!',
+					'Product.count',
+				],
+				verify:
+					'The count goes up after create and back down after destroy, and reload shows the updated price in between.',
+			},
+		],
 	},
 	hint: {
 		delay: 15,

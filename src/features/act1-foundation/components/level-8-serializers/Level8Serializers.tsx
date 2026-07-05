@@ -240,7 +240,7 @@ end`,
 // Pedagogy: the serializer does not exist yet in the observe phase, so it is
 // not a node, not clickable, and not a discovery source. Each existing-node
 // click corresponds to one probe-driven discovery already, so this map is
-// currently empty — the 3 discoveries are unlocked by the 3 probes.
+// currently empty, the 3 discoveries are unlocked by the 3 probes.
 const STAGE_DISCOVERY_MAP: Record<string, string> = {};
 
 // ──────────────────────────────────────────────
@@ -817,7 +817,7 @@ export function Level8Serializers({ onComplete }: LevelComponentProps) {
 	);
 	const [lastProbeId, setLastProbeId] = useState<string | null>(null);
 	// Tick increments on every probe / scenario fire. We use it to gate which
-	// edges count as 'active' for the next render only — combined with the
+	// edges count as 'active' for the next render only, combined with the
 	// dormant-edges-default rule (pass `[]` when no probe fired), this keeps
 	// edges still by default and produces a single-pass burst on each fire.
 	const [animationTick, setAnimationTick] = useState(0);

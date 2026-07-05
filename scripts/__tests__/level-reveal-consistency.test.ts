@@ -411,15 +411,10 @@ describe('static: findPlaceholderViolations helper', () => {
  * This test scans every level component file and asserts that any
  * `<PipelineFlow ...>` JSX includes an `activeConnections=` prop.
  */
-const KNOWN_AUTO_ANIMATING_EDGES = new Set<string>([
-	'src/features/act3-clean-architecture/components/level-20-error-handling/Level20ErrorHandling.tsx',
-	'src/features/act4-performance/components/level-29-http-caching/Level29HTTPCaching.tsx',
-	'src/features/act5-production/components/level-35-action-mailer/Level35ActionMailer.tsx',
-	'src/features/act5-production/components/level-36-background-jobs/Level36BackgroundJobs.tsx',
-	'src/features/act6-operations/components/level-49-deployment/BuildPhase.tsx',
-	'src/features/act6-operations/components/level-49-deployment/ObservePhase.tsx',
-	'src/features/act6-operations/components/level-49-deployment/RewardPhase.tsx',
-]);
+// Baseline emptied 2026-07-05: all seven known offenders were wired with
+// fire-driven activeConnections (L20, L29, L35, L36) or explicit dormant
+// arrays (L49 phases). New offenders fail immediately.
+const KNOWN_AUTO_ANIMATING_EDGES = new Set<string>([]);
 
 /**
  * Returns true if the source contains a `<PipelineFlow ...>` JSX render

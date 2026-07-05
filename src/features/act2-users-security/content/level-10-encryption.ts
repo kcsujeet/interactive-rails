@@ -10,7 +10,7 @@ export const level10Encryption: Level = {
 	trigger: {
 		type: 'security_audit',
 		description:
-			'Pre-launch security review: every PII column on `users` (email_address, phone, address) is stored as plaintext. Anyone with DB access — a leaked backup, a misconfigured staging environment, a SQL injection — sees every customer. Encrypt at rest before the first signup.',
+			'Pre-launch security review: every PII column on `users` (email_address, phone, address) is stored as plaintext. Anyone with DB access, a leaked backup, a misconfigured staging environment, a SQL injection, sees every customer. Encrypt at rest before the first signup.',
 	},
 	startingPipeline: standardPipeline({ modelLabel: 'User' }),
 	problem: {

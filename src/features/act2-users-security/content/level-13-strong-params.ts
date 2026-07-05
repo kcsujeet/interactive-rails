@@ -16,7 +16,7 @@ export const level13StrongParams: Level = {
 	},
 	problem: {
 		observation:
-			'create and update both call params[:product].to_unsafe_h. Per Rails docs, that returns "an unsafe, unfiltered representation" of the parameters: every key the client sends reaches the model. The featured column was meant to be admin-only, but to_unsafe_h has no concept of "admin-only" — it lets any field through.',
+			'create and update both call params[:product].to_unsafe_h. Per Rails docs, that returns "an unsafe, unfiltered representation" of the parameters: every key the client sends reaches the model. The featured column was meant to be admin-only, but to_unsafe_h has no concept of "admin-only", it lets any field through.',
 		rootCause:
 			'There is no parameter filter on the controller. The naive shortcut from L7 (to_unsafe_h) bypasses Rails strong-params machinery entirely. Every column on Product is mass-assignable from request params, including admin-only fields (featured) and server-managed associations (user_id).',
 		codeExample: `# Current state: to_unsafe_h bypasses every check
@@ -69,7 +69,7 @@ end
 
 **How Rails 8 protects you:**
 - ActionController::Parameters wraps every request body.
-- Calling .to_h, .new(params[:thing]), or update(params[:thing]) directly raises ActiveModel::ForbiddenAttributesError — Rails forces you to declare what is allowed.
+- Calling .to_h, .new(params[:thing]), or update(params[:thing]) directly raises ActiveModel::ForbiddenAttributesError, Rails forces you to declare what is allowed.
 - to_unsafe_h is the explicit escape hatch: it bypasses the protection and returns the raw hash. Per docs, "an unsafe, unfiltered representation of the parameters."
 - params.expect is the production-safe filter: it declares which keys reach the model and drops everything else.
 
@@ -83,7 +83,7 @@ end
 - Include only fields the user is meant to edit (name, description, price).
 - Never include admin-only columns (featured, is_admin, role).
 - Never include server-managed fields (id, created_at, updated_at).
-- Never include foreign keys to other resources (user_id) — set those through associations like Current.user.products.create.
+- Never include foreign keys to other resources (user_id), set those through associations like Current.user.products.create.
 
 **The audit habit:**
 For every controller, ask: "What columns exist on this model? Which should an external client be allowed to set directly?" The answer is the whitelist; everything else is excluded.`,
@@ -149,9 +149,9 @@ class Api::ProductsController < ApplicationController
   # Wrong shape (e.g., product=hacked) -> ParameterMissing -> 400.
 end`,
 		commonMistakes: [
-			'Calling to_unsafe_h or permit! to "make the error go away" — both bypass the protection entirely.',
-			'Whitelisting admin-only columns (featured, is_admin, role) so they "just work" — that recreates the vulnerability.',
-			'Whitelisting user_id or other foreign keys — set ownership via associations, not request params.',
+			'Calling to_unsafe_h or permit! to "make the error go away", both bypass the protection entirely.',
+			'Whitelisting admin-only columns (featured, is_admin, role) so they "just work", that recreates the vulnerability.',
+			'Whitelisting user_id or other foreign keys, set ownership via associations, not request params.',
 			'Forgetting to audit nested params (arrays, hashes) for sensitive fields each time the schema grows.',
 		],
 		whenToUse:

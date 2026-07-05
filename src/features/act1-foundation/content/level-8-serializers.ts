@@ -112,6 +112,23 @@ When in doubt for a new public API: pick the library that is JSON:API-conformant
 				url: 'https://jsonapi.org/',
 			},
 		],
+		homework: [
+			{
+				task: 'Add the serializer gem and generate a Product serializer.',
+				commands: [
+					'bundle add jsonapi-serializer',
+					'bin/rails g serializer Product name price',
+				],
+				verify:
+					'app/serializers/product_serializer.rb exists and includes JSONAPI::Serializer with your attributes.',
+			},
+			{
+				task: 'Use it in the controller (render json: ProductSerializer.new(Product.all)) and compare the response with the raw to_json dump.',
+				commands: ['curl http://localhost:3000/api/v1/products'],
+				verify:
+					'The response is JSON:API shaped (data with type, id, attributes) and internal columns like created_at no longer leak.',
+			},
+		],
 	},
 	hint: {
 		delay: 20,

@@ -567,7 +567,7 @@ end`,
 
 	// Steps 1 (uniqueness) and 2 (format) accumulate options on the same
 	// `validates :email_address` call. Multi-line layout matches the
-	// real myapp model — one option per line for readability and to
+	// real myapp model, one option per line for readability and to
 	// keep diffs minimal as constraints are added.
 	if (furthestStep >= 2) {
 		const opts = ['    presence: true'];

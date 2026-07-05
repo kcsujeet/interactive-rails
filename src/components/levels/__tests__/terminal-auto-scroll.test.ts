@@ -12,7 +12,7 @@
  * touches `scrollTo` / `scrollTop` / `scrollIntoView` AND the deps array of
  * that useEffect is `[]`, fail.
  *
- * Per project rule, no DOM rendering — pure source-level static analysis.
+ * Per project rule, no DOM rendering, pure source-level static analysis.
  */
 
 import { describe, expect, test } from 'bun:test';
@@ -34,12 +34,12 @@ const USE_EFFECT_OPEN = /useEffect\(\s*\(\s*\)\s*=>\s*\{/;
 
 /**
  * Returns true if the source has a `useEffect(() => { ... scrollX ... }, [])`
- * — auto-scroll wired with empty deps, so it only runs on mount.
+ *, auto-scroll wired with empty deps, so it only runs on mount.
  *
  * Implementation: walks each `}, []);` (close of an empty-deps useEffect
  * callback) and checks the preceding ~600 chars for a useEffect-callback
  * opener AND a scroll token. Robust against arbitrary scroll-side code
- * inside the callback (we don't try to brace-balance — we just confirm the
+ * inside the callback (we don't try to brace-balance, we just confirm the
  * callback opened recently and contains a scroll call).
  */
 export function hasEmptyDepsScrollEffect(src: string): boolean {
