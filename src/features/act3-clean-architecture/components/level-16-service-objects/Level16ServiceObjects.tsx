@@ -1,20 +1,33 @@
 /**
  * Level 16: Service Objects
  *
- * Sequential phase flow: intro -> build -> reward
- * Each phase occupies the full center panel. One thing at a time.
+ * Sequential phase flow: intro -> build -> reward (Type 2: the problem
+ * is code structure, visible by reading the code; no probes).
  *
- * Phase 1 (WHY - intro): Annotated code display showing fat controller
- *   with color-coded responsibility sections. The code tells the story.
- *
- * Phase 2 (HOW - build): 4 OptionCard steps
- * Phase 3 (ADVANTAGE - reward): Two-zone layout with stress test
- *
- * Teaches: Service object pattern, Result pattern with Data.define, thin controllers
+ * Redesign (2026-07-10), anchored to myapp ground truth (level-15 tag):
+ *   - The before-state is the REAL UsersController#create grown fat:
+ *     email_address/password fields via params.expect, the welcome-email
+ *     side effect from the callbacks level, default preferences, and an
+ *     auto-login session whose token the response returns (the same
+ *     user.sessions.create! pattern SessionsController uses).
+ *   - No inline param validation anywhere: model validations (from the
+ *     validations level) are the single source of truth; the service
+ *     branches on user.save only. The old level carried controller
+ *     param checks into the service and taught validation-in-service.
+ *   - The thin controller STILL returns the session token. The old
+ *     "fixed" controller silently dropped it (a real regression taught
+ *     as the answer). Session creation stays in the controller: it
+ *     needs request.remote_ip / request.user_agent, and a rake import
+ *     must not log users in.
+ *   - Result = Data.define(:success?, :user, :errors) syntax verified
+ *     on Ruby 4.0.1 (myapp's interpreter).
+ *   - The reward is interactive: the same workflow fires from three
+ *     callers (controller, rake task, unit test), demonstrating the
+ *     reuse the old static poster only asserted.
  */
 
-import { ArrowRight, Check } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
+import { ArrowRight, Check, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -28,12 +41,22 @@ import {
 	StepProgress,
 	type ValidationResult,
 } from '@/components/levels';
+import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
+import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
+import { ANIMATION_DURATION_MS } from '@/lib/animation';
 import { registerLevelCode } from '@/lib/codebase-registry';
 import type { LevelComponentProps } from '@/lib/levels-registry';
 import { shuffleOptions } from '@/lib/shuffleOptions';
+import {
+	type CallEdgeState,
+	type CallerKey,
+	CallersFlow,
+	type CallerVizState,
+	type ServiceVizState,
+} from './CallersFlow';
 
 registerLevelCode('act3-level16-service-objects', () =>
 	getCodeFiles('reward', STEP_DEFS.length),
@@ -58,58 +81,57 @@ interface AnnotatedSection {
 
 const ANNOTATED_SECTIONS: AnnotatedSection[] = [
 	{
-		id: 'checks',
-		label: 'Inline Validation Checks',
-		variant: 'core',
-		code: `if params[:email].blank?
-  return render json: { error: "Email required" }, status: 422
-end
-if params[:password].length < 8
-  return render json: { error: "Too short" }, status: 422
-end
-if params[:display_name].blank?
-  return render json: { error: "Name required" }, status: 422
-end`,
-	},
-	{
 		id: 'core',
-		label: 'Core Logic',
+		label: 'Job 1: create the user',
 		variant: 'core',
-		code: `@user = User.new(registration_params)
+		code: `@user = User.new(user_params)
 if @user.save`,
 	},
 	{
-		id: 'logging',
-		label: 'Side Effect: Logging',
+		id: 'welcome',
+		label: 'Job 2: welcome email',
 		variant: 'side-effect',
-		code: `  Rails.logger.info("New: #{@user.email}")`,
+		code: `  send_welcome_email(@user)`,
 	},
 	{
 		id: 'preferences',
-		label: 'Side Effect: Preferences',
+		label: 'Job 3: default preferences',
 		variant: 'side-effect',
 		code: `  @user.update!(
     locale: "en", timezone: "UTC",
-    notification_preference: "email"
+    notification_preference: "email",
   )`,
 	},
 	{
-		id: 'token',
-		label: 'Side Effect: Token',
+		id: 'session',
+		label: 'Job 4: auto-login session',
 		variant: 'side-effect',
-		code: `  token = @user.generate_token_for(:session)`,
+		code: `  session = @user.sessions.create!(
+    ip_address: request.remote_ip,
+    user_agent: request.user_agent,
+  )`,
+	},
+	{
+		id: 'render',
+		label: 'Job 5: HTTP response',
+		variant: 'core',
+		code: `  render json: {
+    id: @user.id,
+    email_address: @user.email_address,
+    token: session.token,
+  }, status: :created`,
 	},
 ];
 
 // ──────────────────────────────────────────────
-// Step definitions (3 OptionCard steps)
+// Step definitions (4 OptionCard steps)
 // ──────────────────────────────────────────────
 
-const STEP_DEFS: StepDef[] = [
+export const STEP_DEFS: StepDef[] = [
 	{ id: 'choose-pattern', title: 'Choose Extraction Pattern' },
-	{ id: 'define-result', title: 'Define the Result Object' },
+	{ id: 'define-result', title: 'Define the Return Value' },
 	{ id: 'move-side-effects', title: 'Move the Side Effects' },
-	{ id: 'wire-controller', title: 'Wire the Controller' },
+	{ id: 'wire-controller', title: 'Wire the Callers' },
 ];
 
 // ──────────────────────────────────────────────
@@ -129,26 +151,20 @@ const PATTERN_OPTIONS: StepOption[] = [
 		label: 'Extract into an ActiveSupport::Concern',
 		correct: false,
 		feedback:
-			'Concerns mix behavior into existing classes. Registration is a multi-step workflow, not shared behavior across models.',
-	},
-	{
-		id: 'service',
-		label: 'Extract into a PORO service class (UserRegistration)',
-		correct: true,
+			'Concerns mix shared behavior into existing classes. Signup is a multi-step workflow with one entry point, not behavior several models share.',
 	},
 	{
 		id: 'callback',
-		label: 'Use model callbacks (after_create)',
+		label: 'Move the extra work into model callbacks (after_create)',
 		correct: false,
 		feedback:
-			'Callbacks couple side effects to the model lifecycle. They run on every save, not just registration, and make the flow harder to follow.',
+			'Callbacks run on every create, everywhere: admin edits, imports, tests. The callbacks lesson still holds: side effects do not belong in the model lifecycle.',
 	},
 	{
-		id: 'module',
-		label: 'Extract into a Ruby module and include it',
-		correct: false,
-		feedback:
-			'Modules add methods to the including class. This workflow needs its own object with explicit inputs and outputs, not mixed-in methods.',
+		id: 'service',
+		label:
+			'Extract into a plain Ruby class (UserRegistration) with one public method',
+		correct: true,
 	},
 ];
 
@@ -158,391 +174,616 @@ const RESULT_OPTIONS: StepOption[] = [
 		label: 'Return a hash: { success: true, user: user, errors: [] }',
 		correct: false,
 		feedback:
-			'Hashes have no type guarantees. A typo like result[:succes] silently returns nil instead of raising an error.',
+			'Hashes have no shape guarantees. A typo like result[:succes] silently returns nil, and every caller has to remember which keys exist.',
 	},
 	{
-		id: 'openstruct',
-		label: 'Use OpenStruct.new(success: true, user: user)',
+		id: 'custom-class',
+		label: 'Write a Result class with attr_reader, initialize, and freeze',
 		correct: false,
 		feedback:
-			'OpenStruct is mutable and accepts any key without validation. Typos become silent nil values, just like hashes.',
+			'Hand-rolled immutability and equality is boilerplate that drifts. Ruby ships a one-line way to define an immutable value object with named fields.',
 	},
 	{
 		id: 'data-define',
 		label: 'Result = Data.define(:success?, :user, :errors)',
 		correct: true,
 	},
-	{
-		id: 'custom-class',
-		label: 'Build a custom Result class with attr_reader and initialize',
-		correct: false,
-		feedback:
-			'A custom class works but requires boilerplate. Ruby provides a built-in immutable value object that does this in one line.',
-	},
 ];
 
 const SIDE_EFFECTS_OPTIONS: StepOption[] = [
 	{
-		id: 'callbacks',
-		label: 'Move them into after_create callbacks on User',
-		correct: false,
-		feedback:
-			'Callbacks run on every save, not just registration. Logging and preference setup would fire on admin edits, CSV imports, and tests too.',
-	},
-	{
 		id: 'separate-services',
 		label:
-			'Create a separate service for each (WelcomeLogger, PreferenceSetter, TokenGenerator)',
+			'A separate service for each: WelcomeEmail.call, PreferenceSetter.call',
 		correct: false,
 		feedback:
-			'Three extra classes for three lines of code each. Over-extraction makes the workflow harder to follow, not easier.',
+			'Two more classes for a few lines each. Over-extraction scatters one workflow across files and makes the flow harder to follow, not easier.',
+	},
+	{
+		id: 'background-job',
+		label: 'Enqueue each one as a background job',
+		correct: false,
+		feedback:
+			'The app has no job infrastructure yet, and this work has to be done before the response renders. Deferring it means half-registered users.',
 	},
 	{
 		id: 'inline-in-call',
 		label:
-			"Run them sequentially inside the service's #call method, after the save",
+			'Run them in order inside the service, right after the save succeeds',
 		correct: true,
-	},
-	{
-		id: 'background-job',
-		label: 'Enqueue each side effect as a background job',
-		correct: false,
-		feedback:
-			'Background jobs add async complexity. Preferences and tokens are needed immediately for the response. Logging could be async, but not all three.',
 	},
 ];
 
 const WIRING_OPTIONS: StepOption[] = [
 	{
 		id: 'instantiate-manual',
-		label: 'service = UserRegistration.new(params)\nservice.call',
+		label: 'service = UserRegistration.new(user_params)\nservice.call',
 		correct: false,
 		feedback:
-			'That works but exposes two steps to every caller. The convention is a single class-level entry point that handles instantiation internally.',
+			'It works, but every caller now owns two steps plus the construction detail. Callers should not need to know how the service is built to use it.',
 	},
 	{
 		id: 'call-class-method',
-		label: 'result = UserRegistration.call(registration_params)',
+		label: 'result = UserRegistration.call(user_params)',
 		correct: true,
 	},
 	{
 		id: 'inline-block',
-		label: 'UserRegistration.new(params) do |service|\n  service.call\nend',
+		label:
+			'UserRegistration.new(user_params) do |service|\n  service.call\nend',
 		correct: false,
 		feedback:
-			'Block-style invocation adds complexity with no benefit. Services should have a simple, predictable call interface.',
+			'A block adds ceremony without meaning here. Invocation should read as one predictable line at every call site.',
 	},
 ];
 
-const OPTION_STEP_CONFIG: Record<
+export const OPTION_STEP_CONFIG: Record<
 	number,
 	{ title: string; description: string; options: StepOption[] }
 > = {
 	0: {
 		title: 'Choose Extraction Pattern',
 		description:
-			'The RegistrationsController#create is 80 lines. It handles user creation, logging, defaults, and token generation all inline. How should you extract this workflow?',
+			'Signup is one action doing five jobs, and next week support needs the same workflow from a CSV import, with no HTTP request anywhere. Where should the workflow live?',
 		options: PATTERN_OPTIONS,
 	},
 	1: {
-		title: 'Define the Result Object',
+		title: 'Define the Return Value',
 		description:
-			'Your service needs to communicate success or failure back to the controller. What should it return?',
+			'The workflow has a new home. The controller, the rake task, and the tests all need to know whether it worked, and why not. What does it hand back?',
 		options: RESULT_OPTIONS,
 	},
 	2: {
 		title: 'Move the Side Effects',
 		description:
-			'The controller has 3 side effects after user creation: logging, setting default preferences, and generating a session token. Where should they live in the service?',
+			'The welcome email and the default preferences moved out of the controller with the workflow. Where do they run?',
 		options: SIDE_EFFECTS_OPTIONS,
 	},
 	3: {
-		title: 'Wire the Controller',
+		title: 'Wire the Callers',
 		description:
-			'The service is built. Now the controller needs to call it and handle the result. What is the conventional way to invoke a service object?',
+			'The service is complete. How does the controller (or the rake task, or a test) invoke it?',
 		options: WIRING_OPTIONS,
 	},
+};
+
+// ──────────────────────────────────────────────
+// Reward: scenarios + frames (three callers, one workflow)
+// ──────────────────────────────────────────────
+
+export const STRESS_SCENARIOS: StressScenario[] = [
+	{
+		id: 'api-signup',
+		label: 'Customer signs up through the storefront',
+		description: 'The controller delegates and renders the Result',
+		method: 'POST',
+		path: '/users',
+		actor: 'storefront',
+		expectedResult: 'allowed',
+		story: [
+			'A customer submits the signup form.',
+			'The controller hands user_params to the service and waits for a Result.',
+			'The service saves the user, sends the welcome email, applies default preferences, and returns success.',
+			'The controller creates the login session and renders 201 with the token, exactly what the fat version returned, from an action you can read in one breath.',
+		],
+	},
+	{
+		id: 'invalid-signup',
+		label: 'Sign up with an email that is already taken',
+		description: 'Model validations speak; the service passes them through',
+		method: 'POST',
+		path: '/users',
+		actor: 'storefront',
+		expectedResult: 'blocked',
+		story: [
+			'A customer signs up with an address that already has an account.',
+			'user.save fails: the model validations from the validations level are still the single source of truth.',
+			'The service returns a failure Result carrying the model errors. No email is sent, no preferences are written, no session is created.',
+			'The controller renders 422 with the errors. Failure is a value the caller branches on, not an exception to untangle.',
+		],
+	},
+	{
+		id: 'rake-import',
+		label: 'Bulk-import 500 sellers from a CSV',
+		description: 'The rake task calls the same workflow, no HTTP anywhere',
+		method: 'RAKE',
+		path: 'lib/tasks/seller_import.rake',
+		actor: 'support team',
+		expectedResult: 'allowed',
+		story: [
+			'Support hands over a CSV of 500 sellers from the partner program.',
+			'The rake task loops the rows and calls UserRegistration.call for each one: the exact workflow the storefront uses, welcome emails and preferences included.',
+			'Failed rows come back as failure Results and land in a report instead of aborting the run.',
+			'No sessions are created: importing an account is not logging someone in, which is exactly why the session stayed in the controller.',
+		],
+	},
+	{
+		id: 'unit-test',
+		label: 'Run the signup test without HTTP',
+		description:
+			'The test calls the service directly and asserts on the Result',
+		method: 'TEST',
+		path: 'test/services/user_registration_test.rb',
+		actor: 'developer',
+		expectedResult: 'allowed',
+		story: [
+			'The test calls UserRegistration.call with plain attributes.',
+			'No router, no request, no controller: the workflow runs as ordinary Ruby.',
+			'Assertions read straight off the Result: success?, the user, the errors.',
+			'The whole file runs in a blink, which is what makes the workflow cheap to change from now on.',
+		],
+	},
+];
+
+export type RewardFrame = {
+	callers?: Partial<Record<CallerKey, Partial<CallerVizState>>>;
+	service?: Partial<ServiceVizState>;
+	edges?: Partial<Record<CallerKey, Partial<CallEdgeState>>>;
+};
+
+export const REWARD_SCENARIO_FRAMES: Record<string, RewardFrame[]> = {
+	'api-signup': [
+		{
+			callers: {
+				controller: {
+					sublabel: 'POST /users from the signup form',
+					badge: 'POST',
+					flash: 'amber',
+				},
+			},
+			edges: {
+				controller: {
+					active: true,
+					reverse: false,
+					label: 'UserRegistration.call(user_params)',
+				},
+			},
+		},
+		{
+			service: {
+				sublabel: 'save -> welcome email -> preferences',
+				badge: 'RUNNING',
+				flash: 'amber',
+			},
+			edges: { controller: { active: false, label: '' } },
+		},
+		{
+			service: {
+				sublabel: 'workflow finished',
+				badge: 'SUCCESS',
+				flash: 'green',
+			},
+			edges: {
+				controller: {
+					active: true,
+					reverse: true,
+					label: 'Result(success?: true, user)',
+				},
+			},
+		},
+		{
+			callers: {
+				controller: {
+					sublabel: 'creates the session, renders id + token',
+					badge: '201',
+					flash: 'green',
+				},
+			},
+			edges: { controller: { active: false, label: '' } },
+		},
+	],
+	'invalid-signup': [
+		{
+			callers: {
+				controller: {
+					sublabel: 'POST /users, email already taken',
+					badge: 'POST',
+					flash: 'amber',
+				},
+			},
+			edges: {
+				controller: {
+					active: true,
+					reverse: false,
+					label: 'UserRegistration.call(user_params)',
+				},
+			},
+		},
+		{
+			service: {
+				sublabel: 'user.save fails: model validations speak',
+				badge: 'SAVE FAILED',
+				flash: 'red',
+			},
+			edges: { controller: { active: false, label: '' } },
+		},
+		{
+			service: {
+				sublabel: 'no email sent, no preferences written',
+				badge: 'FAILURE RESULT',
+				flash: 'red',
+			},
+			edges: {
+				controller: {
+					active: true,
+					reverse: true,
+					label: 'Result(success?: false, errors)',
+				},
+			},
+		},
+		{
+			callers: {
+				controller: {
+					sublabel: 'renders the model errors, no session created',
+					badge: '422',
+					flash: 'red',
+				},
+			},
+			edges: { controller: { active: false, label: '' } },
+		},
+	],
+	'rake-import': [
+		{
+			callers: {
+				rake: {
+					sublabel: 'reads 500 CSV rows from the partner program',
+					badge: 'CSV',
+					flash: 'amber',
+				},
+			},
+			edges: {
+				rake: {
+					active: true,
+					reverse: false,
+					label: 'UserRegistration.call(row) x 500',
+				},
+			},
+		},
+		{
+			service: {
+				sublabel: 'same workflow, no HTTP anywhere',
+				badge: 'RUNNING',
+				flash: 'amber',
+			},
+			edges: { rake: { active: false, label: '' } },
+		},
+		{
+			service: {
+				sublabel: 'one Result per row',
+				badge: 'DONE',
+				flash: 'green',
+			},
+			edges: {
+				rake: {
+					active: true,
+					reverse: true,
+					label: '497 success, 3 failures reported',
+				},
+			},
+		},
+		{
+			callers: {
+				rake: {
+					sublabel: 'no sessions created: imports do not log anyone in',
+					badge: 'DONE',
+					flash: 'green',
+				},
+			},
+			edges: { rake: { active: false, label: '' } },
+		},
+	],
+	'unit-test': [
+		{
+			callers: {
+				test: {
+					sublabel: 'calls the service with plain attributes',
+					badge: 'RUN',
+					flash: 'amber',
+				},
+			},
+			edges: {
+				test: {
+					active: true,
+					reverse: false,
+					label: 'UserRegistration.call(attrs)',
+				},
+			},
+		},
+		{
+			service: {
+				sublabel: 'runs without router, request, or controller',
+				badge: 'RUNNING',
+				flash: 'amber',
+			},
+			edges: { test: { active: false, label: '' } },
+		},
+		{
+			service: {
+				sublabel: 'workflow finished',
+				badge: 'SUCCESS',
+				flash: 'green',
+			},
+			edges: {
+				test: { active: true, reverse: true, label: 'assert result.success?' },
+			},
+		},
+		{
+			callers: {
+				test: {
+					sublabel: 'green in 0.03s, no HTTP in the whole file',
+					badge: 'PASS',
+					flash: 'green',
+				},
+			},
+			edges: { test: { active: false, label: '' } },
+		},
+	],
+};
+
+const BASE_CALLERS: Record<CallerKey, CallerVizState> = {
+	controller: { sublabel: 'POST /users', badge: null, flash: 'idle' },
+	rake: {
+		sublabel: 'lib/tasks/seller_import.rake',
+		badge: null,
+		flash: 'idle',
+	},
+	test: {
+		sublabel: 'test/services/user_registration_test.rb',
+		badge: null,
+		flash: 'idle',
+	},
+};
+
+const BASE_SERVICE: ServiceVizState = {
+	sublabel: 'one workflow, one entry point',
+	badge: null,
+	flash: 'idle',
+};
+
+const IDLE_CALL_EDGE: CallEdgeState = {
+	active: false,
+	reverse: false,
+	label: '',
+};
+
+const BASE_EDGES: Record<CallerKey, CallEdgeState> = {
+	controller: IDLE_CALL_EDGE,
+	rake: IDLE_CALL_EDGE,
+	test: IDLE_CALL_EDGE,
 };
 
 // ──────────────────────────────────────────────
 // Code preview helper
 // ──────────────────────────────────────────────
 
-function getCodeFiles(phase: Phase, furthestStep: number) {
-	const files = [];
+// The real UsersController from myapp (level-15 tag), grown fat by the
+// preferences + auto-login work this level opens with.
+const FAT_CONTROLLER = `class UsersController < ApplicationController
+  allow_unauthenticated_access only: :create
 
-	if (phase === 'intro') {
-		files.push({
-			filename: 'app/controllers/api/registrations_controller.rb',
-			language: 'ruby',
-			code: `class Api::RegistrationsController < ApplicationController
   def create
-    @user = User.new(registration_params)
-
-    # Inline validation checks
-    if params[:email].blank?
-      return render json: { error: "Email required" }, status: 422
-    end
-    if params[:password].length < 8
-      return render json: { error: "Too short" }, status: 422
-    end
-    if params[:display_name].blank?
-      return render json: { error: "Name required" }, status: 422
-    end
+    @user = User.new(user_params)
 
     if @user.save
-      # Log welcome message inline
-      Rails.logger.info("New registration: #{@user.email}")
+      send_welcome_email(@user)
 
-      # Set default preferences inline
       @user.update!(
         locale: "en",
         timezone: "UTC",
-        notification_preference: "email"
+        notification_preference: "email",
       )
 
-      # Generate session token inline
-      token = @user.generate_token_for(:session)
+      session = @user.sessions.create!(
+        ip_address: request.remote_ip,
+        user_agent: request.user_agent,
+      )
 
-      render json: { user: @user, token: token },
-             status: :created
+      render json: {
+        id: @user.id,
+        email_address: @user.email_address,
+        token: session.token,
+      }, status: :created
     else
-      render json: { errors: @user.errors },
+      render json: { errors: @user.errors.full_messages },
              status: :unprocessable_entity
     end
-  rescue => e
-    @user&.destroy  # Cleanup attempt
-    render json: { error: e.message },
-           status: :internal_server_error
   end
 
   private
 
-  def registration_params
-    params.expect(user: [:email, :password, :name])
+  def user_params
+    params.expect(user: [ :email_address, :password ])
   end
-end`,
-			highlight: [
-				6, 7, 8, 9, 10, 11, 12, 13, 14, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
-				27, 28, 29,
-			],
-		});
-		return files;
-	}
 
-	// Step 0: fat controller (choosing extraction pattern)
-	if (furthestStep === 0) {
-		files.push({
-			filename: 'app/controllers/api/registrations_controller.rb',
-			language: 'ruby',
-			code: `class Api::RegistrationsController < ApplicationController
-  def create
-    @user = User.new(registration_params)
+  def send_welcome_email(user)
+    Rails.logger.info "TODO welcome email to #{user.email_address}"
+  end
+end`;
 
-    # Inline validation checks
-    return render json: { error: "Email required" }, status: 422 if params[:email].blank?
-    return render json: { error: "Too short" }, status: 422 if params[:password].length < 8
-    return render json: { error: "Name required" }, status: 422 if params[:display_name].blank?
+const SERVICE_COMPLETE = `class UserRegistration
+  Result = Data.define(:success?, :user, :errors)
 
-    if @user.save
-      Rails.logger.info("New registration: #{@user.email}")
-      @user.update!(locale: "en", timezone: "UTC",
-                    notification_preference: "email")
-      token = @user.generate_token_for(:session)
+  def initialize(params)
+    @params = params
+  end
 
-      render json: { user: @user, token: token },
-             status: :created
-    else
-      render json: { errors: @user.errors },
-             status: :unprocessable_entity
+  def call
+    user = User.new(@params)
+
+    unless user.save
+      return Result.new(
+        success?: false, user: nil,
+        errors: user.errors.full_messages,
+      )
     end
-  rescue => e
-    @user&.destroy
-    render json: { error: e.message },
-           status: :internal_server_error
+
+    send_welcome_email(user)
+    apply_default_preferences(user)
+
+    Result.new(success?: true, user: user, errors: [])
+  end
+
+  private
+
+  def send_welcome_email(user)
+    Rails.logger.info "TODO welcome email to #{user.email_address}"
+  end
+
+  def apply_default_preferences(user)
+    user.update!(
+      locale: "en",
+      timezone: "UTC",
+      notification_preference: "email",
+    )
+  end
+end`;
+
+export function getCodeFiles(phase: Phase, completedStep: number) {
+	const files = [];
+
+	if (phase === 'intro' || completedStep < 0) {
+		return [
+			{
+				filename: 'app/controllers/users_controller.rb',
+				language: 'ruby',
+				code: FAT_CONTROLLER,
+				highlight: [8, 10, 11, 12, 13, 14, 16, 17, 18, 19],
+			},
+		];
+	}
+
+	// The fat controller stays visible (unchanged) until the wiring step.
+	if (completedStep < 3) {
+		files.push({
+			filename: 'app/controllers/users_controller.rb',
+			language: 'ruby',
+			code: FAT_CONTROLLER,
+			highlight: [],
+		});
+	}
+
+	if (completedStep === 0) {
+		files.push({
+			filename: 'app/services/user_registration.rb',
+			language: 'ruby',
+			code: `class UserRegistration
+  # The workflow moves here. What should #call hand back?
+
+  def initialize(params)
+    @params = params
+  end
+
+  def call
+    user = User.new(@params)
+    # save, side effects, and then... return what to the caller?
   end
 end`,
-			highlight: [6, 7, 8, 10, 11, 12, 13, 14],
-		});
-	}
-
-	// Step 1: service skeleton, no Result yet (choosing Result type)
-	if (furthestStep === 1) {
-		files.push({
-			filename: 'app/services/user_registration.rb',
-			language: 'ruby',
-			code: [
-				'class UserRegistration < ApplicationService',
-				'  # What should the service return?',
-				'',
-				'  def initialize(params)',
-				'    @params = params',
-				'  end',
-				'',
-				'  def call',
-				'    # Inline checks (carried from controller)',
-				'    # return failure if @params[:email].blank?',
-				'    # return failure if @params[:password].length < 8',
-				'',
-				'    user = User.new(@params)',
-				'',
-				'    unless user.save',
-				'      # return failure...',
-				'    end',
-				'',
-				'    # Side effects here...',
-				'    # return success...',
-				'  end',
-				'end',
-			].join('\n'),
 			highlight: [2],
 		});
 	}
 
-	// Step 2: service with Result, placeholder side effects (choosing where side effects go)
-	if (furthestStep === 2) {
+	if (completedStep === 1) {
 		files.push({
 			filename: 'app/services/user_registration.rb',
 			language: 'ruby',
-			code: [
-				'class UserRegistration < ApplicationService',
-				'  Result = Data.define(:success?, :user, :errors)',
-				'',
-				'  def initialize(params)',
-				'    @params = params',
-				'  end',
-				'',
-				'  def call',
-				'    # Inline validation checks (from controller)',
-				'    if @params[:email].blank?',
-				'      return Result.new(success?: false, user: nil, errors: ["Email required"])',
-				'    end',
-				'    if @params[:password].length < 8',
-				'      return Result.new(success?: false, user: nil, errors: ["Password too short"])',
-				'    end',
-				'',
-				'    user = User.new(@params)',
-				'',
-				'    unless user.save',
-				'      return Result.new(',
-				'        success?: false, user: nil,',
-				'        errors: user.errors.full_messages',
-				'      )',
-				'    end',
-				'',
-				'    # Where do the side effects go?',
-				'    # - logging',
-				'    # - default preferences',
-				'    # - token generation',
-				'',
-				'    Result.new(success?: true, user: user, errors: [])',
-				'  end',
-				'end',
-			].join('\n'),
-			highlight: [2, 23, 24, 25, 26],
+			code: `class UserRegistration
+  Result = Data.define(:success?, :user, :errors)
+
+  def initialize(params)
+    @params = params
+  end
+
+  def call
+    user = User.new(@params)
+
+    unless user.save
+      return Result.new(
+        success?: false, user: nil,
+        errors: user.errors.full_messages,
+      )
+    end
+
+    # Side effects: the welcome email and the default
+    # preferences moved with the workflow. Where do they run?
+
+    Result.new(success?: true, user: user, errors: [])
+  end
+end`,
+			highlight: [2, 18, 19],
 		});
 	}
 
-	// Step 3: service complete with side effects (choosing how to wire controller)
-	if (furthestStep === 3) {
+	if (completedStep === 2) {
 		files.push({
 			filename: 'app/services/user_registration.rb',
 			language: 'ruby',
-			code: [
-				'class UserRegistration < ApplicationService',
-				'  Result = Data.define(:success?, :user, :errors)',
-				'',
-				'  def initialize(params)',
-				'    @params = params',
-				'  end',
-				'',
-				'  def call',
-				'    # Inline validation checks (from controller)',
-				'    if @params[:email].blank?',
-				'      return Result.new(success?: false, user: nil, errors: ["Email required"])',
-				'    end',
-				'    if @params[:password].length < 8',
-				'      return Result.new(success?: false, user: nil, errors: ["Password too short"])',
-				'    end',
-				'',
-				'    user = User.new(@params)',
-				'',
-				'    unless user.save',
-				'      return Result.new(',
-				'        success?: false, user: nil,',
-				'        errors: user.errors.full_messages',
-				'      )',
-				'    end',
-				'',
-				'    # Side effects (isolated, testable)',
-				'    Rails.logger.info("New registration: #{user.email}")',
-				'    user.update!(locale: "en", timezone: "UTC",',
-				'                 notification_preference: "email")',
-				'    token = user.generate_token_for(:session)',
-				'',
-				'    Result.new(success?: true, user: user, errors: [])',
-				'  end',
-				'end',
-				'',
-				'# How does the controller call this service?',
-			].join('\n'),
-			highlight: [23, 24, 25, 26],
+			code: `${SERVICE_COMPLETE}
+
+# How does the controller invoke this?`,
+			highlight: [18, 19],
 		});
 	}
 
-	// Step 4 (all complete): service + thin controller
-	if (furthestStep >= 4) {
+	if (completedStep >= 3) {
 		files.push({
-			filename: 'app/services/user_registration.rb',
+			filename: 'app/services/application_service.rb',
 			language: 'ruby',
-			code: [
-				'class UserRegistration < ApplicationService',
-				'  Result = Data.define(:success?, :user, :errors)',
-				'',
-				'  def initialize(params)',
-				'    @params = params',
-				'  end',
-				'',
-				'  def call',
-				'    # Inline validation checks (from controller)',
-				'    if @params[:email].blank?',
-				'      return Result.new(success?: false, user: nil, errors: ["Email required"])',
-				'    end',
-				'    if @params[:password].length < 8',
-				'      return Result.new(success?: false, user: nil, errors: ["Password too short"])',
-				'    end',
-				'',
-				'    user = User.new(@params)',
-				'',
-				'    unless user.save',
-				'      return Result.new(',
-				'        success?: false, user: nil,',
-				'        errors: user.errors.full_messages',
-				'      )',
-				'    end',
-				'',
-				'    # Side effects (isolated, testable)',
-				'    Rails.logger.info("New registration: #{user.email}")',
-				'    user.update!(locale: "en", timezone: "UTC",',
-				'                 notification_preference: "email")',
-				'    token = user.generate_token_for(:session)',
-				'',
-				'    Result.new(success?: true, user: user, errors: [])',
-				'  end',
-				'end',
-			].join('\n'),
+			code: `class ApplicationService
+  def self.call(...)
+    new(...).call
+  end
+end`,
 			highlight: [2],
 		});
 		files.push({
-			filename: 'app/controllers/api/registrations_controller.rb',
+			filename: 'app/services/user_registration.rb',
 			language: 'ruby',
-			code: `class Api::RegistrationsController < ApplicationController
+			code: SERVICE_COMPLETE.replace(
+				'class UserRegistration',
+				'class UserRegistration < ApplicationService',
+			),
+			highlight: [2],
+		});
+		files.push({
+			filename: 'app/controllers/users_controller.rb',
+			language: 'ruby',
+			code: `class UsersController < ApplicationController
+  allow_unauthenticated_access only: :create
+
   def create
-    result = UserRegistration.call(registration_params)
+    result = UserRegistration.call(user_params)
 
     if result.success?
-      render json: { user: result.user },
-             status: :created
+      session = result.user.sessions.create!(
+        ip_address: request.remote_ip,
+        user_agent: request.user_agent,
+      )
+
+      render json: {
+        id: result.user.id,
+        email_address: result.user.email_address,
+        token: session.token,
+      }, status: :created
     else
       render json: { errors: result.errors },
              status: :unprocessable_entity
@@ -551,11 +792,11 @@ end`,
 
   private
 
-  def registration_params
-    params.expect(user: [:email, :password, :name])
+  def user_params
+    params.expect(user: [ :email_address, :password ])
   end
 end`,
-			highlight: [3, 5],
+			highlight: [5, 7, 16],
 		});
 	}
 
@@ -568,7 +809,91 @@ end`,
 
 export function Level16ServiceObjects({ onComplete }: LevelComponentProps) {
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
+	const stressTest = useStressTest(STRESS_SCENARIOS);
 	const [phase, setPhase] = useState<Phase>('intro');
+
+	// ── Reward visualization state ──
+	const [callerStates, setCallerStates] = useState(BASE_CALLERS);
+	const [serviceState, setServiceState] = useState(BASE_SERVICE);
+	const [edgeStates, setEdgeStates] = useState(BASE_EDGES);
+	const [vizAnimating, setVizAnimating] = useState(false);
+	const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+	const resetViz = useCallback(() => {
+		setCallerStates(structuredClone(BASE_CALLERS));
+		setServiceState(structuredClone(BASE_SERVICE));
+		setEdgeStates(structuredClone(BASE_EDGES));
+	}, []);
+
+	const applyFrame = useCallback((frame: RewardFrame) => {
+		if (frame.callers) {
+			setCallerStates((prev) => {
+				const next = { ...prev };
+				for (const [key, patch] of Object.entries(frame.callers ?? {})) {
+					next[key as CallerKey] = { ...next[key as CallerKey], ...patch };
+				}
+				return next;
+			});
+		}
+		if (frame.service) {
+			setServiceState((prev) => ({ ...prev, ...frame.service }));
+		}
+		if (frame.edges) {
+			setEdgeStates((prev) => {
+				const next = { ...prev };
+				for (const [key, patch] of Object.entries(frame.edges ?? {})) {
+					next[key as CallerKey] = { ...next[key as CallerKey], ...patch };
+				}
+				return next;
+			});
+		}
+	}, []);
+
+	const runAnimation = useCallback(
+		(frames: RewardFrame[]) => {
+			for (const t of timersRef.current) clearTimeout(t);
+			timersRef.current = [];
+			setVizAnimating(true);
+			resetViz();
+
+			for (const [i, frame] of frames.entries()) {
+				const t = setTimeout(() => {
+					applyFrame(frame);
+					if (i === frames.length - 1) {
+						const cleanup = setTimeout(() => {
+							setEdgeStates((prev) => {
+								const next = { ...prev };
+								for (const key of Object.keys(next) as CallerKey[]) {
+									next[key] = { ...next[key], active: false };
+								}
+								return next;
+							});
+							setVizAnimating(false);
+						}, ANIMATION_DURATION_MS);
+						timersRef.current.push(cleanup);
+					}
+				}, i * ANIMATION_DURATION_MS);
+				timersRef.current.push(t);
+			}
+		},
+		[applyFrame, resetViz],
+	);
+
+	useEffect(() => {
+		return () => {
+			for (const t of timersRef.current) clearTimeout(t);
+		};
+	}, []);
+
+	const handleFireScenario = useCallback(
+		(scenarioId: string) => {
+			if (vizAnimating) return;
+			stressTest.fireRequest(scenarioId);
+			const frames = REWARD_SCENARIO_FRAMES[scenarioId];
+			if (frames) runAnimation(frames);
+		},
+		[vizAnimating, stressTest, runAnimation],
+	);
 
 	// ── OptionCard step handler ──
 	const handleOptionClick = useCallback(
@@ -581,11 +906,6 @@ export function Level16ServiceObjects({ onComplete }: LevelComponentProps) {
 		},
 		[stepper],
 	);
-
-	// ── Phase transition handlers ──
-	const handleStartBuild = () => {
-		setPhase('build');
-	};
 
 	// ── Completion ──
 	const handleComplete = () => {
@@ -602,7 +922,11 @@ export function Level16ServiceObjects({ onComplete }: LevelComponentProps) {
 					.map((s) => s.title),
 			};
 		}
-		return { valid: true, message: 'Service object extracted cleanly!' };
+		return {
+			valid: true,
+			message:
+				'Workflow extracted: one service with one entry point, a Result the caller branches on, and a controller that only speaks HTTP.',
+		};
 	};
 
 	const isViewingCompletedStep = stepper.isCurrentStepCompleted;
@@ -622,19 +946,23 @@ export function Level16ServiceObjects({ onComplete }: LevelComponentProps) {
 			<LeftPanel>
 				<InstructionPanel>
 					<div className="p-4 border-b border-border space-y-3">
+						<h3 className="text-sm font-semibold text-foreground mb-2">
+							Scenario
+						</h3>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							The{' '}
+							Signup kept growing. The{' '}
 							<code className="text-foreground text-xs bg-muted px-1 py-0.5 rounded">
-								RegistrationsController#create
+								UsersController#create
 							</code>{' '}
-							action is 80 lines long. It handles validation checks, user
-							creation, logging, preferences, and token generation all inline in
-							one action.
+							action now creates the user, sends the welcome email, applies
+							default preferences, logs the customer in, and renders the
+							response: five jobs in one method.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							{phase === 'intro'
-								? 'The annotated code shows 5 distinct responsibilities tangled together. Extract them into a service object.'
-								: 'Move the workflow out of the controller into one dedicated place with a return value the caller can branch on.'}
+							Next week support needs the same workflow to bulk-import 500
+							sellers from a CSV, with no HTTP request anywhere. Move the
+							workflow into one dedicated, testable home and give it a return
+							value every caller can branch on.
 						</p>
 					</div>
 
@@ -649,6 +977,46 @@ export function Level16ServiceObjects({ onComplete }: LevelComponentProps) {
 								steps={stepper.steps}
 							/>
 						</div>
+					)}
+
+					{phase === 'reward' && (
+						<>
+							<div className="p-4 border-b border-border">
+								<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+									Result Legend
+								</div>
+								<div className="space-y-2 text-sm">
+									<div className="flex items-center gap-2">
+										<Check className="w-4 h-4 text-success shrink-0" />
+										<span className="text-foreground">
+											Success Result: the workflow ran to the end
+										</span>
+									</div>
+									<div className="flex items-center gap-2">
+										<X className="w-4 h-4 text-destructive shrink-0" />
+										<span className="text-foreground">
+											Failure Result: clean 422, no half-done side effects
+										</span>
+									</div>
+								</div>
+							</div>
+							<div className="p-4">
+								<div className="grid grid-cols-2 gap-3">
+									<div className="bg-success/20 rounded-lg p-3 text-center">
+										<div className="text-2xl font-bold text-success">
+											{stressTest.allowedCount}
+										</div>
+										<div className="text-xs text-success/70">Success</div>
+									</div>
+									<div className="bg-destructive/20 rounded-lg p-3 text-center">
+										<div className="text-2xl font-bold text-destructive">
+											{stressTest.blockedCount}
+										</div>
+										<div className="text-xs text-destructive/70">Failure</div>
+									</div>
+								</div>
+							</div>
+						</>
 					)}
 				</InstructionPanel>
 			</LeftPanel>
@@ -669,17 +1037,15 @@ export function Level16ServiceObjects({ onComplete }: LevelComponentProps) {
 					{/* ── Phase 1: Intro (WHY) ── */}
 					{phase === 'intro' && (
 						<div className="flex-1 flex flex-col overflow-auto">
-							{/* Header */}
 							<div className="px-6 pt-4 pb-2 flex items-center justify-between">
 								<div className="text-sm font-semibold text-foreground">
-									The Problem: RegistrationsController#create
+									The Problem: UsersController#create
 								</div>
 								<span className="text-xs font-mono text-destructive font-bold">
-									80 lines, 5 responsibilities
+									one action, five jobs
 								</span>
 							</div>
 
-							{/* Annotated code sections */}
 							<div className="px-6 py-2">
 								<div className="max-w-lg mx-auto space-y-1">
 									<pre className="text-xs font-mono text-muted-foreground px-3 py-1">
@@ -688,12 +1054,11 @@ export function Level16ServiceObjects({ onComplete }: LevelComponentProps) {
 
 									{ANNOTATED_SECTIONS.map((section) => {
 										const isSideEffect = section.variant === 'side-effect';
-
 										return (
 											<div
 												className={`border-l-2 rounded-r-md px-3 py-2 ${
 													isSideEffect
-														? 'border-l-amber-500 bg-amber-500/5 dark:bg-amber-400/5'
+														? 'border-l-warning bg-warning/5 dark:bg-warning/10'
 														: 'border-l-zinc-400 dark:border-l-zinc-600 bg-muted/30'
 												}`}
 												key={section.id}
@@ -702,7 +1067,7 @@ export function Level16ServiceObjects({ onComplete }: LevelComponentProps) {
 													<Badge
 														className={`text-[10px] px-1.5 py-0 ${
 															isSideEffect
-																? 'border-amber-500/50 text-amber-600 dark:text-amber-400'
+																? 'border-warning/50 text-warning'
 																: 'text-muted-foreground'
 														}`}
 														variant={isSideEffect ? 'outline' : 'secondary'}
@@ -718,28 +1083,28 @@ export function Level16ServiceObjects({ onComplete }: LevelComponentProps) {
 									})}
 
 									<pre className="text-xs font-mono text-muted-foreground px-3 py-1">
-										{'  render json: { user: @user, token: token }'}
-									</pre>
-									<pre className="text-xs font-mono text-muted-foreground px-3 py-1">
 										{'end'}
 									</pre>
 								</div>
 							</div>
 
-							{/* Callout */}
 							<div className="px-6 py-3">
 								<div className="max-w-lg mx-auto">
-									<div className="border border-amber-500/30 bg-amber-500/5 dark:bg-amber-400/5 rounded-lg p-3 text-sm text-foreground">
-										<strong>5 responsibilities in one method.</strong> This
-										logic can&apos;t be reused by a rake task, tested without
-										HTTP, or understood at a glance.
+									<div className="border border-warning/30 bg-warning/5 dark:bg-warning/10 rounded-lg p-3 text-sm text-foreground">
+										<strong>Five jobs in one method.</strong> Support wants to
+										bulk-import 500 sellers from a CSV next week. None of this
+										can run outside an HTTP request, and none of it can be
+										tested without one.
 									</div>
 								</div>
 							</div>
 
-							{/* Build the Fix button (always visible) */}
 							<div className="p-4 flex justify-center">
-								<Button className="gap-2" onClick={handleStartBuild} size="lg">
+								<Button
+									className="gap-2"
+									onClick={() => setPhase('build')}
+									size="lg"
+								>
 									Build the Fix
 									<ArrowRight className="w-4 h-4" />
 								</Button>
@@ -758,9 +1123,14 @@ export function Level16ServiceObjects({ onComplete }: LevelComponentProps) {
 									{currentOptionConfig.description}
 								</p>
 
-								{isViewingCompletedStep ? (
-									<div className="space-y-2">
-										{shuffledOptions.map((opt) => (
+								<ErrorFeedback
+									message={stepper.lastFeedback}
+									onDismiss={stepper.clearFeedback}
+								/>
+
+								<div className="space-y-2">
+									{shuffledOptions.map((opt) =>
+										isViewingCompletedStep ? (
 											<OptionCard
 												color="violet"
 												disabled={!opt.correct}
@@ -770,29 +1140,18 @@ export function Level16ServiceObjects({ onComplete }: LevelComponentProps) {
 												selected={opt.correct}
 												size="lg"
 											/>
-										))}
-									</div>
-								) : (
-									<>
-										<div className="space-y-2">
-											{shuffledOptions.map((opt) => (
-												<OptionCard
-													color="violet"
-													key={opt.id}
-													mono
-													name={opt.label}
-													onClick={() => handleOptionClick(opt)}
-													size="lg"
-												/>
-											))}
-										</div>
-
-										<ErrorFeedback
-											message={stepper.lastFeedback}
-											onDismiss={stepper.clearFeedback}
-										/>
-									</>
-								)}
+										) : (
+											<OptionCard
+												color="violet"
+												key={opt.id}
+												mono
+												name={opt.label}
+												onClick={() => handleOptionClick(opt)}
+												size="lg"
+											/>
+										),
+									)}
+								</div>
 
 								{isViewingCompletedStep && (
 									<div className="flex justify-end">
@@ -802,6 +1161,8 @@ export function Level16ServiceObjects({ onComplete }: LevelComponentProps) {
 												hasNextStep
 													? stepper.nextStep
 													: () => {
+															stressTest.reset();
+															resetViz();
 															setPhase('reward');
 														}
 											}
@@ -816,136 +1177,29 @@ export function Level16ServiceObjects({ onComplete }: LevelComponentProps) {
 						</div>
 					)}
 
-					{/* ── Phase 3: Reward ── */}
+					{/* ── Phase 3: Reward (ADVANTAGE) ── */}
 					{phase === 'reward' && (
-						<div className="flex-1 flex flex-col overflow-auto">
-							{/* Header */}
-							<div className="px-6 pt-4 pb-2 flex items-center justify-between">
-								<div className="text-sm font-semibold text-foreground">
-									The Fix: Controller + UserRegistration Service
-								</div>
+						<div className="flex-1 flex flex-col">
+							<div className="flex-1 flex flex-col min-h-0">
+								<CallersFlow
+									callers={callerStates}
+									edges={edgeStates}
+									service={serviceState}
+								/>
 							</div>
 
-							{/* Annotated code: thin controller */}
-							<div className="px-6 py-2">
-								<div className="max-w-lg mx-auto space-y-1">
-									<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
-										Controller (8 lines)
-									</div>
-									<div className="border-l-2 border-l-success bg-success/5 dark:bg-success/5 rounded-r-md px-3 py-2">
-										<div className="flex items-center gap-2 mb-1">
-											<Badge
-												className="text-[10px] px-1.5 py-0 text-success"
-												variant="secondary"
-											>
-												Delegates
-											</Badge>
-										</div>
-										<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">{`result = UserRegistration.call(params)
-if result.success?
-  render json: { user: result.user }, status: :created
-else
-  render json: { errors: result.errors }, status: :unprocessable_entity
-end`}</pre>
-									</div>
-								</div>
-							</div>
-
-							{/* Annotated code: service with responsibilities */}
-							<div className="px-6 py-2">
-								<div className="max-w-lg mx-auto space-y-1">
-									<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
-										UserRegistration Service
-									</div>
-									<pre className="text-xs font-mono text-muted-foreground px-3 py-1">
-										{'def call'}
-									</pre>
-
-									<div className="border-l-2 border-l-zinc-400 dark:border-l-zinc-600 bg-muted/30 rounded-r-md px-3 py-2">
-										<div className="flex items-center gap-2 mb-1">
-											<Badge
-												className="text-[10px] px-1.5 py-0 text-muted-foreground"
-												variant="secondary"
-											>
-												Inline Checks + Core Logic
-											</Badge>
-										</div>
-										<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">{`return failure if @params[:email].blank?
-return failure if @params[:password].length < 8
-user = User.new(@params)
-return Result.new(failure) unless user.save`}</pre>
-									</div>
-
-									{ANNOTATED_SECTIONS.filter(
-										(s) => s.variant === 'side-effect',
-									).map((section) => (
-										<div
-											className="border-l-2 border-l-success bg-success/5 dark:bg-success/5 rounded-r-md px-3 py-2"
-											key={section.id}
-										>
-											<div className="flex items-center gap-2 mb-1">
-												<Badge
-													className="text-[10px] px-1.5 py-0 border-success/50 text-success"
-													variant="outline"
-												>
-													{section.label.replace('Side Effect: ', 'Isolated: ')}
-												</Badge>
-											</div>
-											<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">
-												{section.code}
-											</pre>
-										</div>
-									))}
-
-									<pre className="text-xs font-mono text-muted-foreground px-3 py-1">
-										{'  Result.new(success: true, user: user)'}
-									</pre>
-									<pre className="text-xs font-mono text-muted-foreground px-3 py-1">
-										{'end'}
-									</pre>
-								</div>
-							</div>
-
-							{/* Problems solved checklist */}
-							<div className="px-6 py-3">
-								<div className="max-w-lg mx-auto">
-									<div className="border border-success/30 bg-success/5 dark:bg-success/5 rounded-lg p-3 space-y-2">
-										<div className="text-xs font-semibold text-success uppercase tracking-wider">
-											Problems Solved
-										</div>
-										<div className="space-y-1.5 text-sm text-foreground">
-											<div className="flex items-start gap-2">
-												<Check className="w-4 h-4 text-success shrink-0 mt-0.5" />
-												<span>
-													<strong>Reusable by a rake task:</strong>{' '}
-													<code className="text-xs bg-muted px-1 py-0.5 rounded">
-														UserRegistration.call(params)
-													</code>{' '}
-													works from controllers, rake tasks, console, or tests.
-												</span>
-											</div>
-											<div className="flex items-start gap-2">
-												<Check className="w-4 h-4 text-success shrink-0 mt-0.5" />
-												<span>
-													<strong>Testable without HTTP:</strong> Unit test
-													calls{' '}
-													<code className="text-xs bg-muted px-1 py-0.5 rounded">
-														UserRegistration.call
-													</code>{' '}
-													directly. No request context needed.
-												</span>
-											</div>
-											<div className="flex items-start gap-2">
-												<Check className="w-4 h-4 text-success shrink-0 mt-0.5" />
-												<span>
-													<strong>Readable at a glance:</strong> Controller is 8
-													lines. Service has one public method with clear inputs
-													and outputs.
-												</span>
-											</div>
-										</div>
-									</div>
-								</div>
+							<div className="px-4 pb-4">
+								<StressTestPanel
+									allowedCount={stressTest.allowedCount}
+									blockedCount={stressTest.blockedCount}
+									canAutoFire={stressTest.canAutoFire}
+									disabled={vizAnimating}
+									isAutoFiring={stressTest.isAutoFiring}
+									onFire={handleFireScenario}
+									onToggleAutoFire={stressTest.toggleAutoFire}
+									results={stressTest.results}
+									scenarios={STRESS_SCENARIOS}
+								/>
 							</div>
 						</div>
 					)}
@@ -962,6 +1216,7 @@ return Result.new(failure) unless user.save`}</pre>
 								? stepper.currentStep
 								: stepper.currentStep - 1,
 					)}
+					learningGoal="A service object is a plain Ruby class that owns one multi-step workflow: one public entry point in, one immutable Result out. The controller shrinks to HTTP work (params in, status codes out, session creation with request context), and the same workflow becomes callable from rake tasks and tests with no HTTP anywhere."
 				/>
 			</RightPanel>
 		</LevelLayout>

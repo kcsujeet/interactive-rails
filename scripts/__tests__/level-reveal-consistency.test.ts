@@ -101,7 +101,6 @@ const KNOWN_STRANDED_GUARDS = new Set<string>([
 	'src/features/act1-foundation/components/level-6-routes/Level6Routes.tsx',
 	'src/features/act1-foundation/components/level-7-controller/Level7Controller.tsx',
 	'src/features/act2-users-security/components/level-11-authorization/Level11Authorization.tsx',
-	'src/features/act3-clean-architecture/components/level-16-service-objects/Level16ServiceObjects.tsx',
 	'src/features/act3-clean-architecture/components/level-17-concerns/Level17Concerns.tsx',
 	'src/features/act3-clean-architecture/components/level-18-validation-contracts/Level18ValidationContracts.tsx',
 	'src/features/act3-clean-architecture/components/level-19-query-objects/Level19QueryObjects.tsx',
@@ -597,6 +596,9 @@ const KNOWN_MISSING_STRESS_TARGET_CONTROLLER = new Set<string>([
 	'src/features/act2-users-security/components/level-12-validations/Level12Validations.tsx',
 	'src/features/act2-users-security/components/level-14-testing/Level14Testing.tsx',
 	'src/features/act3-clean-architecture/components/level-20-error-handling/Level20ErrorHandling.tsx',
+	// L16: legit non-HTTP path labels (rake task + unit test callers are the
+	// level's whole point: the same service invoked from non-HTTP contexts).
+	'src/features/act3-clean-architecture/components/level-16-service-objects/Level16ServiceObjects.tsx',
 	'src/features/act4-performance/components/level-21-n1-problem/Level21N1Problem.tsx',
 	'src/features/act4-performance/components/level-22-eager-loading/Level22EagerLoading.tsx',
 	'src/features/act4-performance/components/level-23-narrow-fetching/Level23NarrowFetching.tsx',

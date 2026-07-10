@@ -10,56 +10,51 @@ export const level16ServiceObjects: Level = {
 	trigger: {
 		type: 'refactor_request',
 		description:
-			'The RegistrationsController#create action is 80 lines long. It creates a user, logs a welcome message, and subscribes to the newsletter. Too much logic in one controller action.',
+			'Signup kept growing: UsersController#create now creates the user, sends the welcome email, applies default preferences, logs the customer in, and renders the response. Next week support needs the exact same workflow to bulk-import 500 sellers from a CSV, and none of it can run outside an HTTP request.',
 	},
 	startingPipeline: standardPipeline(),
 	problem: {
 		observation:
-			'The create action handles user creation, welcome logging, and newsletter subscription all inline. It is 80 lines, untestable, and breaks when any step fails.',
+			'One controller action does five jobs. The workflow cannot be reused from a rake task (it is welded to request and render), cannot be tested without HTTP, and every new signup requirement lands in the same method, which is how it got this long in the first place.',
 		rootCause:
-			'Business logic is embedded in the controller instead of being extracted into a dedicated service object.',
-		codeExample: `# app/controllers/api/registrations_controller.rb
-class Api::RegistrationsController < ApplicationController
+			'The business workflow lives in the HTTP layer. Controllers are entry points, not homes: when a multi-step workflow lives inline in an action, its only callers can be HTTP requests, and its only tests can be request tests.',
+		codeExample: `# app/controllers/users_controller.rb
+class UsersController < ApplicationController
+  allow_unauthenticated_access only: :create
+
   def create
     @user = User.new(user_params)
 
-    # Inline validation checks
-    if params[:email].blank?
-      return render json: { error: "Email required" }, status: 422
-    end
-    if params[:password].length < 8
-      return render json: { error: "Too short" }, status: 422
-    end
-    if params[:display_name].blank?
-      return render json: { error: "Name required" }, status: 422
-    end
-
     if @user.save
-      # Log welcome message inline
-      Rails.logger.info("User #{@user.id} registered")
+      send_welcome_email(@user)                  # job 2
 
-      # Set default preferences inline
-      DefaultPreferences.apply!(@user)
+      @user.update!(                             # job 3
+        locale: "en",
+        timezone: "UTC",
+        notification_preference: "email",
+      )
 
-      # Generate session token inline
-      token = @user.generate_token_for(:session)
+      session = @user.sessions.create!(          # job 4
+        ip_address: request.remote_ip,
+        user_agent: request.user_agent,
+      )
 
-      render json: @user, status: :created
+      render json: {                             # job 5
+        id: @user.id,
+        email_address: @user.email_address,
+        token: session.token,
+      }, status: :created
     else
-      render json: { errors: @user.errors }, status: :unprocessable_entity
+      render json: { errors: @user.errors.full_messages },
+             status: :unprocessable_entity
     end
-  rescue StandardError => e
-    @user&.destroy  # Orphaned records!
-    render json: { error: e.message }, status: :internal_server_error
   end
 end
 
-# Problems:
-# 1. Controller does too many things (SRP violation)
-# 2. Side effects block the response
-# 3. Failure in any step leaves orphaned records
-# 4. Impossible to test steps independently`,
-		goal: 'Extract the registration workflow into a PORO service object with a Result pattern.',
+# Support's ask: "import 500 sellers from this CSV."
+# There is no way to run jobs 1-3 without faking an
+# HTTP request, and no way to test them without one.`,
+		goal: 'Move the signup workflow into one dedicated, reusable home with an explicit success-or-failure return value, leaving the controller with only HTTP work: params in, status codes and the login session out.',
 		thresholds: {},
 	},
 	successConditions: [{ type: 'service_created' }],
@@ -67,26 +62,31 @@ end
 	unlockedNodes: ['service'],
 	learningContent: {
 		title: 'Service Objects & the Result Pattern',
-		goal: `In this level, you'll:\n- learn how to extract bloated controller logic into service objects (plain Ruby classes with a single responsibility).\n- use the Result pattern to handle success and failure explicitly.\n- keep your controllers thin and your business logic testable in isolation.`,
-		conceptExplanation: `Service objects (Plain Old Ruby Objects) encapsulate multi-step business logic outside of controllers and models.
+		goal: `In this level, you'll:\n- learn when a controller action has outgrown the controller (multiple jobs, multiple wished-for callers).\n- extract a multi-step workflow into a plain Ruby service class with one public entry point.\n- return an immutable Result the caller branches on, instead of booleans or exceptions.\n- decide what does NOT move: HTTP-context work like session creation stays in the controller.`,
+		conceptExplanation: `A service object is a plain Ruby class that owns one multi-step business workflow. Nothing about it is framework magic: a class, a constructor, one public method.
 
-**Why use service objects?**
-- Controllers stay thin (just HTTP concerns)
-- Business logic is testable in isolation
-- Steps can be composed and reused
-- Error handling becomes explicit with the Result pattern
+**Why extract?**
+- The controller shrinks to HTTP work: parse params, delegate, render by status.
+- The workflow becomes callable from anywhere: controller, rake task, console, test. The CSV import that was impossible becomes a loop.
+- The workflow becomes testable as plain Ruby: no router, no request, no controller in the test.
 
 **The Result pattern:**
-Instead of raising exceptions or returning booleans, return a Result object with \`.success?\`, \`.failure?\`, \`.value\`, and \`.error\`. This makes the caller's logic clean and explicit.
+Returning true/false loses every detail; raising exceptions for expected failures makes callers write rescue-as-control-flow. Instead, return a small immutable value:
 
-**When to extract:**
-- Controller action exceeds ~15 lines of business logic
-- Multiple models are created/updated in one action
-- External API calls are involved
-- The same workflow is needed from multiple entry points
+\`Result = Data.define(:success?, :user, :errors)\`
 
-**Ruby's Data.define (Ruby 3.2+):**
-Data classes are immutable value objects -- perfect for Results. They give you \`.new\`, \`==\`, pattern matching, and immutability for free.`,
+Ruby's Data.define (Ruby 3.2+) gives you an immutable value object with named fields, equality, and pattern matching in one line. Every caller branches the same way: \`result.success?\`, then \`result.user\` or \`result.errors\`.
+
+**What moves, and what stays:**
+- The workflow moves: create the user, send the welcome email, apply default preferences.
+- Model validations do NOT move into the service: they stay on the model, and the service simply branches on \`user.save\`. A failure Result carries \`user.errors.full_messages\` through to the caller.
+- The login session does NOT move: it needs request context (IP, user agent), and non-HTTP callers must not log anyone in. A CSV import that created 500 sessions would be a bug. HTTP concerns stay in the controller.
+
+**The convention:** a tiny ApplicationService base gives every service a class-level entry point:
+
+\`ApplicationService.call(...)\` delegates to \`new(...).call\`, so every call site reads as one line: \`result = UserRegistration.call(user_params)\`.
+
+**When to extract (and when not to):** multi-step workflows with side effects, workflows needed from more than one entry point, or anything you want to test without HTTP. Do NOT wrap a single \`user.update!(...)\` in a service; trivial CRUD stays inline. Over-extraction is the mirror-image mistake of the fat controller.`,
 		railsCodeExample: `# app/services/application_service.rb
 class ApplicationService
   def self.call(...)
@@ -103,97 +103,113 @@ class UserRegistration < ApplicationService
   end
 
   def call
-    # Inline validation checks (carried from controller)
-    if @params[:email].blank?
-      return Result.new(success?: false, user: nil, errors: ["Email required"])
-    end
-    if @params[:password].length < 8
-      return Result.new(success?: false, user: nil, errors: ["Password too short"])
-    end
-
     user = User.new(@params)
 
     unless user.save
-      return Result.new(success?: false, user: nil, errors: user.errors.full_messages)
+      return Result.new(
+        success?: false, user: nil,
+        errors: user.errors.full_messages,
+      )
     end
 
-    # Side effects (isolated, testable)
-    Rails.logger.info("User #{user.id} registered")
-    user.update!(locale: "en", timezone: "UTC",
-                 notification_preference: "email")
-    token = user.generate_token_for(:session)
+    send_welcome_email(user)
+    apply_default_preferences(user)
 
     Result.new(success?: true, user: user, errors: [])
   end
+
+  private
+
+  def send_welcome_email(user)
+    Rails.logger.info "TODO welcome email to #{user.email_address}"
+  end
+
+  def apply_default_preferences(user)
+    user.update!(
+      locale: "en",
+      timezone: "UTC",
+      notification_preference: "email",
+    )
+  end
 end
 
-# app/controllers/api/registrations_controller.rb
-class Api::RegistrationsController < ApplicationController
+# app/controllers/users_controller.rb (thin: HTTP only)
+class UsersController < ApplicationController
+  allow_unauthenticated_access only: :create
+
   def create
-    result = UserRegistration.call(registration_params)
+    result = UserRegistration.call(user_params)
 
     if result.success?
-      render json: UserSerializer.new(result.user).serializable_hash.to_json, status: :created
+      # HTTP-context work stays here: the session needs the
+      # request, and rake imports must not log anyone in.
+      session = result.user.sessions.create!(
+        ip_address: request.remote_ip,
+        user_agent: request.user_agent,
+      )
+      render json: {
+        id: result.user.id,
+        email_address: result.user.email_address,
+        token: session.token,
+      }, status: :created
     else
-      render json: { errors: result.errors }, status: :unprocessable_entity
+      render json: { errors: result.errors },
+             status: :unprocessable_entity
     end
   end
 
   private
 
-  def registration_params
-    params.expect(user: [:email, :password, :name])
+  def user_params
+    params.expect(user: [ :email_address, :password ])
   end
 end
 
-# Test the service in isolation:
+# The workflow is now callable from anywhere:
+
+# lib/tasks/seller_import.rake
+CSV.foreach(path, headers: true) do |row|
+  result = UserRegistration.call(
+    email_address: row["email_address"],
+    password: SecureRandom.base58(20),
+  )
+  report << [row["email_address"], result.errors] unless result.success?
+end
+
 # test/services/user_registration_test.rb
-class UserRegistrationTest < ActiveSupport::TestCase
-  test "successful registration creates user and logs welcome" do
-    result = UserRegistration.call(
-      email: "new@example.com",
-      password: "secure123",
-      name: "Alice"
-    )
+test "duplicate email returns a failure Result" do
+  User.create!(email_address: "taken@example.com", password: "secret123")
 
-    assert result.success?
-    assert_equal "new@example.com", result.user.email
-  end
+  result = UserRegistration.call(
+    email_address: "taken@example.com", password: "secret123",
+  )
 
-  test "duplicate email returns failure result" do
-    User.create!(email: "taken@example.com", password: "x", name: "X")
-    result = UserRegistration.call(
-      email: "taken@example.com",
-      password: "secure123",
-      name: "Alice"
-    )
-
-    refute result.success?
-    assert_includes result.errors, "Email has already been taken"
-  end
+  refute result.success?
+  assert_includes result.errors, "Email address has already been taken"
 end`,
 		commonMistakes: [
-			'Multiple public methods (keep it to one: .call)',
-			'Passing ActiveRecord objects instead of primitives (harder to test, serialize, and parallelize)',
-			'Not using a Result object (returning true/false loses context about what went wrong)',
-			'Putting service logic back in callbacks (hides control flow)',
-			'Making services that are just thin wrappers around a single model save (over-extraction)',
+			'Dropping fields from the response during the refactor (the fat action returned the session token; the thin one must too, or every client breaks quietly)',
+			'Re-validating params inside the service (model validations are the single source of truth; the service branches on user.save and passes the errors through)',
+			'Moving session/token creation into the service (it needs request context, and non-HTTP callers like a CSV import must not log users in)',
+			'Returning true/false instead of a Result (the caller learns nothing about what went wrong)',
+			'Multiple public methods on one service (one workflow, one entry point: #call)',
+			'Wrapping a single model save in a service (over-extraction; trivial CRUD stays inline)',
 		],
 		whenToUse:
-			'Multi-step workflows, external API integrations, any controller action over 15 lines of business logic, or logic reused from multiple entry points (controller, job, rake task).',
+			'Multi-step workflows with side effects, workflows needed from more than one entry point (controller, rake task, console, test), or any controller action that has accumulated jobs beyond parse-delegate-render.',
 		furtherReading: [
 			{
-				title: 'Service Objects in Rails',
-				url: 'https://www.toptal.com/ruby-on-rails/rails-service-objects-tutorial',
+				title: 'Ruby Data.define (official docs)',
+				url: 'https://docs.ruby-lang.org/en/master/Data.html',
 			},
 			{
-				title: 'Result Pattern in Ruby (dry-monads)',
+				title: 'Result Pattern in Ruby (dry-monads, the heavyweight version)',
 				url: 'https://dry-rb.org/gems/dry-monads/',
 			},
 		],
 	},
 	hint: {
 		delay: 25,
-		text: 'Add a Service node and connect the Controller to it. The service handles the multi-step registration workflow so the controller stays thin.',
+		text: 'Count the jobs in the action, then ask which of them a CSV import would also need. Those move together into one plain Ruby class with a single public method; what needs the HTTP request stays behind. The caller should get back a value it can branch on.',
 	},
 };
