@@ -363,26 +363,4 @@ export const SCENARIO_REWARD_OVERRIDES: Record<string, ScenarioRewardOverride> =
 				'flag-gate-legacy-processor',
 			],
 		},
-		'incident-recovery': {
-			stages: {
-				'flag-gate': {
-					sublabel: 'OFF (incident)',
-					variant: 'active',
-					badge: 'KILL',
-				},
-				'new-processor': {
-					sublabel: 'no new traffic',
-					variant: 'inactive',
-				},
-				'legacy-processor': {
-					sublabel: 'serving 100% of traffic',
-					variant: 'active',
-				},
-			},
-			activeConnections: [
-				'client-app-server',
-				'app-server-flag-gate',
-				'flag-gate-legacy-processor',
-			],
-		},
 	};

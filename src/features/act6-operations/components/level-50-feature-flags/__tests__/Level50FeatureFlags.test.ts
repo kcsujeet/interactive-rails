@@ -517,3 +517,35 @@ describe('Level 49: Feature Flags & Staged Rollouts', () => {
 		});
 	});
 });
+
+// ---------------------------------------------------------------------------
+// Reward wiring (dead/duplicate-scenario regression, audit 2026-07-09).
+// ---------------------------------------------------------------------------
+
+describe('Level 50: reward wiring', () => {
+	test('no two kill-switch scenarios duplicate each other', () => {
+		const killScenarios = STRESS_SCENARIOS.filter((s) =>
+			`${s.label} ${s.description}`.toLowerCase().includes('kill'),
+		);
+		expect(
+			killScenarios.length,
+			`kill-switch scenarios: ${killScenarios.map((s) => s.id).join(', ')}`,
+		).toBeLessThanOrEqual(1);
+	});
+
+	test('every scenario has a reward override (no dead buttons)', () => {
+		for (const scenario of STRESS_SCENARIOS) {
+			expect(
+				SCENARIO_REWARD_OVERRIDES[scenario.id],
+				`scenario "${scenario.id}" fires but changes nothing`,
+			).toBeDefined();
+		}
+	});
+
+	test('no orphan reward overrides', () => {
+		const ids = new Set(STRESS_SCENARIOS.map((s) => s.id));
+		for (const key of Object.keys(SCENARIO_REWARD_OVERRIDES)) {
+			expect(ids.has(key), `override for "${key}" has no button`).toBe(true);
+		}
+	});
+});

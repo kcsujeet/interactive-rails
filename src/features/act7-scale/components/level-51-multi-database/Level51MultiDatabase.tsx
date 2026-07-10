@@ -187,7 +187,7 @@ const DISCOVERY_DEFS: DiscoveryDef[] = [
 
 // ─── Probe definitions ────────────────────────────────────────────────
 
-const PROBES: ProbeConfig[] = [
+export const PROBES: ProbeConfig[] = [
 	{
 		id: 'browse-products',
 		label: 'Browse products (single DB)',
@@ -817,13 +817,12 @@ const REWARD_POOL_FRAMES: AnimFrame[] = [
 	},
 ];
 
-const REWARD_PROBE_FRAMES: Record<string, AnimFrame[]> = {
+export const REWARD_PROBE_FRAMES: Record<string, AnimFrame[]> = {
 	'browse-products': REWARD_BROWSE_FRAMES,
 	'place-order': REWARD_ORDER_FRAMES,
 	'view-order-history': REWARD_HISTORY_FRAMES,
 	'update-inventory': REWARD_INVENTORY_FRAMES,
 	'post-then-read': REWARD_POST_THEN_READ_FRAMES,
-	'peak-browse': REWARD_PEAK_FRAMES,
 	'peak-traffic': REWARD_PEAK_FRAMES,
 	'check-pool': REWARD_POOL_FRAMES,
 };
@@ -860,7 +859,7 @@ const STAGE_DISCOVERY_MAP: Record<string, string> = {
 
 // ─── Stress test scenarios (reward) ───────────────────────────────────
 
-const STRESS_SCENARIOS: StressScenario[] = [
+export const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'browse-products',
 		label: 'Browse product catalog',
@@ -904,15 +903,6 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		method: 'GET',
 		path: '/api/v1/orders (after POST)',
 		actor: 'customer',
-		expectedResult: 'allowed',
-	},
-	{
-		id: 'peak-browse',
-		label: '100 concurrent browses',
-		description: 'All routed to replica, 0 timeouts',
-		method: 'GET',
-		path: '/api/v1/products (x100)',
-		actor: 'customers',
 		expectedResult: 'allowed',
 	},
 	{

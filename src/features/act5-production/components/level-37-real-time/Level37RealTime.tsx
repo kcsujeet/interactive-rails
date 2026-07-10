@@ -1096,10 +1096,10 @@ const REWARD_WRONG_USER_FRAMES: AnimFrame[] = [
 	},
 ];
 
-const REWARD_FRAME_MAP: Record<string, AnimFrame[]> = {
-	'payment-push': REWARD_PAYMENT_FRAMES,
-	'zero-polling': REWARD_POLLING_FRAMES,
-	'server-healthy': REWARD_HEALTH_FRAMES,
+export const REWARD_FRAME_MAP: Record<string, AnimFrame[]> = {
+	'trigger-event': REWARD_PAYMENT_FRAMES,
+	'check-polling': REWARD_POLLING_FRAMES,
+	'check-cpu': REWARD_HEALTH_FRAMES,
 	unauthenticated: REWARD_BLOCKED_FRAMES,
 	'wrong-user': REWARD_WRONG_USER_FRAMES,
 };
@@ -1127,7 +1127,7 @@ const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
 // Probe definitions
 // ──────────────────────────────────────────────
 
-const PROBES: ProbeConfig[] = [
+export const PROBES: ProbeConfig[] = [
 	{
 		id: 'trigger-event',
 		label: 'POST create payment',
@@ -1447,75 +1447,7 @@ const OPTION_STEP_CONFIG: Record<
 // 2. zero-polling resolves "GET notifications (poll)" probe
 // 3. server-healthy resolves "GET server health" probe
 // 4-5. auth scenarios resolve build steps
-const STRESS_SCENARIOS: StressScenario[] = [
-	{
-		id: 'payment-push',
-		label: 'POST create payment (with push)',
-		description: 'Same flow as observe, but server pushes instantly',
-		story: [
-			'Same flow: customer pays $99.99, server sends to Stripe.',
-			'Stripe confirms asynchronously, notification created on server.',
-			'But now: after_create_commit broadcasts it instantly via WebSocket.',
-			'The customer knows within milliseconds, not seconds.',
-		],
-		method: 'WS' as 'GET',
-		path: '/cable -> NotificationsChannel',
-		actor: 'server',
-		expectedResult: 'allowed',
-		responseLines: [
-			{
-				text: 'Stripe -> after_create_commit -> broadcast_to_user',
-				color: 'cyan',
-			},
-			{ text: 'Delivered in <15ms (was 2s with polling)', color: 'green' },
-		],
-	},
-	{
-		id: 'zero-polling',
-		label: 'Customer checks order status (with push)',
-		description: 'Same scenario, but server pushes updates instantly',
-		story: [
-			'Same customer waiting for their order to ship.',
-			'But now they do not need to keep refreshing.',
-			'The server pushes the shipping update instantly via WebSocket.',
-			'Zero polling requests, zero wasted server work.',
-			'The customer gets notified the moment their order ships.',
-		],
-		method: 'WS' as 'GET',
-		path: '/cable',
-		actor: 'server',
-		expectedResult: 'allowed',
-		responseLines: [
-			{ text: '50K WebSocket connections active', color: 'cyan' },
-			{ text: '0 polling requests/sec (was 25K)', color: 'green' },
-			{ text: '0% wasted work (was 99%)', color: 'green' },
-		],
-	},
-	{
-		id: 'server-healthy',
-		label: 'Black Friday traffic (with WebSocket)',
-		description: 'Same traffic, but no polling overhead',
-		story: [
-			'Same Black Friday, same 50K customers.',
-			'But now order status updates are pushed via WebSocket.',
-			'The 25K req/sec polling flood is gone.',
-			'CPU drops from 95% to 3%. Connection pool is healthy.',
-			'New customers can browse and check out without 503 errors.',
-			'The site stays up.',
-		],
-		method: 'WS' as 'GET',
-		path: '/cable',
-		actor: 'server',
-		expectedResult: 'allowed',
-		responseLines: [
-			{ text: 'CPU: 3% (was 95%)', color: 'green' },
-			{
-				text: 'Connection pool: 50/850 (was 847/850 EXHAUSTED)',
-				color: 'green',
-			},
-			{ text: 'Zero 503 errors', color: 'green' },
-		],
-	},
+export const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'unauthenticated',
 		label: 'Anonymous connect',

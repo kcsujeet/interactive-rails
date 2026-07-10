@@ -53,14 +53,4 @@ export const STRESS_SCENARIOS: StressScenario[] = [
 		actor: 'beta_user_42',
 		expectedResult: 'allowed',
 	},
-	{
-		id: 'incident-recovery',
-		label: 'Incident! Disable feature globally',
-		description:
-			'Hard kill: oncall disables the flag during a live incident. Active requests still in flight finish; new requests route to legacy. No redeploy.',
-		method: 'POST',
-		path: '/admin/flipper/features/new_payment_processor/clear',
-		actor: 'oncall',
-		expectedResult: 'blocked',
-	},
 ];

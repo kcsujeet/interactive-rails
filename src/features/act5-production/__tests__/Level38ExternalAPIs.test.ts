@@ -619,3 +619,43 @@ describe('Level 38: External APIs', () => {
 		});
 	});
 });
+
+// ---------------------------------------------------------------------------
+// Reward wiring (dead-scenario regression, audit 2026-07-09).
+// ---------------------------------------------------------------------------
+
+import {
+	REWARD_FRAME_MAP as WIRED_FRAMES,
+	PROBES as WIRED_PROBES,
+	STRESS_SCENARIOS as WIRED_SCENARIOS,
+} from '../components/level-38-external-apis/Level38ExternalAPIs';
+
+describe('Level 38: reward wiring', () => {
+	test('scenario labels are unique (no duplicate buttons)', () => {
+		const labels = WIRED_SCENARIOS.map((s) => s.label);
+		expect(new Set(labels).size).toBe(labels.length);
+	});
+
+	test('every scenario has reward frames (no dead buttons)', () => {
+		for (const scenario of WIRED_SCENARIOS) {
+			expect(
+				WIRED_FRAMES[scenario.id],
+				`scenario "${scenario.id}" fires but animates nothing`,
+			).toBeInstanceOf(Array);
+		}
+	});
+
+	test('no orphan frames', () => {
+		const ids = new Set(WIRED_SCENARIOS.map((s) => s.id));
+		for (const key of Object.keys(WIRED_FRAMES)) {
+			expect(ids.has(key), `frames for "${key}" have no button`).toBe(true);
+		}
+	});
+
+	test('every probe id has a matching scenario id', () => {
+		const ids = new Set(WIRED_SCENARIOS.map((s) => s.id));
+		for (const probe of WIRED_PROBES) {
+			expect(ids.has(probe.id), `probe "${probe.id}" unpaired`).toBe(true);
+		}
+	});
+});

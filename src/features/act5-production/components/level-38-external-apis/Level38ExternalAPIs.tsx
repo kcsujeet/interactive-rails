@@ -176,7 +176,7 @@ const DISCOVERY_DEFS = [
 
 // ─── Probe definitions ─────────────────────────────────────────────────
 
-const PROBES = [
+export const PROBES = [
 	{
 		id: 'slow-stripe',
 		label: 'POST create payment (slow response)',
@@ -826,10 +826,10 @@ const REWARD_400_FRAMES: AnimFrame[] = [
 	},
 ];
 
-const REWARD_FRAME_MAP: Record<string, AnimFrame[]> = {
-	'slow-timeout': REWARD_SLOW_FRAMES,
-	'retry-503': REWARD_503_FRAMES,
-	'circuit-open': REWARD_CIRCUIT_FRAMES,
+export const REWARD_FRAME_MAP: Record<string, AnimFrame[]> = {
+	'slow-stripe': REWARD_SLOW_FRAMES,
+	'stripe-503': REWARD_503_FRAMES,
+	'stripe-down': REWARD_CIRCUIT_FRAMES,
 	'fast-charge': REWARD_FAST_FRAMES,
 	'client-error': REWARD_400_FRAMES,
 };
@@ -1136,77 +1136,7 @@ const TERMINAL_STEP_MAP: (TerminalStepData | null)[] = [
 
 // ─── Stress test scenarios ─────────────────────────────────────────────
 
-const STRESS_SCENARIOS = [
-	{
-		id: 'slow-timeout',
-		label: 'POST create payment (with timeout)',
-		description: 'Same slow Stripe, but timeout kills it at 10s',
-		method: 'POST',
-		path: '/api/payments',
-		actor: 'customer',
-		expectedResult: 'blocked' as const,
-		responseLines: [
-			{ text: 'POST /api/payments -> Stripe API', color: 'cyan' },
-			{ text: 'Timeout: 10s limit reached!', color: 'yellow' },
-			{ text: 'Thread freed after 10s (was 30s before)', color: 'green' },
-			{ text: '503 - { "error": { "code": "TIMEOUT" } }', color: 'red' },
-		],
-		story: [
-			'Same customer, same slow Stripe.',
-			'But now the 10-second timeout catches it.',
-			'Thread freed after 10s instead of 30s.',
-			'Customer gets a clean error: "Please try again."',
-			'4 out of 5 threads stayed available the entire time.',
-		],
-	},
-	{
-		id: 'retry-503',
-		label: 'GET check payment status (with retry)',
-		description: 'Same 503, but retry middleware handles it',
-		method: 'GET',
-		path: '/api/payments/ch_abc/status',
-		actor: 'customer',
-		expectedResult: 'allowed' as const,
-		responseLines: [
-			{
-				text: 'GET /api/payments/ch_abc/status -> Stripe API',
-				color: 'cyan',
-			},
-			{ text: 'Attempt 1: 503 Service Unavailable', color: 'yellow' },
-			{ text: 'Retry middleware: backing off 0.5s...', color: 'yellow' },
-			{ text: 'Attempt 2: 200 OK', color: 'green' },
-		],
-		story: [
-			'Same customer checking the same payment.',
-			'Same 503 from Stripe on the first attempt.',
-			'But now retry middleware catches it, waits 0.5s, retries.',
-			'Second attempt succeeds.',
-			'Customer sees their payment status without ever knowing anything went wrong.',
-		],
-	},
-	{
-		id: 'circuit-open',
-		label: 'Black Friday traffic (with circuit breaker)',
-		description: 'Same outage, but circuit breaker protects the app',
-		method: 'POST',
-		path: '/api/payments',
-		actor: 'customer',
-		expectedResult: 'blocked' as const,
-		responseLines: [
-			{ text: 'POST /api/payments -> Circuit breaker', color: 'cyan' },
-			{ text: 'Stoplight: circuit OPEN (5 failures)', color: 'red' },
-			{ text: 'Fail-fast: 2ms (was 30s before!)', color: 'green' },
-			{ text: '503 - { "error": { "code": "CIRCUIT_OPEN" } }', color: 'red' },
-		],
-		story: [
-			'Same Black Friday, same Stripe outage, same 50 customers.',
-			'First 5 requests fail (circuit breaker counting: 1, 2, 3, 4, 5).',
-			'After 5 failures, circuit breaker opens.',
-			'Requests 6-50 fail instantly in milliseconds, never reaching Stripe.',
-			'All threads stay free. Homepage, search, everything still works.',
-			'Only payments are degraded. The rest of the app is fine.',
-		],
-	},
+export const STRESS_SCENARIOS = [
 	{
 		id: 'fast-charge',
 		label: 'POST charge (fast response)',
