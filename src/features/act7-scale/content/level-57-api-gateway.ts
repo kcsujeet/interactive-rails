@@ -8,39 +8,31 @@ export const level57APIGateway: Level = {
 	trigger: {
 		type: 'architecture',
 		description:
-			'Multiple internal services, each handling authentication differently. Mobile clients call six endpoints on three different hosts. Need a single entry point with unified auth.',
+			'Every screen of the mobile app stitches itself together from separate API calls. The dashboard alone makes six sequential round trips, downloads whole resources for slivers of screen, and has six internal paths baked into every shipped version: the backend cannot move anything without breaking customers.',
 	},
 	startingPipeline: { nodes: [], connections: [] },
 	problem: {
 		observation:
-			'Mobile app makes 6 HTTP calls to 3 different services to render one screen. Each service has its own auth scheme. Latency compounds with each sequential call.',
+			'One dashboard screen costs six round trips (2.4s on 4G), 480KB of payload for 6KB of pixels, and a blank screen if any single call fails. Renaming one internal route 404s every installed app until an app-store release lands.',
 		rootCause:
-			'No API gateway. Clients connect directly to internal services with no aggregation, no unified authentication, and no request routing.',
-		codeExample: `# Current: Client calls each service directly
-# Mobile app does 6 calls for the dashboard screen:
-
-# Call 1: GET https://users.internal/api/v1/me
-#   Auth: Bearer token (JWT)
-# Call 2: GET https://orders.internal/api/v1/orders?user=42
-#   Auth: API key header
-# Call 3: GET https://inventory.internal/api/v1/stock?items=1,2,3
-#   Auth: Basic auth
-# Call 4: GET https://notifications.internal/api/v1/unread
-#   Auth: Bearer token (different issuer!)
-# Call 5: GET https://analytics.internal/api/v1/insights
-#   Auth: OAuth2
-# Call 6: GET https://billing.internal/api/v1/subscription
-#   Auth: HMAC signature
-
-# Problems:
-# - 6 round trips = high latency (especially on mobile)
-# - Client knows about internal service topology
-# - Auth is inconsistent across services
-# - No rate limiting at the edge
-# - Internal services exposed to the internet`,
-		goal: 'Implement an API gateway for unified auth, request routing, and response aggregation.',
+			'There is no entry point that belongs to the screen. Clients talk to six resource endpoints directly, so latency, payload shape, failure handling, and URL stability are all the client app’s problem, and the client is the one thing you cannot redeploy quickly.',
+		codeExample: `# How the shipped app renders the dashboard today:
+#
+#   GET /api/v1/users/me          (full profile: 44KB)
+#   GET /api/v1/orders            (full orders: 120KB)
+#   GET /api/v1/stock             (every row: 96KB)
+#   GET /api/v1/notifications     (52KB)
+#   GET /api/v1/billing/summary   (line items: 88KB)
+#   GET /api/v1/metrics           (every datapoint: 80KB)
+#
+# Six sequential 4G round trips (~400ms each) = 2.4s spinner.
+# 480KB downloaded; the screen displays about 6KB.
+# One failed call = blank dashboard (no per-section handling).
+# Six paths hardcoded in the shipped binary = the backend
+# cannot rename or reorganize anything without an app release.`,
+		goal: 'Serve each client screen from a single, stable entry point: authenticate once, return exactly what the screen needs, degrade gracefully when one section fails, and leave the backend free to reorganize behind the stable URL.',
 		thresholds: {
-			maxLatency: 150,
+			maxLatency: 400,
 		},
 	},
 	successConditions: [{ type: 'api_gateway_configured' }],
@@ -48,129 +40,98 @@ export const level57APIGateway: Level = {
 	unlockedNodes: ['api_gateway'],
 	learningContent: {
 		title: 'API Gateway Pattern',
-		goal: `In this level, you'll:\n- learn the API gateway pattern, where a single entry point routes requests to the right microservice.\n- centralize cross-cutting concerns like authentication, rate limiting, and logging at the gateway layer.\n- understand how gateways translate between protocols like REST, gRPC, and WebSocket.`,
-		conceptExplanation: `An API gateway is the single entry point for all client requests.
+		goal: `In this level, you'll:\n- learn why client-stitched screens are slow, fragile, and freeze your backend's internal structure.\n- build a single entry point that authenticates once and serves a whole screen in one round trip.\n- shape responses to what the screen shows instead of returning whole resources.\n- degrade gracefully per section so one failure never blanks a screen.`,
+		conceptExplanation: `An API gateway is a single entry point that owns the conversation with clients, so the rest of the backend does not have to.
 
-**Responsibilities:**
-- **Request routing:** Route /api/users/* to the users service, /api/orders/* to orders
-- **Authentication:** Verify tokens once at the edge, pass user context downstream
-- **Rate limiting:** Protect internal services from abuse
-- **Response aggregation:** Combine multiple service responses into one
-- **Protocol translation:** REST to gRPC, WebSocket to HTTP, etc.
+**The core trade it makes:**
+Six client-side calls become one. Round trips over the phone network are the expensive part (hundreds of milliseconds each); calls inside your own app are microseconds. Moving the stitching from the client to the server converts five slow network hops into five cheap method calls.
 
-**Gateway vs. BFF (Backend for Frontend):**
-- Gateway: Generic routing for all clients
-- BFF: Tailored aggregation per client type (mobile BFF, web BFF)
+**What lives at the gateway:**
+- **One auth check per screen:** identity is established once at the entry point, then passed to each section.
+- **Payload shaping:** the response contains what the screen shows: a count, a total, a top-three list, not whole resources. (When the aggregation is tailored to one client's screens like this, the pattern is often called Backend for Frontend.)
+- **Per-section fallbacks:** a failing section becomes an "unavailable" marker in the response; the screen renders everything else.
+- **Edge protections:** one rate limit at the door covers everything behind it.
 
-**Options:**
-- Rails app as gateway (simple, full control)
-- Kong / AWS API Gateway (infrastructure-level)
-- GraphQL as a gateway layer`,
-		railsCodeExample: `# Gateway as a Rails app
-# app/controllers/api/gateway_controller.rb
-class Api::GatewayController < ApplicationController
-  before_action :authenticate_at_edge!
-  before_action :rate_limit!
+**The seam it creates:**
+Clients know ONE stable URL. Behind it, the backend calls each package's public reader. That indirection is what lets the backend reorganize freely: rename routes, restructure packages, and later, when a package outgrows the app entirely and becomes its own service, clients keep calling the same URL and never notice the move. A gateway is the precondition for restructuring the backend without breaking shipped apps.
 
-  # GET /api/dashboard (aggregates from multiple services)
-  def dashboard
-    # Parallel service calls with resilient fetching
-    user = fetch_or_default { UserClient.profile(current_user.id) }
-    orders = fetch_or_default([]) { OrderClient.recent(current_user.id, limit: 5) }
-    notifications = fetch_or_default(0) { NotificationClient.unread_count(current_user.id) }
-    subscription = fetch_or_default { BillingClient.subscription(current_user.id) }
+**Gateway inside the app vs. gateway infrastructure:**
+At this stage the gateway is a controller in the monolith: full control, no new moving parts. Dedicated gateway infrastructure (Kong, AWS API Gateway) earns its place when there are many separate backends to front, which is exactly the future the capstone designs toward.`,
+		railsCodeExample: `# app/controllers/api/v1/gateway_controller.rb
+class Api::V1::GatewayController < ApplicationController
+  # Authentication concern (L9) already verifies the session
+  # once per request; Current.user is set for all sections.
 
-    render json: {
-      user: user,
-      recent_orders: orders,
-      unread_notifications: notifications,
-      subscription: subscription
+  rate_limit to: 60, within: 1.minute,
+    by: -> { request.remote_ip },
+    with: -> {
+      render json: { error: "Rate limit exceeded" },
+        status: :too_many_requests
     }
-  end
 
-  # Fetch with fallback: isolates each service call
-  def fetch_or_default(fallback = { error: 'unavailable' })
-    yield
-  rescue ServiceUnavailableError
-    fallback
+  # Each section maps to a package's PUBLIC reader (L55
+  # boundaries): the gateway never touches package internals.
+  SECTIONS = {
+    orders: Orders::Public::DashboardSummary,
+    inventory: Inventory::Public::LowStock,
+    notifications: Notifications::Public::UnreadCount,
+    billing: Billing::Public::MonthSummary,
+    analytics: Analytics::Public::TopProducts,
+  }
+
+  # GET /api/v1/dashboard: the whole screen, one round trip
+  def dashboard
+    render json: {
+      orders: section(:orders),
+      inventory: section(:inventory),
+      notifications: section(:notifications),
+      billing: section(:billing),
+      analytics: section(:analytics),
+    }
   end
 
   private
 
-  # Single auth check at the edge
-  def authenticate_at_edge!
-    token = request.headers['Authorization']&.split(' ')&.last
-    @current_user_context = JwtService.decode(token)
-
-    # Pass user context to downstream services via headers
-    RequestContext.current = @current_user_context
-  rescue JWT::DecodeError
-    render json: { error: 'Unauthorized' }, status: :unauthorized
-  end
-
-  # Rate limiting at the edge
-  def rate_limit!
-    key = "rate_limit:#{current_user.id}"
-    count = Rails.cache.increment(key, 1, expires_in: 1.minute)
-
-    if count > 100
-      render json: { error: 'Rate limit exceeded' }, status: :too_many_requests
-    end
-  end
-end
-
-# Service client with circuit breaker
-# app/clients/order_client.rb
-class OrderClient
-  include CircuitBreaker
-
-  circuit_breaker failure_threshold: 5,
-                  reset_timeout: 30.seconds
-
-  def self.recent(user_id, limit: 10)
-    response = HTTParty.get(
-      "#{ENV['ORDER_SERVICE_URL']}/api/v1/orders",
-      query: { user_id: user_id, limit: limit },
-      headers: { 'X-Request-Id' => Current.request_id },
-      timeout: 5
-    )
-    response.parsed_response
+  # One failing section degrades to a marker instead of
+  # blanking the screen; the error still gets reported (L46).
+  def section(key)
+    SECTIONS.fetch(key).call(user: Current.user)
+  rescue StandardError => e
+    Rails.error.report(e)
+    { status: "unavailable" }
   end
 end
 
 # config/routes.rb
 Rails.application.routes.draw do
   namespace :api do
-    get 'dashboard', to: 'gateway#dashboard'
-
-    # Route proxying
-    match 'users/*path', to: 'proxy#forward',
-          via: :all, defaults: { service: 'users' }
-    match 'orders/*path', to: 'proxy#forward',
-          via: :all, defaults: { service: 'orders' }
+    namespace :v1 do
+      get "dashboard", to: "gateway#dashboard"
+    end
   end
 end`,
 		commonMistakes: [
-			'Gateway becomes a monolith with business logic (keep it thin)',
-			'No circuit breakers for downstream services (cascading failures)',
-			'Single point of failure (deploy multiple gateway instances)',
-			'Not propagating request IDs for distributed tracing',
+			'Calling your own app over HTTP from the gateway (recreates the round-trip cost you just removed; use in-process readers)',
+			'Returning full serializers from the gateway (same 480KB in one envelope; shape the payload to the screen)',
+			'Letting one section’s exception bubble into a 500 for the whole screen (rescue per section, render the rest)',
+			'Reaching past package boundaries into private models instead of public readers (the boundary check fails and refactors start breaking the dashboard)',
+			'Putting business logic in the gateway (it composes and shapes; the packages own the rules)',
 		],
 		whenToUse:
-			'When clients need a single entry point to multiple internal services.',
+			'When clients assemble screens from several API calls, especially mobile clients on slow networks, or when shipped clients are coupled to internal URLs you need the freedom to change.',
 		furtherReading: [
 			{
 				title: 'API Gateway Pattern',
 				url: 'https://microservices.io/patterns/apigateway.html',
 			},
 			{
-				title: 'Kong Gateway',
-				url: 'https://docs.konghq.com/',
+				title: 'Backends For Frontends',
+				url: 'https://samnewman.io/patterns/architectural/bff/',
 			},
 		],
 	},
 	hint: {
 		delay: 25,
-		text: 'Today every backend re-implements auth, rate limiting, and request logging. The gateway is a thin layer in front of all of them: authenticate once at the edge, hand the verified user identity to the backend services, and centralize cross-cutting concerns there.',
+		text: 'The screen needs one door, not six. Authenticate at that door once, gather each section from the package that owns it, and hand back exactly what the screen renders.',
 	},
 };

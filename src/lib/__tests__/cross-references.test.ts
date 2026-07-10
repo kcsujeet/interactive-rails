@@ -131,6 +131,15 @@ const CROSS_REFERENCES: Record<string, string[]> = {
 	],
 	'act7-scale/content/level-52-multi-tenancy.ts': ['Observability'],
 	'act7-scale/content/level-53-sharding.ts': ['Multi-Tenancy'],
+	'act7-scale/content/level-57-api-gateway.ts': [
+		'Authentication',
+		'Structured Error Monitoring',
+		'Modular Monolith',
+	],
+	'act7-scale/components/level-57-api-gateway/Level57APIGateway.tsx': [
+		'Authentication',
+		'Modular Monolith',
+	],
 	'act7-scale/content/level-58-architect.ts': [
 		'Multi-Database',
 		'Database Sharding',

@@ -117,7 +117,7 @@ Enforce domain boundaries with Packwerk before extracting. Define packages with 
 Payment events (payment.succeeded, payment.failed) are published. Notifications, inventory, and analytics subscribe independently.
 
 **7. API Gateway (Act 7, Level 57):**
-The gateway routes billing requests, handles auth at the edge, and provides circuit breakers.
+The gateway is the seam that makes extraction invisible: shipped apps already call one stable URL, so billing can move out behind it. Auth stays at the edge, and the billing section swaps from an in-process package reader to a call to the new service without clients noticing.
 
 **8. Sharding (Act 7, Level 52):**
 Billing data is sharded by tenant for write scalability.
