@@ -673,7 +673,7 @@ end`,
 										/>
 										<OptionCard
 											color="blue"
-											description="Multi-user, concurrent writes, sharding & read replicas. The production standard."
+											description="Client-server database many processes connect to at once. Runs as its own service you install and manage."
 											name="PostgreSQL"
 											selected
 											size="lg"
@@ -691,7 +691,7 @@ end`,
 											/>
 											<OptionCard
 												color="blue"
-												description="Multi-user, concurrent writes, sharding & read replicas. The production standard."
+												description="Client-server database many processes connect to at once. Runs as its own service you install and manage."
 												name="PostgreSQL"
 												onClick={() => handleChooseDb('postgresql')}
 												size="lg"

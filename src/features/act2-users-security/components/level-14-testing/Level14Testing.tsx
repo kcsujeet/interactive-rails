@@ -564,7 +564,7 @@ RSpec.configure do |config|
 end`,
 		correct: false,
 		feedback:
-			'FactoryBot::Methods is not a real module. The DSL methods (create, build, build_stubbed) live inside a Syntax namespace.',
+			'FactoryBot::Methods is not a real module; there is nothing at that constant. The DSL methods live somewhere else in the gem.',
 	},
 	{
 		id: 'correct',

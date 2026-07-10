@@ -1183,7 +1183,7 @@ export function Level23NarrowFetching({ onComplete }: LevelComponentProps) {
 								? 'Fire probes to see how much data gets loaded. Click column headers to inspect the worst offenders.'
 								: phase === 'reward'
 									? 'Test your narrow fetching strategies. Watch the heatmap show efficient vs wasteful fetches.'
-									: 'Choose the right strategy for each scenario: pluck for raw values, select for model methods, find_in_batches for huge datasets.'}
+									: 'Each scenario needs a different fetching strategy. Weigh what the caller actually needs: raw values, model behavior, or bounded memory.'}
 						</p>
 					</div>
 
@@ -1267,8 +1267,8 @@ export function Level23NarrowFetching({ onComplete }: LevelComponentProps) {
 						</div>
 					)}
 
-					{/* Decision tree (visible in build+) */}
-					{phase !== 'observe' && (
+					{/* Decision tree: earned reference, reward only */}
+					{phase === 'reward' && (
 						<div className="p-4 border-b border-border">
 							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
 								Decision Tree
@@ -1479,44 +1479,46 @@ export function Level23NarrowFetching({ onComplete }: LevelComponentProps) {
 
 			<RightPanel>
 				<CodePreviewPanel files={getCodeFiles(phase, stepper.furthestStep)}>
-					{/* Quick reference (visible in all phases) */}
-					<div className="p-4 border-t border-border">
-						<div className="text-xs font-semibold text-primary uppercase tracking-wider mb-3">
-							When to Use Each
+					{/* Quick reference: earned in reward, never during the choices */}
+					{phase === 'reward' && (
+						<div className="p-4 border-t border-border">
+							<div className="text-xs font-semibold text-primary uppercase tracking-wider mb-3">
+								When to Use Each
+							</div>
+							<div className="space-y-3 text-xs">
+								<div>
+									<div className="flex items-center gap-1.5 text-success font-medium mb-1">
+										<Zap className="w-3 h-3" />
+										pluck
+									</div>
+									<p className="text-muted-foreground">
+										Need raw values (dropdowns, CSV, IDs). No model methods
+										needed. Returns plain Ruby arrays.
+									</p>
+								</div>
+								<div>
+									<div className="flex items-center gap-1.5 text-warning font-medium mb-1">
+										<Database className="w-3 h-3" />
+										select
+									</div>
+									<p className="text-muted-foreground">
+										Need model methods or associations but not all columns.
+										Returns lightweight AR objects.
+									</p>
+								</div>
+								<div>
+									<div className="flex items-center gap-1.5 text-primary font-medium mb-1">
+										<Layers className="w-3 h-3" />
+										find_in_batches
+									</div>
+									<p className="text-muted-foreground">
+										Processing huge datasets. Loads fixed-size chunks so memory
+										stays constant regardless of total rows.
+									</p>
+								</div>
+							</div>
 						</div>
-						<div className="space-y-3 text-xs">
-							<div>
-								<div className="flex items-center gap-1.5 text-success font-medium mb-1">
-									<Zap className="w-3 h-3" />
-									pluck
-								</div>
-								<p className="text-muted-foreground">
-									Need raw values (dropdowns, CSV, IDs). No model methods
-									needed. Returns plain Ruby arrays.
-								</p>
-							</div>
-							<div>
-								<div className="flex items-center gap-1.5 text-warning font-medium mb-1">
-									<Database className="w-3 h-3" />
-									select
-								</div>
-								<p className="text-muted-foreground">
-									Need model methods or associations but not all columns.
-									Returns lightweight AR objects.
-								</p>
-							</div>
-							<div>
-								<div className="flex items-center gap-1.5 text-primary font-medium mb-1">
-									<Layers className="w-3 h-3" />
-									find_in_batches
-								</div>
-								<p className="text-muted-foreground">
-									Processing huge datasets. Loads fixed-size chunks so memory
-									stays constant regardless of total rows.
-								</p>
-							</div>
-						</div>
-					</div>
+					)}
 				</CodePreviewPanel>
 			</RightPanel>
 		</LevelLayout>

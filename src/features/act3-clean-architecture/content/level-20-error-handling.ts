@@ -49,7 +49,7 @@ end
 # 1. Raw HTML stack trace (500)
 # 2. { "message": "Validation failed: Title can't be blank" }
 # 3. "Not found" (plain text)`,
-		goal: 'Build a centralized error handling layer using rescue_from that returns consistent { error: { code, message, details } } JSON responses.',
+		goal: 'Build one centralized error-handling layer so every failure returns the same predictable JSON shape, whatever went wrong underneath.',
 		thresholds: {},
 	},
 	successConditions: [{ type: 'error_handling_configured' }],
@@ -57,7 +57,7 @@ end
 	unlockedNodes: ['error_handler'],
 	learningContent: {
 		title: 'Centralized Error Handling with rescue_from',
-		goal: `In this level, you'll:\n- build a centralized error handling layer so your API always returns consistent, predictable JSON errors.\n- use rescue_from in ApplicationController to catch exceptions globally.\n- map exceptions to the right HTTP status codes.\n- never leak stack traces to clients again.`,
+		goal: `In this level, you'll:\n- build a centralized error handling layer so your API always returns consistent, predictable JSON errors.\n- catch exceptions once, globally, instead of per-action.\n- map exceptions to the right HTTP status codes.\n- never leak stack traces to clients again.`,
 		conceptExplanation: `\`rescue_from\` in ApplicationController catches exceptions globally and converts them to consistent JSON error responses.
 
 **Principles:**

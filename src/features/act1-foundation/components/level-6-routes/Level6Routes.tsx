@@ -80,7 +80,7 @@ const DISCOVERY_DEFS: DiscoveryDef[] = [
 	{ id: 'no-routes', label: 'Routes file is empty' },
 	{ id: 'get-404', label: 'GET requests return 404' },
 	{ id: 'post-404', label: 'POST requests return 404' },
-	{ id: 'no-namespace', label: 'No API namespace' },
+	{ id: 'no-namespace', label: 'API paths have no shared prefix' },
 ];
 
 // ──────────────────────────────────────────────
@@ -155,7 +155,7 @@ const PROBES: ProbeConfig[] = [
 				color: 'yellow',
 			},
 			{
-				text: 'Even the namespaced API path fails. No namespace is configured.',
+				text: 'Even /api/products fails. Nothing groups routes under /api.',
 				color: 'red',
 			},
 		],
@@ -292,7 +292,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 
 const STEP_DEFS: StepDef[] = [
 	{ id: 'define-resource', title: 'Define Resource' },
-	{ id: 'add-namespace', title: 'Add Namespace' },
+	{ id: 'add-namespace', title: 'Group Under /api' },
 	{ id: 'view-routes', title: 'View Routes' },
 	{ id: 'trace-request', title: 'Trace a Request' },
 ];
@@ -364,7 +364,7 @@ const NAMESPACE_OPTIONS: StepOption[] = [
 		label: "namespace 'api' do\n  resources :products\nend",
 		correct: false,
 		feedback:
-			'Namespace expects a symbol, not a string. Symbols give you the URL prefix and the controller module name in one go.',
+			'A quoted string is not what this routing method expects for its argument here. Check how Ruby DSLs usually name things.',
 	},
 ];
 

@@ -1459,58 +1459,62 @@ export function Level25CounterCaches({ onComplete }: LevelComponentProps) {
 					learningGoal={
 						phase === 'observe'
 							? 'Each product.reviews.count fires a COUNT(*) query. With 100 products, that is 101 total queries.'
-							: 'counter_cache stores the count on the parent table. Rails auto-increments on create, auto-decrements on destroy.'
+							: phase === 'reward'
+								? 'counter_cache stores the count on the parent table. Rails auto-increments on create, auto-decrements on destroy.'
+								: 'The count belongs next to the product row itself, maintained automatically as reviews come and go.'
 					}
 				>
-					<div className="p-4 border-t border-border">
-						<div className="text-xs font-semibold text-primary uppercase tracking-wider mb-3">
-							Key Concepts
-						</div>
-						<div className="space-y-3 text-xs">
-							<div className="flex items-start gap-2">
-								<Database className="w-3 h-3 text-primary mt-0.5 shrink-0" />
-								<div>
-									<span className="text-foreground font-medium">
-										counter_cache: true
-									</span>
-									<div className="text-muted-foreground">
-										Add to belongs_to to auto-track count
+					{phase === 'reward' && (
+						<>
+							<div className="p-4 border-t border-border">
+								<div className="text-xs font-semibold text-primary uppercase tracking-wider mb-3">
+									Key Concepts
+								</div>
+								<div className="space-y-3 text-xs">
+									<div className="flex items-start gap-2">
+										<Database className="w-3 h-3 text-primary mt-0.5 shrink-0" />
+										<div>
+											<span className="text-foreground font-medium">
+												counter_cache: true
+											</span>
+											<div className="text-muted-foreground">
+												Add to belongs_to to auto-track count
+											</div>
+										</div>
+									</div>
+									<div className="flex items-start gap-2">
+										<Zap className="w-3 h-3 text-primary mt-0.5 shrink-0" />
+										<div>
+											<span className="text-foreground font-medium">
+												.size vs .count vs .length
+											</span>
+											<div className="text-muted-foreground">
+												.size reads the cache; .count always queries; .length
+												loads all records
+											</div>
+										</div>
+									</div>
+									<div className="flex items-start gap-2">
+										<TrendingDown className="w-3 h-3 text-primary mt-0.5 shrink-0" />
+										<div>
+											<span className="text-foreground font-medium">
+												reset_counters
+											</span>
+											<div className="text-muted-foreground">
+												Recalculate cached values for existing records after
+												migration
+											</div>
+										</div>
 									</div>
 								</div>
 							</div>
-							<div className="flex items-start gap-2">
-								<Zap className="w-3 h-3 text-primary mt-0.5 shrink-0" />
-								<div>
-									<span className="text-foreground font-medium">
-										.size vs .count vs .length
-									</span>
-									<div className="text-muted-foreground">
-										.size reads the cache; .count always queries; .length loads
-										all records
-									</div>
-								</div>
-							</div>
-							<div className="flex items-start gap-2">
-								<TrendingDown className="w-3 h-3 text-primary mt-0.5 shrink-0" />
-								<div>
-									<span className="text-foreground font-medium">
-										reset_counters
-									</span>
-									<div className="text-muted-foreground">
-										Recalculate cached values for existing records after
-										migration
-									</div>
-								</div>
-							</div>
-						</div>
-					</div>
 
-					<div className="p-4 border-t border-border">
-						<div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">
-							Custom Column Name
-						</div>
-						<pre className="text-xs text-muted-foreground bg-secondary p-2 rounded overflow-x-auto">
-							{`# Use a custom column name:
+							<div className="p-4 border-t border-border">
+								<div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">
+									Custom Column Name
+								</div>
+								<pre className="text-xs text-muted-foreground bg-secondary p-2 rounded overflow-x-auto">
+									{`# Use a custom column name:
 belongs_to :product,
   counter_cache: :total_reviews
 
@@ -1518,8 +1522,10 @@ belongs_to :product,
 add_column :products,
   :total_reviews, :integer,
   default: 0, null: false`}
-						</pre>
-					</div>
+								</pre>
+							</div>
+						</>
+					)}
 				</CodePreviewPanel>
 			</RightPanel>
 		</LevelLayout>

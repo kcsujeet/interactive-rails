@@ -737,8 +737,8 @@ function getCodeFiles(phase: Phase, completedStep: number) {
   # phone: "+1-555-0123"
   # address: "123 Main St, NYC"
 
-  # No encrypts declarations
-  # No encryption keys configured
+  # Every column stores exactly what was typed.
+  # A database dump reads like a contact list.
   # Database breach = full PII exposure
 end`,
 			},

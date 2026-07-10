@@ -813,7 +813,7 @@ const SCHEDULE_JOB_OPTIONS = [
   "ArchiveOrdersJob.perform_now"`,
 		correct: false,
 		feedback:
-			'Manual crontab entries live outside the Rails app and are not version-controlled. If the server is replaced, the schedule is lost. Use Solid Queue for Rails-managed scheduling.',
+			'Manual crontab entries live outside the Rails app and are not version-controlled. If the server is replaced, the schedule is silently lost. The schedule belongs inside the app, in code review like everything else.',
 	},
 	{
 		id: 'wrong-sleep-loop',
@@ -827,7 +827,7 @@ Thread.new do
 end`,
 		correct: false,
 		feedback:
-			'A background thread with sleep is fragile. It dies on deploy, has no error handling, and no visibility. Use Solid Queue recurring tasks for reliable scheduling.',
+			'A background thread with sleep is fragile: it dies on every deploy, has no error handling, and no visibility. You already run reliable job infrastructure; scheduling belongs there.',
 	},
 	{
 		id: 'correct',
@@ -1947,7 +1947,7 @@ export function Level45DataLifecycle({ onComplete }: LevelComponentProps) {
 						phase,
 						phase === 'build' ? buildCodePreviewStep : 0,
 					)}
-					learningGoal="Classify data by temperature (hot/warm/cold), archive old records to a separate table, implement transparent reads, and schedule destruction of expired data."
+					learningGoal="Split data by how often anyone reads it, move the rarely-read majority out of the hot path while keeping it readable, and destroy what has truly expired."
 				/>
 			</RightPanel>
 		</LevelLayout>

@@ -289,7 +289,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 // ──────────────────────────────────────────────
 
 const STEP_DEFS: StepDef[] = [
-	{ id: 'add-gem', title: 'Add the Pundit Gem' },
+	{ id: 'add-gem', title: 'Add the Authorization Gem' },
 	{ id: 'include-module', title: 'Include Pundit in Controller' },
 	{ id: 'generate-install', title: 'Generate ApplicationPolicy' },
 	{ id: 'policy-class', title: 'Choose the Policy Class' },
@@ -1111,11 +1111,10 @@ export function Level11Authorization({ onComplete }: LevelComponentProps) {
 							can delete User B's products.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							Rails deliberately does not ship built-in authorization. The
-							community standard is{' '}
-							<span className="text-foreground font-medium">Pundit</span>, a gem
-							that gives each model a plain Ruby policy class. One class per
-							model, one method per action, easy to test.
+							Rails deliberately does not ship built-in authorization; the Ruby
+							ecosystem fills the gap. The pattern you are about to build gives
+							each model a plain Ruby rulebook: one class per model, one method
+							per action, easy to test.
 						</p>
 					</div>
 
@@ -1252,7 +1251,7 @@ export function Level11Authorization({ onComplete }: LevelComponentProps) {
 											onWrong={(fb) => stepper.recordWrongAttempt(fb)}
 											outputLines={addGemOutput}
 											stepKey={stepper.currentStep}
-											title="Add the Pundit Gem"
+											title="Add the Authorization Gem"
 										/>
 									)}
 

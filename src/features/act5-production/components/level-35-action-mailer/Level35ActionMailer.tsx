@@ -224,13 +224,13 @@ end`,
 		stageId: 'model',
 		title: 'User Model',
 		description:
-			'The User model has has_secure_password for authentication, but no token generation for password recovery. There is no generates_token_for, no reset method, and no mailer integration.',
+			'The User model has has_secure_password for authentication, but nothing for password recovery: no way to mint an expiring proof of identity, no reset method, no mailer integration.',
 		code: `class User < ApplicationRecord
   has_secure_password
   has_many :products
   has_many :reviews
 
-  # No generates_token_for!
+  # No way to mint an expiring reset token.
   # No password reset support at all.
 end`,
 	},
@@ -238,7 +238,7 @@ end`,
 		stageId: 'database',
 		title: 'Database',
 		description:
-			'The users table stores password_digest but has no token columns. With generates_token_for, you do not need to store tokens in the database at all.',
+			'The users table stores password_digest and nothing else recovery-related. Notably, there are no token columns; keep that in mind when choosing how tokens should work.',
 	},
 };
 
@@ -333,7 +333,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 // ──────────────────────────────────────────────
 
 const STEP_DEFS: StepDef[] = [
-	{ id: 'add-token', title: 'Add generates_token_for' },
+	{ id: 'add-token', title: 'Add Token Generation' },
 	{ id: 'generate-mailer', title: 'Generate the Mailer' },
 	{ id: 'build-email', title: 'Build the Reset Email' },
 	{ id: 'build-template', title: 'Build the Email Template' },
@@ -596,7 +596,7 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
   has_many :products
   has_many :reviews
 
-  # No generates_token_for!
+  # No way to mint an expiring reset token.
   # No password reset support.
   # Users who forget their password are locked out.
 end`,
@@ -951,15 +951,9 @@ export function Level35ActionMailer({ onComplete }: LevelComponentProps) {
 							password resets are piling up, averaging 12 per week.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							You need to build a secure password reset flow using Rails 8{' '}
-							<code className="text-foreground text-xs bg-muted px-1 py-0.5 rounded">
-								generates_token_for
-							</code>{' '}
-							and Action Mailer with{' '}
-							<code className="text-foreground text-xs bg-muted px-1 py-0.5 rounded">
-								deliver_later
-							</code>
-							.
+							You need a self-service reset flow: a secure, expiring proof of
+							identity the app can hand out, and an email that carries it to the
+							user.
 						</p>
 					</div>
 

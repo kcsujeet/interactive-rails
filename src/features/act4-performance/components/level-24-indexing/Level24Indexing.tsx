@@ -271,7 +271,7 @@ const PROBES: ProbeConfig[] = [
 			'The homepage displays published products sorted by date.',
 			'PostgreSQL scans 25,000 published rows, then sorts them all by created_at.',
 			'Both the filter and the sort require full table scans without an index.',
-			'A composite index on (published, created_at) would serve both operations.',
+			'No single-column index can serve the filter and the sort together.',
 		],
 	},
 ];
@@ -344,7 +344,7 @@ CREATE TABLE products (
   created_at timestamp
 );
 -- No index on user_id!
--- No index on [published, created_at]!`,
+-- published and created_at have nothing to lean on!`,
 };
 
 // Lane inspector data (click on lane headers)
@@ -820,7 +820,7 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
     t.timestamps
   end
   # No index on user_id!
-  # No index on [published, created_at]!
+  # published and created_at have nothing to lean on!
 end`,
 			highlight: [7, 16, 17],
 		});

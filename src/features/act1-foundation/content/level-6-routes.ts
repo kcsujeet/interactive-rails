@@ -40,7 +40,7 @@ end
 # Your job: declare the five RESTful endpoints and nest
 # them under an API URL prefix, then verify with the
 # Rails CLI command that prints every route.`,
-		goal: 'End with the 5 RESTful endpoints for products live under a namespaced API path (something like `/api/products`), each one wired to a controller action.',
+		goal: 'End with the 5 RESTful endpoints for products live under a shared `/api` prefix (something like `/api/products`), each one wired to a controller action.',
 		thresholds: {},
 	},
 	successConditions: [{ type: 'pipeline_complete' }],

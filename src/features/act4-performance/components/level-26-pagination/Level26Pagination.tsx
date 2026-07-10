@@ -1561,56 +1561,60 @@ export function Level26Pagination({ onComplete }: LevelComponentProps) {
 					learningGoal={
 						phase === 'observe'
 							? 'Product.includes(:user).all loads every row. The 12MB JSON response has no pagination headers and no way to request a subset.'
-							: 'Pagy paginates with offset strategy, 25 per page, and sends RFC 5988 Link headers so clients can navigate pages.'
+							: phase === 'reward'
+								? 'Pagy paginates with offset strategy, 25 per page, and sends RFC 5988 Link headers so clients can navigate pages.'
+								: 'A page of results plus enough metadata for the client to ask for the next one.'
 					}
 				>
-					<div className="p-4 border-t border-border">
-						<div className="text-xs font-semibold text-primary uppercase tracking-wider mb-3">
-							Key Concepts
-						</div>
-						<div className="space-y-3 text-xs">
-							<div className="flex items-start gap-2">
-								<Database className="w-3 h-3 text-primary mt-0.5 shrink-0" />
-								<div>
-									<span className="text-foreground font-medium">
-										Pagy::OPTIONS[:limit]
-									</span>
-									<div className="text-muted-foreground">
-										Default page size (25 items per request)
+					{phase === 'reward' && (
+						<>
+							<div className="p-4 border-t border-border">
+								<div className="text-xs font-semibold text-primary uppercase tracking-wider mb-3">
+									Key Concepts
+								</div>
+								<div className="space-y-3 text-xs">
+									<div className="flex items-start gap-2">
+										<Database className="w-3 h-3 text-primary mt-0.5 shrink-0" />
+										<div>
+											<span className="text-foreground font-medium">
+												Pagy::OPTIONS[:limit]
+											</span>
+											<div className="text-muted-foreground">
+												Default page size (25 items per request)
+											</div>
+										</div>
+									</div>
+									<div className="flex items-start gap-2">
+										<Zap className="w-3 h-3 text-primary mt-0.5 shrink-0" />
+										<div>
+											<span className="text-foreground font-medium">
+												pagy(:offset, scope)
+											</span>
+											<div className="text-muted-foreground">
+												Returns [pagy_metadata, paginated_collection]
+											</div>
+										</div>
+									</div>
+									<div className="flex items-start gap-2">
+										<Globe className="w-3 h-3 text-primary mt-0.5 shrink-0" />
+										<div>
+											<span className="text-foreground font-medium">
+												@pagy.headers_hash
+											</span>
+											<div className="text-muted-foreground">
+												RFC 5988 Link headers for API navigation
+											</div>
+										</div>
 									</div>
 								</div>
 							</div>
-							<div className="flex items-start gap-2">
-								<Zap className="w-3 h-3 text-primary mt-0.5 shrink-0" />
-								<div>
-									<span className="text-foreground font-medium">
-										pagy(:offset, scope)
-									</span>
-									<div className="text-muted-foreground">
-										Returns [pagy_metadata, paginated_collection]
-									</div>
-								</div>
-							</div>
-							<div className="flex items-start gap-2">
-								<Globe className="w-3 h-3 text-primary mt-0.5 shrink-0" />
-								<div>
-									<span className="text-foreground font-medium">
-										@pagy.headers_hash
-									</span>
-									<div className="text-muted-foreground">
-										RFC 5988 Link headers for API navigation
-									</div>
-								</div>
-							</div>
-						</div>
-					</div>
 
-					<div className="p-4 border-t border-border">
-						<div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">
-							Pagy v43 API Changes
-						</div>
-						<pre className="text-xs text-muted-foreground bg-secondary p-2 rounded overflow-x-auto">
-							{`# v43+ uses Pagy::Method (not Backend)
+							<div className="p-4 border-t border-border">
+								<div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">
+									Pagy v43 API Changes
+								</div>
+								<pre className="text-xs text-muted-foreground bg-secondary p-2 rounded overflow-x-auto">
+									{`# v43+ uses Pagy::Method (not Backend)
 include Pagy::Method
 
 # v43+ uses OPTIONS (not DEFAULT)
@@ -1621,8 +1625,10 @@ pagy(:offset, Product.all)
 
 # v43+ uses headers_hash method
 @pagy.headers_hash`}
-						</pre>
-					</div>
+								</pre>
+							</div>
+						</>
+					)}
 				</CodePreviewPanel>
 			</RightPanel>
 		</LevelLayout>

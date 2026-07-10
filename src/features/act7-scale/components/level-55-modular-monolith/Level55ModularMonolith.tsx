@@ -1862,8 +1862,8 @@ export function Level55ModularMonolith({ onComplete }: LevelComponentProps) {
 							owns any domain.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							Use Packwerk to create domain packages with enforced dependencies,
-							privacy boundaries, and code ownership.
+							Carve the tangle into domain packages with enforced dependencies,
+							privacy boundaries, and clear ownership.
 						</p>
 					</div>
 

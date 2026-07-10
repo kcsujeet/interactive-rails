@@ -446,7 +446,7 @@ const FORMAT_OPTIONS: StepOption[] = [
 		label: 'validate :check_email_format',
 		correct: false,
 		feedback:
-			'Writing custom email_address regex is error-prone. Ruby ships a battle-tested pattern in URI::MailTo.',
+			'Hand-rolled email regexes are famously wrong at the edges (plus-addressing, new TLDs, quoted locals). Ruby already ships a battle-tested pattern for this; do not write your own.',
 	},
 	{
 		id: 'uri-regexp',

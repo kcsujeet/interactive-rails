@@ -91,7 +91,7 @@ end
 # Partner A expects: { "total": 1999 }
 # Product wants:     { "total": { "amount": "19.99", "currency": "USD" } }
 # Changing the serializer breaks Partner A!`,
-		goal: 'Implement API versioning with namespaced routes and controllers so v1 and v2 coexist. Add deprecation headers to v1 responses.',
+		goal: 'Ship the new response format alongside the old one so 200 partners keep working untouched, and give v1 a polite, machine-readable retirement plan.',
 		thresholds: {},
 	},
 	successConditions: [

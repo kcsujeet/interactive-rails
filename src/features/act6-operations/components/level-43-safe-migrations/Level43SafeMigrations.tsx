@@ -957,7 +957,7 @@ class UpdateOrders < ActiveRecord::Migration[7.2]
   end
 end
 
-# No strong_migrations gem installed
+# Nothing reviews migrations for dangerous operations before they run
 # No safety checks in place
 # Deploy = potential outage`,
 			},

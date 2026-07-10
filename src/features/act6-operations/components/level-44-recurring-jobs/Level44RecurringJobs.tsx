@@ -1842,7 +1842,7 @@ export function Level44RecurringJobs({ onComplete }: LevelComponentProps) {
 						phase,
 						phase === 'build' ? buildCodePreviewStep : 0,
 					)}
-					learningGoal="Solid Queue recurring jobs automate database maintenance with cron-like scheduling in config/recurring.yml. Use dedicated queues, batch deletion, and structured logging."
+					learningGoal="Recurring maintenance belongs inside the app: declarative schedules that deploy with the code, dedicated queues, batch deletion, and structured logging."
 				/>
 			</RightPanel>
 		</LevelLayout>

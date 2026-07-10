@@ -1934,7 +1934,7 @@ export function Level37RealTime({ onComplete }: LevelComponentProps) {
 				<InstructionPanel
 					goal="Replace HTTP polling with WebSocket push."
 					instructions={[
-						'Install Solid Cable (no Redis needed).',
+						'Install the Rails 8 WebSocket adapter (database-backed, nothing extra to run).',
 						'Run the installer and configure the adapter.',
 						'Generate a channel and authenticate connections.',
 						'Build a broadcast service with after_create_commit.',

@@ -391,7 +391,7 @@ const TERMINAL_STEP_4 = {
 			command: 'solid_queue start',
 			correct: false,
 			feedback:
-				'Close. There is a runner script your Rails app provides in its bin/ directory that starts Solid Queue without typing the gem name.',
+				'Close. Your Rails app generated a dedicated runner script for this; you never invoke the gem by name.',
 		},
 		{
 			id: 'bin-jobs',

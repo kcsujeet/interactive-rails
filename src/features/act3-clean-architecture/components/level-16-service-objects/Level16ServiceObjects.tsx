@@ -634,7 +634,7 @@ export function Level16ServiceObjects({ onComplete }: LevelComponentProps) {
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							{phase === 'intro'
 								? 'The annotated code shows 5 distinct responsibilities tangled together. Extract them into a service object.'
-								: 'Extract the workflow into a service object with a clear Result type.'}
+								: 'Move the workflow out of the controller into one dedicated place with a return value the caller can branch on.'}
 						</p>
 					</div>
 

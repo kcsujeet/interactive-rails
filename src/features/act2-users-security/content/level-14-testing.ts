@@ -103,7 +103,7 @@ export const level14Testing: Level = {
 # when a teammate edits the controller, a policy,
 # or a migration. The first signal that something
 # broke is a customer noticing.`,
-		goal: "Write automated checks that fire before any code reaches a customer. Wire in a real testing framework, configure test-data factories, and create a request spec that exercises the products endpoint end-to-end. After this level, any refactor that breaks a protection from earlier levels turns up as a red test on the developer's machine instead of a damaged homepage, deleted product, or 500 on login.",
+		goal: "Write automated checks that fire before any code reaches a customer. Wire in a real testing framework, configure test-data factories, and create an automated spec that exercises the products endpoint end-to-end through real HTTP. After this level, any refactor that breaks a protection from earlier levels turns up as a red test on the developer's machine instead of a damaged homepage, deleted product, or 500 on login.",
 		thresholds: {},
 	},
 	successConditions: [

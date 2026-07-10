@@ -1391,7 +1391,7 @@ export function Level31SoftDeletes({ onComplete }: LevelComponentProps) {
 							Building
 						</h3>
 						<p className="text-sm text-muted-foreground">
-							Add soft deletes with the Discard gem and audit trails with
+							Make deletes reversible and give every change a paper trail with
 							PaperTrail.
 						</p>
 					</div>
@@ -1473,11 +1473,11 @@ export function Level31SoftDeletes({ onComplete }: LevelComponentProps) {
 							description={
 								<p className="text-sm text-muted-foreground">
 									{stepper.currentStep === 0 &&
-										'Install the Discard gem for soft deletes.'}
+										'Install a gem that marks records deleted instead of destroying them.'}
 									{stepper.currentStep === 1 &&
 										'Add a discarded_at column with an index to the users table.'}
 									{stepper.currentStep === 4 &&
-										'Install PaperTrail, run its generator, and migrate to create the versions table.'}
+										'Install the versioning gem, run its generator, and migrate to create its history table.'}
 								</p>
 							}
 							hasNext={stepper.currentStep < STEP_DEFS.length - 1}
@@ -1594,7 +1594,7 @@ export function Level31SoftDeletes({ onComplete }: LevelComponentProps) {
 						phase,
 						phase === 'build' ? buildCodePreviewStep : 0,
 					)}
-					learningGoal="Discard gem for soft deletes (discarded_at column), PaperTrail for version history tracking who changed what."
+					learningGoal="Soft deletes flag a record as gone instead of destroying it, so it can be restored. An audit trail records every change with who made it."
 				/>
 			</RightPanel>
 		</LevelLayout>

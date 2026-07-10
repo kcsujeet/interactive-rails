@@ -1052,14 +1052,14 @@ const SELECTOR_OPTIONS: StepOption[] = [
 		name: 'config.middleware.use DatabaseRouter',
 		correct: false,
 		feedback:
-			'Rails has a built-in database_selector, not a custom middleware. It is configured through active_record settings in application.rb.',
+			'Hand-rolling this as custom middleware re-implements request routing Rails already ships. The framework has a configuration setting for exactly this job.',
 	},
 	{
 		id: 'wrong-role',
 		name: 'config.active_record.reading_role = :replica',
 		correct: false,
 		feedback:
-			'reading_role just renames the role. You need database_selector to actually route requests based on HTTP method.',
+			'This just renames the role; nothing routes requests anywhere. Renaming a label does not decide which database a GET should hit.',
 	},
 	{
 		id: 'correct',

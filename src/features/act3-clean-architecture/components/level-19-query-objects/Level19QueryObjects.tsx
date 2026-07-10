@@ -625,8 +625,9 @@ export function Level19QueryObjects({ onComplete }: LevelComponentProps) {
 							controller and CSV export job.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							Extract the query logic into a composable ProductQuery object so
-							every consumer shares one source of truth.
+							Move the query logic into one shared home that every consumer
+							(admin, API, CSV export) calls, so the filters can never drift
+							apart again.
 						</p>
 					</div>
 

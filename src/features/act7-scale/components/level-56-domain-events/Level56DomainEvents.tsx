@@ -1528,7 +1528,7 @@ const SUBSCRIBE_EMAIL_OPTIONS: StepOption[] = [
 		name: 'EmailService.observe(OrderCompleted)',
 		correct: false,
 		feedback:
-			'Wisper does not use an observe method. Listeners subscribe to publishers, and the listener class must define a method matching the broadcast event name.',
+			'There is no observe method in this library; that constant fails at boot. Look at how the publisher announces events and what the listener must offer to receive them.',
 	},
 	{
 		id: 'wrong-callback',
@@ -1576,7 +1576,7 @@ const ASYNC_OPTIONS: StepOption[] = [
 		name: 'Wisper.subscribe(EmailListener.new, async: true)',
 		correct: false,
 		feedback:
-			'The async: true option spawns threads, which is unreliable in Rails. Background jobs via Solid Queue give you retries, persistence, and monitoring.',
+			'The async: true option spawns bare threads: no retries, no persistence, gone on restart. You already run infrastructure that does this reliably.',
 	},
 	{
 		id: 'correct',

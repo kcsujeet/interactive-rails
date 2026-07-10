@@ -587,8 +587,8 @@ export function Level17Concerns({ onComplete }: LevelComponentProps) {
 							method. Every line is copy-pasted.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							Extract the shared tagging behavior into a reusable
-							ActiveSupport::Concern so both models stay DRY.
+							Move the duplicated tagging behavior into ONE shared home so a bug
+							fix lands once and both models pick it up.
 						</p>
 					</div>
 

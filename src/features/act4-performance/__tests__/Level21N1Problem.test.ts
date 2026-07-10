@@ -188,7 +188,7 @@ const PROSOPITE_CONFIG_OPTIONS: StepOption[] = [
 			'config.after_initialize do\n  Prosopite.raise = true\n  Prosopite.prosopite_logger = true\nend',
 		correct: false,
 		feedback:
-			'prosopite_logger writes to a separate file but does not feed into the Rails log. Use rails_logger so N+1 warnings appear alongside your normal log output.',
+			'prosopite_logger writes to a separate file, so the warnings never appear alongside the request logs you are already watching. You want them in the log you actually read.',
 	},
 ];
 

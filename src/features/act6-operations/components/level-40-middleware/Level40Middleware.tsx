@@ -592,7 +592,7 @@ const CREATE_MIDDLEWARE_COMMANDS = [
 		command: 'rails g initializer middleware_config',
 		correct: false,
 		feedback:
-			'An initializer configures middleware, but you need to create the middleware class itself first. Middleware lives in lib/middleware/.',
+			'An initializer only configures middleware that already exists; nothing here creates the class itself. Write the class first, then register it.',
 	},
 ];
 
@@ -825,7 +825,7 @@ config.middleware.use BotDetector
 config.middleware.use RequestLogger`,
 		correct: false,
 		feedback:
-			'Default append order means BotDetector runs after RequestIdTracker. But if a bot is rejected, the logger never sees it. Order matters: detect bots first, then ID, then log.',
+			'Default append order means BotDetector runs last. A rejected bot request would already have been logged and tagged, wasted work for traffic you are about to throw away. Think about which check should see the request first.',
 	},
 	{
 		id: 'wrong-logger-first',

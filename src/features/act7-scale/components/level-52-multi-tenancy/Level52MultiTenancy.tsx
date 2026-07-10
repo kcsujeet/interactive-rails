@@ -842,7 +842,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 // ─── Build step definitions ───────────────────────────────────────────
 
 const STEP_DEFS: StepDef[] = [
-	{ id: 'add-gem', title: 'Add acts_as_tenant Gem' },
+	{ id: 'add-gem', title: 'Add the Tenancy Gem' },
 	{ id: 'add-migration', title: 'Add Migration' },
 	{ id: 'set-tenant', title: 'Set Current Tenant' },
 	{ id: 'scope-product', title: 'Scope Product Model' },

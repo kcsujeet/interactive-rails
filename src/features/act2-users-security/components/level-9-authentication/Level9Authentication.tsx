@@ -550,7 +550,7 @@ const PROTECT_OPTIONS: ProtectOption[] = [
 		id: 'before-action',
 		name: 'before_action :require_authentication',
 		description:
-			'Default-block: the Authentication concern auto-applies this before_action via `included do`. ApplicationController includes the concern, so every controller (ProductsController, ReviewsController, ...) inherits the bearer-token check automatically. Per-action opt-out via allow_unauthenticated_access.',
+			'The concern applies this check to every controller automatically; individual actions opt out explicitly.',
 		correct: true,
 		feedback: '',
 	},
@@ -1055,9 +1055,10 @@ export function Level9Authentication({ onComplete }: LevelComponentProps) {
 							model, no sessions, and no token verification.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							Rails 8 ships a built-in authentication generator that creates
-							User and Session models, a bcrypt-backed password system, and a
-							concern that protects your controllers.
+							You need real sign-in: password storage that is not plaintext, a
+							way to know who each request belongs to, and endpoints that refuse
+							strangers. The build steps take you from nothing to a protected
+							endpoint.
 						</p>
 					</div>
 

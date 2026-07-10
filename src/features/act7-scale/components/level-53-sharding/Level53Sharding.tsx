@@ -1282,7 +1282,7 @@ const SHARD_RECORD_OPTIONS: StepOption[] = [
 		name: 'class ApplicationRecord < ActiveRecord::Base\n  connects_to shards: {\n    shard_one: { writing: :shard_one },\n    shard_two: { writing: :shard_two },\n    shard_three: { writing: :shard_three }\n  }\nend',
 		correct: false,
 		feedback:
-			'Putting shards on ApplicationRecord forces ALL models onto shards. Only tenant-specific models should be sharded. Use a separate abstract class.',
+			'Putting shards on ApplicationRecord forces ALL models onto shards, including global ones like Company itself. Only tenant-specific models should shard; they need their own base to inherit from.',
 	},
 	{
 		id: 'correct',
@@ -1354,7 +1354,7 @@ const MOVE_ORDER_OPTIONS: StepOption[] = [
 		name: 'class Order < ApplicationRecord\n  include Shardable\nend',
 		correct: false,
 		feedback:
-			'A concern cannot change the database connection. The model must inherit from ShardRecord to use the connects_to shards: declaration.',
+			'A concern cannot carry a database connection; connection handling in Rails follows the inheritance chain, not module inclusion.',
 	},
 	{
 		id: 'correct',

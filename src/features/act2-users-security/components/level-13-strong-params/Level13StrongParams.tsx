@@ -261,10 +261,7 @@ end`,
 params[:product].to_unsafe_h
 # => returns ALL keys: name, description, price, featured, user_id, id, ...
 # => no whitelist, no shape check, no protection.
-
-# What strong params would do (later):
-params.expect(product: [:name, :description, :price])
-# => only the listed keys; everything else dropped.`,
+# => whatever keys the request includes reach the model.`,
 	},
 	model: {
 		stageId: 'model',

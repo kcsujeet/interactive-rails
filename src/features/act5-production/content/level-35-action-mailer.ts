@@ -31,8 +31,8 @@ export const level35ActionMailer: Level = {
 # 1. POST /api/password_resets -- generate token, send email
 # 2. PUT  /api/password_resets/:token -- verify token, update password
 
-# Rails 8 has generates_token_for -- no more rolling your own
-# token columns, expiry logic, or secure_random strings!
+# Rails 8 can mint expiring, self-contained tokens -- no more
+# rolling your own token columns or expiry logic!
 # But we need a mailer to deliver the token to the user.`,
 		goal: 'Build a password reset flow with secure, expiring tokens and email delivery.',
 		thresholds: {},

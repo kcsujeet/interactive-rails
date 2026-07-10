@@ -343,7 +343,7 @@ export function Level3Model({ onComplete }: LevelComponentProps) {
 			files.push({
 				filename: 'Generator Command',
 				language: 'bash',
-				code: `$ rails generate model Product${attrArgs ? ` ${attrArgs}` : ' ...'}`,
+				code: `$ rails generate ${stepper.furthestStep >= 3 ? 'model' : '<which generator?>'} Product${attrArgs ? ` ${attrArgs}` : ' ...'}`,
 				highlight: [1],
 			});
 		}

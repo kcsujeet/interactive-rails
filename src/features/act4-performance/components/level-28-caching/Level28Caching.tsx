@@ -1739,56 +1739,61 @@ export function Level28Caching({ onComplete }: LevelComponentProps) {
 					learningGoal={
 						phase === 'observe'
 							? 'TrendingProducts recomputes on every request. No cache store is configured. 200 req/min * 512ms = the database is drowning.'
-							: 'Solid Cache stores results in the database. Rails.cache.fetch returns cached data on hit, computes and stores on miss. touch: true invalidates stale data.'
+							: phase === 'reward'
+								? 'Solid Cache stores results in the database. Rails.cache.fetch returns cached data on hit, computes and stores on miss. touch: true invalidates stale data.'
+								: 'Compute once, remember the answer, and know exactly when a remembered answer stops being true.'
 					}
 				>
-					<div className="p-4 border-t border-border">
-						<div className="text-xs font-semibold text-primary uppercase tracking-wider mb-3">
-							Key Concepts
-						</div>
-						<div className="space-y-3 text-xs">
-							<div className="flex items-start gap-2">
-								<HardDrive className="w-3 h-3 text-primary mt-0.5 shrink-0" />
-								<div>
-									<span className="text-foreground font-medium">
-										Solid Cache
-									</span>
-									<div className="text-muted-foreground">
-										Rails 8 DB-backed cache store. No Redis needed.
+					{phase === 'reward' && (
+						<>
+							<div className="p-4 border-t border-border">
+								<div className="text-xs font-semibold text-primary uppercase tracking-wider mb-3">
+									Key Concepts
+								</div>
+								<div className="space-y-3 text-xs">
+									<div className="flex items-start gap-2">
+										<HardDrive className="w-3 h-3 text-primary mt-0.5 shrink-0" />
+										<div>
+											<span className="text-foreground font-medium">
+												Solid Cache
+											</span>
+											<div className="text-muted-foreground">
+												Rails 8 DB-backed cache store. No Redis needed.
+											</div>
+										</div>
+									</div>
+									<div className="flex items-start gap-2">
+										<Zap className="w-3 h-3 text-primary mt-0.5 shrink-0" />
+										<div>
+											<span className="text-foreground font-medium">
+												Rails.cache.fetch(key, expires_in:)
+											</span>
+											<div className="text-muted-foreground">
+												Atomic read-or-compute. Block runs only on miss.
+											</div>
+										</div>
+									</div>
+									<div className="flex items-start gap-2">
+										<Database className="w-3 h-3 text-primary mt-0.5 shrink-0" />
+										<div>
+											<span className="text-foreground font-medium">
+												touch: true
+											</span>
+											<div className="text-muted-foreground">
+												Child changes cascade updated_at, invalidating cache
+												keys.
+											</div>
+										</div>
 									</div>
 								</div>
 							</div>
-							<div className="flex items-start gap-2">
-								<Zap className="w-3 h-3 text-primary mt-0.5 shrink-0" />
-								<div>
-									<span className="text-foreground font-medium">
-										Rails.cache.fetch(key, expires_in:)
-									</span>
-									<div className="text-muted-foreground">
-										Atomic read-or-compute. Block runs only on miss.
-									</div>
-								</div>
-							</div>
-							<div className="flex items-start gap-2">
-								<Database className="w-3 h-3 text-primary mt-0.5 shrink-0" />
-								<div>
-									<span className="text-foreground font-medium">
-										touch: true
-									</span>
-									<div className="text-muted-foreground">
-										Child changes cascade updated_at, invalidating cache keys.
-									</div>
-								</div>
-							</div>
-						</div>
-					</div>
 
-					<div className="p-4 border-t border-border">
-						<div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">
-							Cache Store Comparison
-						</div>
-						<pre className="text-xs text-muted-foreground bg-secondary p-2 rounded overflow-x-auto">
-							{`# Solid Cache (Rails 8 default)
+							<div className="p-4 border-t border-border">
+								<div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">
+									Cache Store Comparison
+								</div>
+								<pre className="text-xs text-muted-foreground bg-secondary p-2 rounded overflow-x-auto">
+									{`# Solid Cache (Rails 8 default)
 # DB-backed, no infra needed
 # ~40% slower reads than Redis
 # 6x larger cache, 80% cheaper
@@ -1801,8 +1806,10 @@ export function Level28Caching({ onComplete }: LevelComponentProps) {
 # Memory Store
 # Per-process only (dev/test)
 # Lost on restart, not shared`}
-						</pre>
-					</div>
+								</pre>
+							</div>
+						</>
+					)}
 				</CodePreviewPanel>
 			</RightPanel>
 		</LevelLayout>

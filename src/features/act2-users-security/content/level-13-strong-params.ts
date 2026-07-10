@@ -51,7 +51,7 @@ end
 # - user_id: 99 on PATCH -> ownership transferred to victim (frame attack).
 # - Any future column on Product is automatically mass-assignable.
 #
-# Rails 8 ships params.expect for this exact problem: a shape-aware
+# Rails ships a shape-aware filter for this exact problem: a declared
 # whitelist that declares which keys reach the model.`,
 		goal: 'Replace the unsafe shortcut with a real whitelist that lists only the fields users are meant to set, so admin-only and server-managed columns cannot be set from request params.',
 		thresholds: {},
@@ -71,7 +71,7 @@ end
 - ActionController::Parameters wraps every request body.
 - Calling .to_h, .new(params[:thing]), or update(params[:thing]) directly raises ActiveModel::ForbiddenAttributesError, Rails forces you to declare what is allowed.
 - to_unsafe_h is the explicit escape hatch: it bypasses the protection and returns the raw hash. Per docs, "an unsafe, unfiltered representation of the parameters."
-- params.expect is the production-safe filter: it declares which keys reach the model and drops everything else.
+- a declared filter decides which keys reach the model and drops everything else.
 
 **Rails 8 \`params.expect()\`:**
 - Declares the allowed shape: \`params.expect(product: [:name, :description, :price])\`.

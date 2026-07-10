@@ -55,7 +55,7 @@ AuditLog.where("created_at < ?", 1.year.ago).count
 # 2. Cron jobs are fragile and not tracked
 # 3. No visibility into job success/failure
 
-# We need Solid Queue recurring tasks (Rails 8)
+# The schedule should live inside the app, next to the jobs it runs
 # to automate these maintenance operations.`,
 		goal: 'Set up recurring background tasks for automated data maintenance.',
 		thresholds: {},

@@ -559,7 +559,7 @@ const REWARD_FRAMES: Record<string, AnimFrame[]> = {
 
 const STEP_DEFS = [
 	{ id: 'rails-rate-limit', title: 'Add Controller Rate Limit' },
-	{ id: 'add-rack-attack', title: 'Install Rack::Attack' },
+	{ id: 'add-rack-attack', title: 'Install the Throttling Gem' },
 	{ id: 'ip-throttle', title: 'Configure IP Throttle' },
 	{ id: 'user-throttle', title: 'Configure Login Throttle' },
 	{ id: 'safelist', title: 'Configure Safelist' },
@@ -574,7 +574,7 @@ const RAILS_RATE_LIMIT_COMMANDS = [
 			'echo "before_action :check_rate_limit" >> app/controllers/api/sessions_controller.rb',
 		correct: false,
 		feedback:
-			'A custom before_action requires you to implement the entire rate limiting logic yourself. Rails 8 has a built-in rate_limit macro that handles counting, storage, and response.',
+			'A custom before_action means implementing counting, storage, expiry, and the 429 response yourself. Rails 8 ships this capability natively as a one-line declaration.',
 	},
 	{
 		id: 'correct',
@@ -1569,7 +1569,7 @@ export function Level42RateLimiting({ onComplete }: LevelComponentProps) {
 									{stepper.currentStep === 0 &&
 										'Add a rate limit to the login controller using the Rails 8 built-in rate_limit macro.'}
 									{stepper.currentStep === 1 &&
-										'Install the rack-attack gem for Rack-level IP throttling.'}
+										'Install a Rack-level throttling gem to stop floods before they reach Rails.'}
 								</p>
 							}
 							hasNext={stepper.currentStep < STEP_DEFS.length - 1}
@@ -1688,7 +1688,7 @@ export function Level42RateLimiting({ onComplete }: LevelComponentProps) {
 						phase,
 						phase === 'build' ? buildCodePreviewStep : 0,
 					)}
-					learningGoal="Rate limit at two layers: Rails 8 rate_limit for controller actions, Rack::Attack for IP-level throttling."
+					learningGoal="Rate limit at two layers: inside the app for specific actions, and at the Rack layer for raw IP floods that should never reach a controller."
 				/>
 			</RightPanel>
 		</LevelLayout>

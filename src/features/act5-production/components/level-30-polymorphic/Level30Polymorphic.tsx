@@ -298,7 +298,7 @@ const SERVICE_OPTIONS = [
 end`,
 		correct: false,
 		feedback:
-			'Missing input validation via contract. Since L18, services must validate input through a Dry::Validation::Contract before business logic.',
+			'This runs the business logic on raw, unchecked input. Since L18, every service validates its input up front and returns structured errors before touching the database.',
 	},
 	{
 		id: 'correct-with-contract',

@@ -93,6 +93,14 @@ const CROSS_REFERENCES: Record<string, string[]> = {
 		'HTTP Caching & CDNs',
 	],
 	'act5-production/content/level-31-soft-deletes.ts': ['Service Objects'],
+	'act5-production/components/level-32-transactions/Level32Transactions.tsx': [
+		'Validation Contracts',
+	],
+	'act5-production/components/level-33-locking/Level33Locking.tsx': [
+		'Validation Contracts',
+	],
+	'act5-production/components/level-34-active-storage/Level34ActiveStorage.tsx':
+		['Validation Contracts'],
 	'act5-production/components/level-30-polymorphic/Level30Polymorphic.tsx': [
 		'Validation Contracts',
 	],

@@ -251,7 +251,7 @@ const PROBES = [
 				color: 'red' as const,
 			},
 			{
-				text: '# No circuit breaker to stop hammering a dead service',
+				text: '# Nothing stops the app from hammering a dead service',
 				color: 'red' as const,
 			},
 		],

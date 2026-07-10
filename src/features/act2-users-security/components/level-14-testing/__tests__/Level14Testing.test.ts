@@ -259,7 +259,7 @@ const SUPPORT_FILE_OPTIONS: OptionShape[] = [
 			'# spec/support/factory_bot.rb\nRSpec.configure do |config|\n  config.include FactoryBot::Methods\nend',
 		correct: false,
 		feedback:
-			'FactoryBot::Methods is not a real module. The DSL methods (create, build, build_stubbed) live inside a Syntax namespace.',
+			'FactoryBot::Methods is not a real module; there is nothing at that constant. The DSL methods live somewhere else in the gem.',
 	},
 	{
 		id: 'correct',
