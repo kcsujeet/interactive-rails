@@ -59,7 +59,7 @@ end
 - Add a \`reviews_count\` integer column to the products table (default: 0)
 - Add \`counter_cache: true\` to the \`belongs_to\` association
 - Rails automatically increments/decrements the count on create/destroy
-- \`product.reviews.count\` reads the column instead of running a query. Zero queries!
+- \`product.reviews.size\` reads the column instead of running a query. Zero queries! (\`count\` always runs SQL, so use \`size\`.)
 
 **Production benchmarks:**
 \`\`\`
@@ -115,9 +115,10 @@ class Product < ApplicationRecord
   has_many :reviews, dependent: :destroy
 end
 
-# Now product.reviews.count uses the cached column:
-product.reviews.count
+# Now product.reviews.size uses the cached column:
+product.reviews.size
 # No query! Reads products.reviews_count directly.
+# (.count would still run SELECT COUNT(*), always.)
 
 # Custom column name:
 belongs_to :product, counter_cache: :replies_count
@@ -135,7 +136,7 @@ class ProductSerializer < BaseSerializer
   attribute :reviews_count
 end`,
 		commonMistakes: [
-			'Using .length instead of .count (.length loads all records into memory)',
+			'Using .length or .count instead of .size (.length loads every record into memory; .count always runs SQL; only .size reads the counter cache)',
 			'Forgetting to backfill existing counts after adding the column',
 			'Not setting default: 0 on the counter column (causes NULL issues)',
 			'Manually incrementing/decrementing instead of letting Rails handle it',

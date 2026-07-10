@@ -645,7 +645,7 @@ const REWARD_FRAMES: Record<string, AnimFrame[]> = {
 
 // ─── Build step definitions ────────────────────────────────────────────
 
-const STEP_DEFS = [
+export const STEP_DEFS = [
 	{ id: 'wrap-v1', title: 'Wrap Routes in v1' },
 	{ id: 'add-v2-routes', title: 'Add v2 Namespace' },
 	{ id: 'generate-v2-controller', title: 'Generate V2 Controller' },
@@ -938,7 +938,35 @@ end`,
 	},
 ];
 
-const TERMINAL_STEP_MAP: (TerminalStepData | null)[] = [
+// Single source of truth mapping the option-based build steps (indexes into
+// STEP_DEFS) to their question and option array. The click handler and the
+// render path BOTH read this map. They used to hold separate literals that
+// diverged by one (2-5 vs 3-6): wrong answers were silently swallowed,
+// correct answers only worked via cross-array id collision, and step 6 was
+// dead, making the level uncompletable. Exported for the wiring test.
+export const OPTION_STEPS: Record<
+	number,
+	{ question: string; options: typeof V2_SERIALIZER_OPTIONS }
+> = {
+	3: {
+		question: 'How should the v2 serializer return the order total?',
+		options: V2_SERIALIZER_OPTIONS,
+	},
+	4: {
+		question: 'How should v1 signal that it is being replaced?',
+		options: DEPRECATION_OPTIONS,
+	},
+	5: {
+		question: 'When should v1 be retired?',
+		options: SUNSET_OPTIONS,
+	},
+	6: {
+		question: 'How should the v1 controller render its response?',
+		options: FREEZE_V1_OPTIONS,
+	},
+};
+
+export const TERMINAL_STEP_MAP: (TerminalStepData | null)[] = [
 	{
 		commands: WRAP_V1_ROUTES_COMMANDS,
 		outputLines: [
@@ -1645,15 +1673,9 @@ export function Level48APIVersioning({ onComplete }: LevelComponentProps) {
 
 	const handleOptionSelect = useCallback(
 		(optionId: string) => {
-			const allOptions: Record<number, typeof V2_SERIALIZER_OPTIONS> = {
-				2: V2_SERIALIZER_OPTIONS,
-				3: DEPRECATION_OPTIONS,
-				4: SUNSET_OPTIONS,
-				5: FREEZE_V1_OPTIONS,
-			};
-			const options = allOptions[stepper.currentStep];
-			if (!options) return;
-			const option = options.find((o) => o.id === optionId);
+			const optionStep = OPTION_STEPS[stepper.currentStep];
+			if (!optionStep) return;
+			const option = optionStep.options.find((o) => o.id === optionId);
 			if (!option) return;
 			if (option.correct) {
 				stepper.completeStep();
@@ -1773,15 +1795,11 @@ export function Level48APIVersioning({ onComplete }: LevelComponentProps) {
 				outputLines: termData?.outputLines,
 			};
 		}
-		const stepOptions: Record<number, typeof V2_SERIALIZER_OPTIONS> = {
-			3: V2_SERIALIZER_OPTIONS,
-			4: DEPRECATION_OPTIONS,
-			5: SUNSET_OPTIONS,
-			6: FREEZE_V1_OPTIONS,
-		};
+		const optionStep = OPTION_STEPS[idx];
 		return {
 			type: 'option' as const,
-			options: shuffleOptions(stepOptions[idx], idx),
+			question: optionStep.question,
+			options: shuffleOptions(optionStep.options, idx),
 		};
 	}, [stepper.currentStep]);
 
@@ -1930,8 +1948,10 @@ export function Level48APIVersioning({ onComplete }: LevelComponentProps) {
 							description={
 								<p className="text-sm text-muted-foreground">
 									{stepper.currentStep === 0 &&
-										'Add v1 and v2 namespaces to routes so each version gets its own controller namespace.'}
+										'Wrap the existing routes in a v1 namespace so current partners are pinned to a stable, unchanging surface.'}
 									{stepper.currentStep === 1 &&
+										'Add a v2 namespace alongside v1 so the new format has its own home without touching v1.'}
+									{stepper.currentStep === 2 &&
 										'Generate the v2 orders controller under the Api::V2 namespace.'}
 								</p>
 							}
@@ -1959,13 +1979,7 @@ export function Level48APIVersioning({ onComplete }: LevelComponentProps) {
 								{STEP_DEFS[stepper.currentStep].title}
 							</h3>
 							<p className="text-sm text-muted-foreground mt-1">
-								{stepper.currentStep === 2 &&
-									'How should the v2 serializer return the order total?'}
-								{stepper.currentStep === 3 &&
-									'How should v1 signal that it is being replaced?'}
-								{stepper.currentStep === 4 && 'When should v1 be retired?'}
-								{stepper.currentStep === 5 &&
-									'How should the v1 controller render its response?'}
+								{currentStepConfig.question}
 							</p>
 						</div>
 						{stepper.lastFeedback && (

@@ -3,7 +3,7 @@ import { describe, expect, test } from 'bun:test';
 // ── Mirrored data from Level43SafeMigrations.tsx ──
 
 const DISCOVERY_DEFS = [
-	{ id: 'add-column-lock', label: 'add_column with default locks table' },
+	{ id: 'add-column-lock', label: 'Volatile default rewrites the table' },
 	{ id: 'change-column-lock', label: 'change_column rewrites all rows' },
 	{
 		id: 'add-index-lock',
@@ -14,12 +14,12 @@ const DISCOVERY_DEFS = [
 const PROBES = [
 	{
 		id: 'add-column-default',
-		label: 'Add column with default on 5M rows',
+		label: 'Add column with volatile default on 5M rows',
 		command:
-			'rails db:migrate # add_column :orders, :priority, :integer, default: 0',
+			'rails db:migrate # add_column :orders, :reference_code, :uuid, default: "gen_random_uuid()"',
 		responseLines: [
 			{
-				text: 'ALTER TABLE orders ADD COLUMN priority integer DEFAULT 0',
+				text: 'ALTER TABLE orders ADD COLUMN reference_code uuid DEFAULT gen_random_uuid()',
 				color: 'red',
 			},
 			{
@@ -236,15 +236,15 @@ const ALL_OPTION_SETS = [
 const STRESS_SCENARIOS = [
 	{
 		id: 'add-column-default',
-		label: 'Add column with default on 5M rows',
+		label: 'Add column with volatile default on 5M rows',
 		description: 'Safe: add without default, backfill in batches, set default',
 		method: 'MIGRATE',
-		path: 'add_column :orders, :priority',
+		path: 'add_column :orders, :reference_code',
 		actor: 'developer',
 		expectedResult: 'allowed' as const,
 		responseLines: [
 			{
-				text: 'add_column :orders, :priority, :integer (no default)',
+				text: 'add_column :orders, :reference_code, :uuid (no default)',
 				color: 'green',
 			},
 			{ text: '# No table lock. Column added instantly.', color: 'green' },
@@ -337,7 +337,7 @@ describe('Level 44: Safe Migrations', () => {
 
 		test('specific discovery labels match', () => {
 			expect(DISCOVERY_DEFS[0].label).toBe(
-				'add_column with default locks table',
+				'Volatile default rewrites the table',
 			);
 			expect(DISCOVERY_DEFS[1].label).toBe('change_column rewrites all rows');
 			expect(DISCOVERY_DEFS[2].label).toBe(
@@ -524,7 +524,7 @@ describe('Level 44: Safe Migrations', () => {
 
 		test('exact scenario labels', () => {
 			expect(STRESS_SCENARIOS[0].label).toBe(
-				'Add column with default on 5M rows',
+				'Add column with volatile default on 5M rows',
 			);
 			expect(STRESS_SCENARIOS[1].label).toBe(
 				'Change column type on orders table',

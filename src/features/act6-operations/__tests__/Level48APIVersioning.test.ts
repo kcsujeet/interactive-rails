@@ -344,7 +344,7 @@ const STRESS_SCENARIOS = [
 
 // ── Tests ──
 
-describe('Level 40: API Versioning', () => {
+describe('Level 48: API Versioning', () => {
 	describe('Discovery definitions', () => {
 		test('has exactly 4 discoveries', () => {
 			expect(DISCOVERY_DEFS.length).toBe(4);
@@ -676,5 +676,66 @@ describe('Level 40: API Versioning', () => {
 			expect(extras.map((e) => e.id)).toContain('v1-v2-coexist');
 			expect(extras.map((e) => e.id)).toContain('v3-not-found');
 		});
+	});
+});
+
+// ---------------------------------------------------------------------------
+// Build step wiring (uncompletable-level regression, audit 2026-07-09).
+//
+// The click handler and the render path each held their own step->options
+// map; they diverged by one (2-5 vs 3-6). Because every option array uses
+// the id 'correct', steps 3-5 completed only via cross-array id collision,
+// wrong answers were silently swallowed, and step 6 was dead, making the
+// level uncompletable. These tests import the component's now-single map
+// (a deliberate exception to the mirror-don't-import rule: wiring cannot
+// be verified from mirrored copies).
+// ---------------------------------------------------------------------------
+
+import {
+	OPTION_STEPS,
+	STEP_DEFS as WIRED_STEP_DEFS,
+	TERMINAL_STEP_MAP as WIRED_TERMINAL_MAP,
+} from '../components/level-48-api-versioning/Level48APIVersioning';
+
+describe('Level 48: build step wiring', () => {
+	test('every step is exactly one of: terminal step, option step', () => {
+		const wiring = WIRED_STEP_DEFS.map((def, idx) => ({
+			id: def.id,
+			coveredExactlyOnce:
+				(WIRED_TERMINAL_MAP[idx] != null) !== (OPTION_STEPS[idx] != null),
+		}));
+		expect(wiring).toEqual(
+			WIRED_STEP_DEFS.map((def) => ({
+				id: def.id,
+				coveredExactlyOnce: true,
+			})),
+		);
+	});
+
+	test('option steps are 3-6 and each asks its own question', () => {
+		expect(
+			Object.keys(OPTION_STEPS)
+				.map(Number)
+				.sort((a, b) => a - b),
+		).toEqual([3, 4, 5, 6]);
+		expect(OPTION_STEPS[3].question).toContain('serializer');
+		expect(OPTION_STEPS[4].question).toContain('signal');
+		expect(OPTION_STEPS[5].question).toContain('retired');
+		expect(OPTION_STEPS[6].question).toContain('render');
+	});
+
+	test('every option step has exactly one correct option and feedback on wrongs', () => {
+		for (const [idx, step] of Object.entries(OPTION_STEPS)) {
+			const correct = step.options.filter((o) => o.correct);
+			expect({ step: idx, correctCount: correct.length }).toEqual({
+				step: idx,
+				correctCount: 1,
+			});
+			for (const option of step.options) {
+				if (!option.correct) {
+					expect(option.feedback ?? '').not.toBe('');
+				}
+			}
+		}
 	});
 });

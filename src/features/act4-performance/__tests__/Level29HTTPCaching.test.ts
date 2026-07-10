@@ -110,7 +110,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		expectedResult: 'allowed',
 		responseLines: [
 			{ text: 'CDN Edge: HIT (5ms)', color: 'green' },
-			{ text: 'Cache-Control: public, s-max-age=3600', color: 'yellow' },
+			{ text: 'Cache-Control: public, s-maxage=3600', color: 'yellow' },
 			{ text: 'Origin server not contacted.', color: 'green' },
 		],
 	},
@@ -211,8 +211,8 @@ const OPTION_STEP_CONFIG: Record<
 					'This prevents ALL caching, both browser and CDN. For public data that rarely changes, you want caches to store and serve it.',
 			},
 			{
-				id: 'public-s-max-age',
-				label: 'Cache-Control: public, s-max-age=3600',
+				id: 'public-s-maxage',
+				label: 'Cache-Control: public, s-maxage=3600',
 				correct: true,
 			},
 			{
@@ -282,8 +282,8 @@ const OPTION_STEP_CONFIG: Record<
 			"Dashboard showing user's own order history. Different for every user. Which Cache-Control header?",
 		options: [
 			{
-				id: 'public-s-max-age',
-				label: 'Cache-Control: public, s-max-age=300',
+				id: 'public-s-maxage',
+				label: 'Cache-Control: public, s-maxage=300',
 				correct: false,
 				feedback:
 					"Public means the CDN caches it. Other users could see someone else's order history. This is a critical security issue for user-specific data.",
@@ -415,7 +415,7 @@ describe('Level 31: HTTP Caching & CDNs', () => {
 			for (const step of STEP_DEFS) {
 				expect(step.title).not.toContain('stale?');
 				expect(step.title).not.toContain('immutable');
-				expect(step.title).not.toContain('s-max-age');
+				expect(step.title).not.toContain('s-maxage');
 				expect(step.title).not.toContain('private');
 			}
 		});

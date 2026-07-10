@@ -32,7 +32,8 @@ const PROBES = [
 	{
 		id: 'old-order',
 		label: 'Customer views old order from 2023',
-		command: 'Order.find_by(id: 12345, created_at: "2023-03-15")',
+		command:
+			'Order.find_by(order_number: "ORD-2023-88112")  # no index on order_number',
 		responseLines: [
 			{ text: 'Seq Scan on orders (rows=50,000,000)', color: 'red' },
 			{ text: 'Execution time: 4,100ms', color: 'red' },

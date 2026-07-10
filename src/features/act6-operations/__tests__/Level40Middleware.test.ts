@@ -15,7 +15,10 @@ const PROBES = [
 		command: 'curl localhost:3000/api/orders/999',
 		responseLines: [
 			{ text: '500 Internal Server Error', color: 'red' },
-			{ text: '# No X-Request-Id header in response', color: 'red' },
+			{
+				text: '# X-Request-Id: 7f3a... is in the response header',
+				color: 'yellow',
+			},
 			{
 				text: '# Customer says "it broke" but which request?',
 				color: 'red',

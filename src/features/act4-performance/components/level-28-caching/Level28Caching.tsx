@@ -237,13 +237,14 @@ const ZONE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 		stageId: 'cache',
 		title: 'Cache Layer (Missing)',
 		description:
-			'No cache store is configured. Rails defaults to :null_store when no store is set. Every request falls through to the service.',
-		code: `# config/environments/production.rb
-# config.cache_store = ???
-# No cache store configured!
-#
-# Rails.cache.class
-# => ActiveSupport::Cache::NullStore`,
+			'Nothing in the code path ever calls the cache. A store exists, but a cache no code reads or writes may as well not be there: every request falls through to the service.',
+		code: `# app/services/trending_products.rb
+def call
+  # No Rails.cache.fetch wrapper anywhere.
+  # The ranking recomputes from 50K products
+  # on every single request.
+  compute_trending
+end`,
 	},
 	service: {
 		stageId: 'service',

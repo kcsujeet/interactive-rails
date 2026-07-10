@@ -131,7 +131,7 @@ With CDN:
 
 **Key Cache-Control directives:**
 - \`max-age=N\`: Client can reuse for N seconds without asking server
-- \`s-max-age=N\`: Same but for shared caches (CDN) only
+- \`s-maxage=N\`: Same but for shared caches (CDN) only
 - \`no-cache\`: Can be cached, but MUST revalidate with origin on every use
 - \`public\`: CDN and browser can both cache
 - \`private\`: Only browser can cache (user-specific data)
@@ -171,7 +171,7 @@ def index
 
   # CDN + browser cache for 1 hour
   expires_in 1.hour, public: true,
-    's-max-age': 3600
+    's-maxage': 3600
 
   render json: result.products
 end
@@ -179,7 +179,7 @@ end
 # === Cache-Control strategies ===
 
 # Public data (CDN + browser):
-#   Cache-Control: public, s-max-age=3600
+#   Cache-Control: public, s-maxage=3600
 # User-specific data (browser only):
 #   Cache-Control: private, max-age=60, stale-while-revalidate=30
 # Fingerprinted assets (immutable):

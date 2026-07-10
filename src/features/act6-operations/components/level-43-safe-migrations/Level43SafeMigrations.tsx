@@ -10,7 +10,7 @@
  * Phase 2 (build): 6 steps
  *   Step 0: Install strong_migrations gem (terminal)
  *   Step 1: Run strong_migrations generator (terminal)
- *   Step 2: Fix unsafe add_column with default (option)
+ *   Step 2: Fix unsafe add_column with volatile default (option)
  *   Step 3: Fix unsafe change_column (option)
  *   Step 4: Fix unsafe add_index (option)
  *   Step 5: Configure strong_migrations safety checks (option)
@@ -140,7 +140,7 @@ const DEFAULT_EDGE: EdgeVizState = {
 // ─── Discovery definitions ─────────────────────────────────────────────
 
 const DISCOVERY_DEFS = [
-	{ id: 'add-column-lock', label: 'add_column with default locks table' },
+	{ id: 'add-column-lock', label: 'Volatile default rewrites the table' },
 	{ id: 'change-column-lock', label: 'change_column rewrites all rows' },
 	{ id: 'add-index-lock', label: 'add_index blocks writes during creation' },
 ];
@@ -150,12 +150,12 @@ const DISCOVERY_DEFS = [
 const PROBES = [
 	{
 		id: 'add-column-default',
-		label: 'Add column with default on 5M rows',
+		label: 'Add column with volatile default on 5M rows',
 		command:
-			'rails db:migrate # add_column :orders, :priority, :integer, default: 0',
+			'rails db:migrate # add_column :orders, :reference_code, :uuid, default: "gen_random_uuid()"',
 		responseLines: [
 			{
-				text: 'ALTER TABLE orders ADD COLUMN priority integer DEFAULT 0',
+				text: 'ALTER TABLE orders ADD COLUMN reference_code uuid DEFAULT gen_random_uuid()',
 				color: 'red' as const,
 			},
 			{
@@ -172,7 +172,7 @@ const PROBES = [
 			},
 		],
 		story: [
-			'A deploy adds a priority column with a default value to the orders table.',
+			'A deploy adds a reference_code column whose default calls a function (gen_random_uuid) for every row.',
 			'PostgreSQL acquires an ACCESS EXCLUSIVE lock to rewrite every row.',
 			'The lock holds for 30 seconds on 5M rows.',
 			'100K users see 500 errors. The API is completely down.',
@@ -648,10 +648,10 @@ const FIX_ADD_COLUMN_OPTIONS = [
 	{
 		id: 'wrong-disable-lock',
 		label: 'Disable lock timeout before adding column',
-		code: `class AddPriorityToOrders < ActiveRecord::Migration[7.2]
+		code: `class AddReferenceCodeToOrders < ActiveRecord::Migration[7.2]
   def change
     execute "SET lock_timeout = 0"
-    add_column :orders, :priority, :integer, default: 0
+    add_column :orders, :reference_code, :uuid, default: "gen_random_uuid()"
   end
 end`,
 		correct: false,
@@ -661,13 +661,13 @@ end`,
 	{
 		id: 'correct',
 		label: 'Add column without default, then backfill in batches',
-		code: `class AddPriorityToOrders < ActiveRecord::Migration[7.2]
+		code: `class AddReferenceCodeToOrders < ActiveRecord::Migration[7.2]
   def change
-    add_column :orders, :priority, :integer
+    add_column :orders, :reference_code, :uuid
     # Backfill in a separate migration or script:
-    # Order.in_batches.update_all(priority: 0)
-    # Then set default for new rows:
-    # change_column_default :orders, :priority, 0
+    # Order.in_batches.update_all("reference_code = gen_random_uuid()")
+    # Then set the default for new rows:
+    # change_column_default :orders, :reference_code, -> { "gen_random_uuid()" }
   end
 end`,
 		correct: true,
@@ -675,11 +675,11 @@ end`,
 	{
 		id: 'wrong-raw-sql',
 		label: 'Use raw SQL ALTER TABLE to add column',
-		code: `class AddPriorityToOrders < ActiveRecord::Migration[7.2]
+		code: `class AddReferenceCodeToOrders < ActiveRecord::Migration[7.2]
   def change
     execute <<~SQL
       ALTER TABLE orders
-      ADD COLUMN priority integer DEFAULT 0
+      ADD COLUMN reference_code uuid DEFAULT gen_random_uuid()
     SQL
   end
 end`,
@@ -840,15 +840,15 @@ const TERMINAL_STEP_MAP: (TerminalStepData | null)[] = [
 const STRESS_SCENARIOS = [
 	{
 		id: 'add-column-default',
-		label: 'Add column with default on 5M rows',
+		label: 'Add column with volatile default on 5M rows',
 		description: 'Safe: add without default, backfill in batches, set default',
 		method: 'MIGRATE' as const,
-		path: 'add_column :orders, :priority',
+		path: 'add_column :orders, :reference_code',
 		actor: 'developer',
 		expectedResult: 'allowed' as const,
 		responseLines: [
 			{
-				text: 'add_column :orders, :priority, :integer (no default)',
+				text: 'add_column :orders, :reference_code, :uuid (no default)',
 				color: 'green',
 			},
 			{ text: '# No table lock. Column added instantly.', color: 'green' },
@@ -947,7 +947,7 @@ function getCodeFiles(
 class UpdateOrders < ActiveRecord::Migration[7.2]
   def change
     # Locks table for 30s on 5M rows!
-    add_column :orders, :priority, :integer, default: 0
+    add_column :orders, :reference_code, :uuid, default: "gen_random_uuid()"
 
     # Full table rewrite, exclusive lock!
     change_column :orders, :total, :decimal
@@ -987,15 +987,15 @@ gem "strong_migrations", "~> 2.1"`,
 
 		if (completedStep >= 2) {
 			files.push({
-				filename: 'db/migrate/safe_add_priority.rb',
+				filename: 'db/migrate/safe_add_reference_code.rb',
 				language: 'ruby',
-				code: `class AddPriorityToOrders < ActiveRecord::Migration[7.2]
+				code: `class AddReferenceCodeToOrders < ActiveRecord::Migration[7.2]
   def change
-    add_column :orders, :priority, :integer
+    add_column :orders, :reference_code, :uuid
     # Backfill in a separate migration or script:
-    # Order.in_batches.update_all(priority: 0)
-    # Then set default for new rows:
-    # change_column_default :orders, :priority, 0
+    # Order.in_batches.update_all("reference_code = gen_random_uuid()")
+    # Then set the default for new rows:
+    # change_column_default :orders, :reference_code, -> { "gen_random_uuid()" }
   end
 end`,
 			});
@@ -1070,15 +1070,15 @@ StrongMigrations.lock_timeout = 10.seconds
 StrongMigrations.statement_timeout = 1.hour`,
 		},
 		{
-			filename: 'db/migrate/safe_add_priority.rb',
+			filename: 'db/migrate/safe_add_reference_code.rb',
 			language: 'ruby',
-			code: `class AddPriorityToOrders < ActiveRecord::Migration[7.2]
+			code: `class AddReferenceCodeToOrders < ActiveRecord::Migration[7.2]
   def change
-    add_column :orders, :priority, :integer
+    add_column :orders, :reference_code, :uuid
   end
 end
-# Backfill: Order.in_batches.update_all(priority: 0)
-# Default: change_column_default :orders, :priority, 0`,
+# Backfill: Order.in_batches.update_all("reference_code = gen_random_uuid()")
+# Default: change_column_default :orders, :reference_code, -> { "gen_random_uuid()" }`,
 		},
 		{
 			filename: 'db/migrate/safe_change_total.rb',

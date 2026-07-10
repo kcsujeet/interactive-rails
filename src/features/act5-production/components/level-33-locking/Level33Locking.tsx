@@ -330,7 +330,7 @@ const SERVICE_OPTIONS = [
 
   def initialize(product_id:, quantity:)
     @product_id = product_id
-    @quantity = amount
+    @quantity = quantity
   end
 
   def call
@@ -357,7 +357,7 @@ end`,
 
   def initialize(product_id:, quantity:)
     @product_id = product_id
-    @quantity = amount
+    @quantity = quantity
   end
 
   def call
@@ -551,11 +551,11 @@ const STRESS_SCENARIOS: StressScenario[] = [
 				color: 'cyan',
 			},
 			{
-				text: 'Customer B: waits... lock -> 5 - 8 = insufficient!',
-				color: 'yellow',
+				text: 'Customer B: waits... lock -> 5 - 3 = 2 -> commit',
+				color: 'cyan',
 			},
 			{
-				text: 'Customer A committed, Customer B rejected. No lost update.',
+				text: 'Both orders committed in sequence. No lost update.',
 				color: 'green',
 			},
 		],
@@ -1206,7 +1206,7 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
 
   def initialize(product_id:, quantity:)
     @product_id = product_id
-    @quantity = amount
+    @quantity = quantity
   end
 
   def call
@@ -1306,7 +1306,7 @@ end`,
 					code: `class OrderContract < Dry::Validation::Contract
   params do
     required(:product_id).filled(:integer)
-    required(:amount).filled(:decimal, gt?: 0)
+    required(:quantity).filled(:integer, gt?: 0)
   end
 end`,
 				},
@@ -1318,7 +1318,7 @@ end`,
 
   def initialize(product_id:, quantity:)
     @product_id = product_id
-    @quantity = amount
+    @quantity = quantity
   end
 
   def call
@@ -1355,7 +1355,7 @@ end`,
 			code: `class OrderContract < Dry::Validation::Contract
   params do
     required(:product_id).filled(:integer)
-    required(:amount).filled(:decimal, gt?: 0)
+    required(:quantity).filled(:integer, gt?: 0)
   end
 end`,
 		},
@@ -1367,7 +1367,7 @@ end`,
 
   def initialize(product_id:, quantity:)
     @product_id = product_id
-    @quantity = amount
+    @quantity = quantity
   end
 
   def call
@@ -1396,11 +1396,12 @@ end`,
 			language: 'ruby',
 			code: `class Api::OrdersController < ApplicationController
   def create
+    order_params = params.expect(order: [:product_id, :quantity])
     result = PlaceOrder.call(
-      product_id: params[:id],
-      quantity: params.expect(order: [:product_id, :quantity]))
+      product_id: order_params[:product_id],
+      quantity: order_params[:quantity].to_i)
     if result.success?
-      render json: OrderSerializer.new(result.order)
+      render json: ProductSerializer.new(result.product)
     else
       render json: { error: {
         code: "DEDUCTION_FAILED",

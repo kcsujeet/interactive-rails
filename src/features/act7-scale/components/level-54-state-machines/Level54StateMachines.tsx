@@ -407,7 +407,7 @@ const REWARD_BLOCKED_BACKWARD_FRAMES: AnimFrame[] = [
 		states: { shipped: { flash: 'amber', badge: 'update!(pending)' } },
 	},
 	{
-		states: { shipped: { flash: 'red', badge: 'InvalidTransition!' } },
+		states: { shipped: { flash: 'red', badge: 'NoDirectAssignment!' } },
 		edges: {
 			'shipped-pending': {
 				active: true,
@@ -479,14 +479,14 @@ const REWARD_BLOCKED_CANCEL_FRAMES: AnimFrame[] = [
 const REWARD_BLOCKED_INVALID_STATUS_FRAMES: AnimFrame[] = [
 	{
 		states: {
-			shipped: { flash: 'amber', badge: 'update_all("refunded")' },
+			shipped: { flash: 'amber', badge: 'order.refund!' },
 		},
 	},
 	{
 		states: {
-			shipped: { flash: 'red', badge: 'AASM rejects!' },
-			pending: { flash: 'red', badge: 'Protected' },
-			confirmed: { flash: 'red', badge: 'Protected' },
+			shipped: { flash: 'red', badge: 'NoMethodError!' },
+			pending: { flash: 'red', badge: 'No refund event' },
+			confirmed: { flash: 'red', badge: 'No refund event' },
 		},
 	},
 	{
@@ -610,7 +610,8 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'backward-ship-pending',
 		label: 'Revert shipped to pending',
-		description: 'shipped -> pending (invalid backward transition)',
+		description:
+			'update!(status: "pending") raises NoDirectAssignmentError (direct writes are off)',
 		method: 'PATCH',
 		path: '/api/v1/orders/1047/revert',
 		actor: 'support script',
@@ -645,9 +646,9 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	},
 	{
 		id: 'set-invalid-status',
-		label: 'Set arbitrary status string',
+		label: 'Set an undefined status',
 		description:
-			'update_all(status: "refunded") (AASM rejects non-event changes)',
+			'order.refund! (no refund event exists: undefined states are unrepresentable)',
 		method: 'PATCH',
 		path: '/api/v1/orders/bulk/status',
 		actor: 'support script',
@@ -776,7 +777,7 @@ const DEFINE_STATES_OPTIONS: StepOption[] = [
 	},
 	{
 		id: 'correct',
-		name: 'aasm column: :status do\n  state :pending, initial: true\n  state :confirmed\n  state :shipped\n  state :delivered\n  state :cancelled\nend',
+		name: 'aasm column: :status, no_direct_assignment: true do\n  state :pending, initial: true\n  state :confirmed\n  state :shipped\n  state :delivered\n  state :cancelled\nend',
 		correct: true,
 	},
 	{
@@ -947,7 +948,7 @@ gem "paper_trail"  # installed in L31`,
 		let orderCode = 'class Order < ApplicationRecord\n  include AASM\n\n';
 
 		if (completedStep >= 3) {
-			orderCode += `  aasm column: :status do
+			orderCode += `  aasm column: :status, no_direct_assignment: true do
     state :pending, initial: true
     state :confirmed
     state :shipped
@@ -973,7 +974,7 @@ gem "paper_trail"  # installed in L31`,
     end
   end`;
 		} else if (completedStep >= 2) {
-			orderCode += `  aasm column: :status do
+			orderCode += `  aasm column: :status, no_direct_assignment: true do
     state :pending, initial: true
     state :confirmed
     state :shipped
@@ -998,7 +999,7 @@ gem "paper_trail"  # installed in L31`,
     end
   end`;
 		} else {
-			orderCode += `  aasm column: :status do
+			orderCode += `  aasm column: :status, no_direct_assignment: true do
     state :pending, initial: true
     state :confirmed
     state :shipped

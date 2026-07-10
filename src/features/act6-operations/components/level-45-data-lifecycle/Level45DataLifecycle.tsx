@@ -174,7 +174,8 @@ const PROBES = [
 	{
 		id: 'old-order',
 		label: 'Customer views old order from 2023',
-		command: 'Order.find_by(id: 12345, created_at: "2023-03-15")',
+		command:
+			'Order.find_by(order_number: "ORD-2023-88112")  # no index on order_number',
 		responseLines: [
 			{
 				text: 'Seq Scan on orders (rows=50,000,000)',
@@ -182,19 +183,19 @@ const PROBES = [
 			},
 			{ text: 'Execution time: 4,100ms', color: 'red' as const },
 			{
-				text: '# Same 50M row scan for one old order',
+				text: '# order_number has no index, so every row is checked',
 				color: 'red' as const,
 			},
 			{
-				text: "# This order hasn't been accessed in 2 years",
+				text: '# Adding one means a 4GB index, mostly for rows nobody reads',
 				color: 'red' as const,
 			},
 		],
 		story: [
-			'A customer wants to return an item from a 2023 order.',
-			'The query searches the same 50M row table.',
-			'4 seconds to find one row that is 2 years old.',
-			'95% of these rows are never accessed but slow every query.',
+			'A customer pastes the order number from a 2023 email receipt to request a return.',
+			'order_number has no index, so PostgreSQL checks all 50 million rows.',
+			'An index would fix this one query, but at 50M rows it would be 4GB, and every index, backup, and migration pays for rows nobody reads.',
+			'95% of these rows have not been touched in over a year.',
 		],
 	},
 	{
@@ -1695,7 +1696,7 @@ export function Level45DataLifecycle({ onComplete }: LevelComponentProps) {
 							Scenario
 						</h3>
 						<p className="text-sm text-muted-foreground mb-2">
-							Level 45 added recurring cleanup jobs, but they only purge expired
+							Level 44 added recurring cleanup jobs, but they only purge expired
 							tokens and orphans. The orders table itself has 50M rows, 95%
 							older than 1 year and never accessed.
 						</p>

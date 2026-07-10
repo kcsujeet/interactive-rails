@@ -109,7 +109,7 @@ const PROBES: ProbeConfig[] = [
 				color: 'green',
 			},
 			{
-				text: 'joins(:user)      => 101 queries! (loads nothing into memory)',
+				text: 'joins(:user)      => filters only; each product.user still lazy-loads (101 queries)',
 				color: 'red',
 			},
 		],
@@ -139,7 +139,7 @@ const PROBES: ProbeConfig[] = [
 				color: 'green',
 			},
 			{
-				text: 'eager_load(c: :user)      => 1 wide JOIN (high memory)',
+				text: 'eager_load(reviews: :user) => 1 wide JOIN (high memory)',
 				color: 'yellow',
 			},
 			{
@@ -322,12 +322,12 @@ const PROBE_LANES: Record<string, StrategyLaneData[]> = {
 			blocks: [
 				{
 					label: 'SELECT products LEFT JOIN tags WHERE active',
-					color: 'amber',
+					color: 'green',
 					wide: true,
 				},
 			],
 			totalLabel: '1 query (auto-JOIN)',
-			result: 'suboptimal',
+			result: 'works',
 		},
 		{
 			id: 'preload',
@@ -350,12 +350,12 @@ const PROBE_LANES: Record<string, StrategyLaneData[]> = {
 			blocks: [
 				{
 					label: 'SELECT products LEFT JOIN tags WHERE active',
-					color: 'green',
+					color: 'amber',
 					wide: true,
 				},
 			],
-			totalLabel: '1 query (JOIN)',
-			result: 'works',
+			totalLabel: '1 query (same JOIN, forced)',
+			result: 'suboptimal',
 		},
 		{
 			id: 'joins',
@@ -421,7 +421,7 @@ Product.preload(:user).where(users: { active: true })
 		stageId: 'eager_load',
 		title: 'eager_load (Force JOIN)',
 		description:
-			'Always uses LEFT OUTER JOIN in a single query. Required when you need to filter or sort by association columns. Uses more memory because the JOIN returns wider result rows.',
+			'Forces a LEFT OUTER JOIN in a single query. When you filter on the associated table, includes reaches the same JOIN automatically, so forcing it here changes nothing but the word count. Uses more memory because the JOIN returns wider result rows.',
 		code: `# In your service object:
 class ProductList < ApplicationService
   def call(filters: {})

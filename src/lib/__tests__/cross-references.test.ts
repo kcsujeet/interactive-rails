@@ -100,6 +100,8 @@ const CROSS_REFERENCES: Record<string, string[]> = {
 		'External APIs',
 	],
 	'act6-operations/content/level-44-recurring-jobs.ts': ['Background Jobs'],
+	'act6-operations/components/level-45-data-lifecycle/Level45DataLifecycle.tsx':
+		['Recurring Jobs & Scheduling'],
 	'act6-operations/content/level-46-error-monitoring.ts': [
 		'Middleware & Rack',
 		'Observability',

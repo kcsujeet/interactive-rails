@@ -301,27 +301,27 @@ const PROBES: ProbeConfig[] = [
 		label: 'Check application health endpoint',
 		command: 'curl -s -o /dev/null -w "%{http_code}" localhost:3000/up',
 		responseLines: [
-			{ text: '404', color: 'red' },
+			{ text: '200', color: 'yellow' },
 			{ text: '', color: 'muted' },
 			{
-				text: 'No health check endpoint configured.',
-				color: 'red',
-			},
-			{
-				text: 'Load balancer cannot determine if this instance is healthy.',
-				color: 'red',
-			},
-			{
-				text: 'Kubernetes readiness probes have nothing to check.',
+				text: "Rails' built-in /up only proves the app booted.",
 				color: 'yellow',
+			},
+			{
+				text: 'It checks no database, no job queue, no disk.',
+				color: 'red',
+			},
+			{
+				text: 'An instance that cannot reach the DB still reports 200.',
+				color: 'red',
 			},
 		],
 		story: [
-			'You try to check if the application is ready to serve traffic.',
-			'curl /up returns 404. No health endpoint exists.',
-			'The load balancer sends traffic to unhealthy instances.',
-			'Kubernetes readiness probes fail, causing unnecessary restarts.',
-			'A simple endpoint checking DB, Redis, and disk would prevent this.',
+			'You check whether the application is ready to serve traffic.',
+			"Rails' generated /up route returns 200 because the process booted.",
+			'But it checks nothing else: the database could be unreachable and /up still says fine.',
+			'The load balancer keeps sending traffic to an instance that cannot serve it.',
+			'A deeper health check that verifies real dependencies would prevent this.',
 		],
 	},
 ];
@@ -567,7 +567,7 @@ const REWARD_HEALTH_FRAMES: AnimFrame[] = [
 		health: {
 			label: '/up',
 			flash: 'green',
-			sublabel: 'DB: ok, Redis: ok, Disk: ok',
+			sublabel: 'DB: ok, Jobs: ok, Disk: ok',
 			badge: '200 OK',
 		},
 		edgeC: { active: false, label: '' },
@@ -919,11 +919,11 @@ const HEALTH_CHECK_OPTIONS: StepOption[] = [
 		name: 'Rails.application.routes.draw do\n  get "/up", to: proc { [200, {}, ["OK"]] }\nend',
 		correct: false,
 		feedback:
-			'A static 200 response tells you nothing. The endpoint should verify critical dependencies (database, Redis, disk) so the load balancer knows if the instance can actually serve requests.',
+			'A static 200 response tells you nothing. The endpoint should verify critical dependencies (database, job queue, disk) so the load balancer knows if the instance can actually serve requests.',
 	},
 	{
 		id: 'correct',
-		name: 'Rails.application.routes.draw do\n  get "/up", to: "health#show"\nend\n\nclass HealthController < ApplicationController\n  def show\n    result = HealthCheckService.call\n    status = result.values.all? ? :ok : :service_unavailable\n    render json: result, status: status\n  end\nend',
+		name: 'Rails.application.routes.draw do\n  get "/up", to: "health#show"\nend\n\nclass HealthController < ApplicationController\n  allow_unauthenticated_access\n\n  def show\n    result = HealthCheckService.call\n    status = result.values.all? ? :ok : :service_unavailable\n    render json: result, status: status\n  end\nend',
 		correct: true,
 	},
 	{
@@ -1093,6 +1093,8 @@ require "opentelemetry/instrumentation/all"
 			filename: 'app/controllers/health_controller.rb',
 			language: 'ruby',
 			code: `class HealthController < ApplicationController
+  allow_unauthenticated_access
+
   def show
     result = HealthCheckService.call
     status = result.values.all? ? :ok : :service_unavailable

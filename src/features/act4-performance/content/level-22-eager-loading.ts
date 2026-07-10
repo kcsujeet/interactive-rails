@@ -147,7 +147,7 @@ end
 			'Forgetting strict_loading to prevent future N+1 regressions',
 		],
 		whenToUse:
-			"Use includes by default (let Rails decide). Use preload when you DON'T filter by the associated table (less memory). Use eager_load when you DO filter by the associated table (requires JOIN).",
+			"Use includes by default (let Rails decide): when you filter on the associated table with hash conditions, includes auto-promotes to the same LEFT OUTER JOIN. Use preload to force separate queries when you don't filter. Reach for eager_load only when you must force a single JOIN query without filtering.",
 		furtherReading: [
 			{
 				title: 'ActiveRecord Eager Loading',
