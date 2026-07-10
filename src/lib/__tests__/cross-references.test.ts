@@ -149,6 +149,7 @@ const CROSS_REFERENCES: Record<string, string[]> = {
 		'Modular Monolith',
 	],
 	'act7-scale/content/level-58-architect.ts': [
+		'Feature Flags & Staged Rollouts',
 		'Multi-Database',
 		'Database Sharding',
 		'Multi-Tenancy',
@@ -162,7 +163,12 @@ const CROSS_REFERENCES: Record<string, string[]> = {
 		'Soft Deletes & Audit Trails',
 	],
 	'act7-scale/components/level-58-architect/Level58Architect.tsx': [
-		'Background Jobs',
+		'Deployment',
+		'Multi-Database',
+		'State Machines',
+		'Modular Monolith',
+		'Domain Events & Decoupling',
+		'API Gateway',
 	],
 };
 

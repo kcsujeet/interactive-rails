@@ -9,285 +9,137 @@ export const level58Architect: Level = {
 	trigger: {
 		type: 'architecture',
 		description:
-			'The billing system is a bottleneck. It is deeply coupled to the monolith, processes payments synchronously, and any change requires deploying the entire application. Design the complete architecture for extracting it into an independent service, using every concept you have learned.',
+			'The app is well-factored: package boundaries, domain events, a gateway, a state machine on orders. And billing still hurts everyone around it: its hotfixes wait hours behind the shared deploy pipeline, its month-end batch drags checkout for every customer, and its bugs take the whole storefront down. Decide whether billing should leave the monolith, and design the migration.',
 	},
 	startingPipeline: { nodes: [], connections: [] },
 	problem: {
 		observation:
-			'Billing code is entangled with order processing, user management, and notifications. Deploying a billing fix requires a full monolith deployment (2 hours). Payment processing latency is 3x higher than it should be because billing queries compete with unrelated traffic on the same database.',
+			'Three structural pains, all pointing at one pack: a one-line billing fix ships behind the full two-hour monolith pipeline while customers keep hitting the bug; month-end invoicing saturates the shared primary and drags checkout p95 from 180ms to 2.1s; a billing memory leak starves the shared Puma workers and 503s the entire storefront.',
 		rootCause:
-			'The billing domain is not isolated. It shares the database, the deployment pipeline, and the runtime with every other feature. Extracting it requires applying multi-database routing, domain events, API gateway patterns, state machines, observability, and tenant isolation, all at once.',
-		codeExample: `# The monolith today: everything coupled
-class Order < ApplicationRecord
-  belongs_to :user
-  has_many :line_items
-  has_one :payment
+			'The package boundary is code-deep only. Billing shares everything physical with the rest of the app: the runtime, the database, and the deploy unit. Clean modules cannot fix shared fate; only a separate deployable can, and moving to one safely is an architecture problem, not a refactor.',
+		codeExample: `# The boundary is clean. The fate is shared.
 
-  # Billing logic embedded in the order model
-  def charge!
-    payment = Payment.create!(
-      order: self,
-      amount: total,
-      status: 'pending'
-    )
+# packs/billing/package.yml (since the modular monolith work)
+enforce_dependencies: true
+enforce_privacy: true
 
-    # Direct Stripe call in the model
-    charge = Stripe::Charge.create(
-      amount: total_cents,
-      customer: user.stripe_customer_id
-    )
-
-    payment.update!(
-      status: 'completed',
-      stripe_charge_id: charge.id
-    )
-
-    # Tightly coupled side effects
-    update!(status: 'paid')
-    InventoryService.reserve(line_items)
-    UserMailer.receipt(user, self).deliver_now  # Synchronous!
-    LoyaltyPoints.award(user, total)
-    AnalyticsTracker.track('purchase', user_id: user.id, amount: total)
-
-  rescue Stripe::CardError => e
-    payment.update!(status: 'failed', error: e.message)
-    update!(status: 'payment_failed')
-    UserMailer.payment_failed(user, self).deliver_now
-    raise
-  end
-end
-
-# Problems:
-# 1. Billing shares the database with everything else
-# 2. No state machine, invalid payment transitions possible
-# 3. Synchronous side effects: email failure blocks payment
-# 4. No observability, payment failures are invisible
-# 5. No tenant isolation, billing queries scan all tenants
-# 6. Single deployment pipeline: billing fix = full deploy`,
-		goal: 'Design the complete architecture for extracting billing into an independent service. Apply multi-database, state machines, domain events, API gateway, observability, and tenant isolation.',
+# And yet:
+#
+# 1. DEPLOY  a one-line billing fix ships the whole app:
+#            47 unrelated commits, full CI + staging +
+#            canary, ~2 hours while the bug keeps charging
+#            customers the wrong fee.
+#
+# 2. DATABASE  month-end invoicing writes 2M rows against
+#              the same primary checkout uses:
+#              checkout p95 180ms -> 2.1s, every month-end.
+#
+# 3. RUNTIME  a billing PDF renderer leaks memory, the
+#             shared Puma workers die one by one, and
+#             browsing + checkout return 503 with no bug
+#             of their own.
+#
+# No package.yml setting fixes any of these.`,
+		goal: 'Decide whether billing has earned its own service, then design a migration where customers never feel the move: behavior transfers gradually, the data crosses safely, the two halves cannot take each other down, and every step of the cutover can be turned back instantly.',
 		thresholds: {},
 	},
-	successConditions: [
-		{ type: 'api_gateway_configured' },
-		{ type: 'message_queue_configured' },
-		{ type: 'node_present', nodeType: 'event_bus' },
-		{ type: 'node_present', nodeType: 'state_machine' },
-		{ type: 'node_present', nodeType: 'observability' },
-		{ type: 'microservice_extracted' },
-	],
-	availableNodes: [
-		'api_gateway',
-		'message_queue',
-		'event_bus',
-		'state_machine',
-		'observability',
-		'health_check',
-		'shard',
-		'shard_router',
-		'tenant_scope',
-		'rate_limiter',
-		'read_replica',
-		'database',
-		'controller',
-		'model',
-		'serializer',
-	],
+	successConditions: [{ type: 'microservice_extracted' }],
+	availableNodes: [],
 	unlockedNodes: [],
 	learningContent: {
-		title: 'The Architect: Full Service Extraction',
-		goal: `In this capstone level, you'll:\n- extract a full service from a monolith step by step.\n- combine state machines, domain events, API gateway routing, and observability patterns from earlier levels.\n- learn the critical judgment call: when extraction is worth the complexity, and when keeping it in the monolith is the smarter choice.`,
-		conceptExplanation: `This is the capstone. You are extracting a billing service from a monolith using every concept from the game:
+		title: 'The Architect: Designing a Service Extraction',
+		goal: `In this capstone level, you'll:\n- learn the judgment call: what evidence justifies extracting a service, and what does not.\n- design a strangler-fig migration that rides the seams you already built.\n- plan a data migration that is reversible at every step until it is finished.\n- keep two halves of one system from inheriting each other's failures.\n- control a cutover with percentages and exit criteria instead of a single risky deploy.`,
+		conceptExplanation: `This is the capstone, and it is a design exercise: the artifact is the plan, and every step is a decision with real alternatives.
 
-**1. Multi-Database (Act 7, Level 51):**
-Billing gets its own database. Read replicas for reporting queries.
+**1. The judgment call (extract or not).**
+Extraction is a cost: a second app to deploy, monitor, and page on, plus a network where a method call used to be. It is justified by structural evidence, not by fashion. The evidence here: billing has its own deploy cadence (hotfixes cannot wait for the monolith pipeline), its own workload profile (month-end batch writes), and a blast radius the rest of the app should not share. One pack shows that evidence, so one pack leaves. As Jason Warner (former GitHub CTO) put it: "One of the biggest architectural mistakes of the past decade was going full microservice." Stick with the monolith as long as possible, and no longer.
 
-**2. State Machines (Act 7, Level 54):**
-Payment status transitions are guarded: pending -> processing -> completed/failed. No invalid transitions.
+**2. The strangler fig (how it moves).**
+Martin Fowler's strangler fig pattern: grow the new system around the edges of the old, moving behavior incrementally while the old system keeps serving ([source](https://martinfowler.com/bliki/StranglerFigApplication.html)). Big-bang rewrites fail for documented reasons: "replacements seem easy to specify, but often it's hard to figure out the details of existing behavior," and users cannot wait. The transitional architecture (dual paths, a routing gate, parity checks) looks like waste and is not: "the reduced risk and earlier value from the gradual approach outweigh its costs."
 
-**3. Multi-Tenancy (Act 7, Level 53):**
-Each tenant's billing data is isolated. Queries are automatically scoped.
+The seams were already built, level by level: the gateway (Act 7, Level 57) means clients see one stable URL whichever half serves them. The event bus (Act 7, Level 56) means order facts can reach billing without a blocking call. The flag gate (Act 6, Level 50) means traffic moves by percentage, not by deploy.
 
-**4. Observability (Act 6, Level 47):**
-Structured logs, distributed tracing across the gateway and billing service, health checks, and alerting.
+**3. The data migration (backfill + dual-write + verify).**
+History crosses in batches (backfill). New records are written to BOTH databases for the whole migration window (dual-write), so neither side falls behind. An automated parity job compares the two sides continuously; reads cut over only after sustained parity. The property that matters: every step is reversible until the moment you decide it is finished. A one-night copy script has no way back the morning after.
 
-**5. Modular Monolith (Act 7, Level 55):**
-Enforce domain boundaries with Packwerk before extracting. Define packages with public APIs and dependency rules.
+**4. Communication (facts, not calls).**
+Checkout stays in the monolith; payment recording moves to the service. They exchange facts as domain events over the bus, and client traffic reaches billing through the gateway. No synchronous checkout-to-billing calls (that re-couples availability, the exact blast radius being removed) and no reading each other's tables (that couples both sides to schemas they do not own).
 
-**6. Domain Events (Act 7, Level 56):**
-Payment events (payment.succeeded, payment.failed) are published. Notifications, inventory, and analytics subscribe independently.
+**5. The cutover (percentages with exit criteria).**
+Flag-gated: 5% -> 25% -> 50% -> 100%, each step held until the parity check and the error budget stay clean. Rollback is a flag flip to 0%: instant, no deploy. The criteria that end the migration are decided before the first percent moves; a parallel run without exit criteria never finishes.
 
-**7. API Gateway (Act 7, Level 57):**
-The gateway is the seam that makes extraction invisible: shipped apps already call one stable URL, so billing can move out behind it. Auth stays at the edge, and the billing section swaps from an in-process package reader to a call to the new service without clients noticing.
+**The concepts this level composes** (each taught earlier, applied together here):
 
-**8. Sharding (Act 7, Level 52):**
-Billing data is sharded by tenant for write scalability.
-
-**Modular monolith with Packwerk (before extracting):**
-Before extracting a service, enforce domain boundaries within the monolith using Shopify's Packwerk gem. Define packages (billing/, orders/, notifications/) with explicit public APIs and dependency rules. Packwerk statically analyzes your code and flags unauthorized cross-package references, catching coupling at CI time, not at extraction time.
-
-**Gradual rollout with Flipper feature flags:**
-Flipper lets you control the extraction rollout with surgical precision: enable for specific tenants (\`Flipper.enable(:billing_v2, company)\`), by percentage (\`Flipper.enable_percentage_of_actors(:billing_v2, 5)\`), by group (\`Flipper.enable_group(:billing_v2, :beta_testers)\`), or with expressions for complex rules. If anything goes wrong, disable instantly. No deploy required.
-
-**Extraction Strategy: Strangler Fig**
-1. Define the billing bounded context (use Packwerk to enforce it)
-2. Create the billing service with its own database
-3. Dual-write during migration
-4. Route traffic through the gateway with Flipper feature flags
-5. Gradually increase traffic: 5% → 25% → 50% → 100%
-6. Remove billing code from the monolith
+**1. Multi-Database (Act 7, Level 51):** the billing service gets its own writer and replica.
+**2. State Machines (Act 7, Level 54):** the payment lifecycle guards travel with the billing code.
+**3. Multi-Tenancy (Act 7, Level 53):** tenant scoping applies inside the service exactly as it did in the pack.
+**4. Observability (Act 6, Level 47):** parity metrics and error budgets are what make the gradual cutover decidable.
+**5. Modular Monolith (Act 7, Level 55):** the enforced package boundary is why the extraction has a clean edge to cut along.
+**6. Domain Events (Act 7, Level 56):** the bus carries order facts across the process boundary unchanged.
+**7. API Gateway (Act 7, Level 57):** the seam that makes extraction invisible: shipped apps already call one stable URL, so billing can move out behind it. Auth stays at the edge, and the billing section swaps from an in-process package reader to a call to the new service without clients noticing.
+**8. Sharding (Act 7, Level 52):** billing data keeps its tenant-keyed layout in its new home.
 
 **A note on the modular monolith (from the book):**
-Eileen Uchitelle's keynote ("The Myth of the Modular Monolith", Rails World 2024) argues that modularity can't fully solve human problems, but it delivers value by reorganizing complexity in ways humans can better understand. The key insight: enforce boundaries with tools (Packwerk, CODEOWNERS), not just conventions. Jason Warner (CTO GitHub): "One of the biggest architectural mistakes of the past decade was going full microservice." Stick with a monolith for as long as possible, and no longer.`,
-		railsCodeExample: `# === STEP 1: Define the bounded context ===
-# Billing domain: Payment, Invoice, Subscription, Refund
+Eileen Uchitelle's keynote ("The Myth of the Modular Monolith", Rails World 2024) argues that modularity can't fully solve human problems, but it delivers value by reorganizing complexity in ways humans can better understand. The key insight: enforce boundaries with tools (Packwerk, CODEOWNERS), not just conventions. This level is the payoff of that discipline: because the boundary was enforced for three acts, the extraction has a seam to cut along instead of a tangle to unpick.`,
+		railsCodeExample: `# The extraction plan, as decided in this level:
 
-# === STEP 2: Billing service (new Rails app) ===
+## 1. Scope
+Extract billing, and only billing. The evidence is
+structural: deploy cadence, workload isolation, blast
+radius. No other pack shows it.
 
-# billing-service/app/models/payment.rb
-class Payment < ApplicationRecord
-  include AASM
-  acts_as_tenant :company
+## 2. Shape (strangler fig)
+Stand the service up empty behind the existing seams.
+The monolith serves 100% until the new path earns traffic.
 
-  aasm column: :status do
-    state :pending, initial: true
-    state :processing, :completed, :failed, :refunded
+## 3. Skeleton
+$ rails new billing_service --api --database=postgresql
+# A second deployable: own workers, own DB, own deploys.
 
-    event :process do
-      transitions from: :pending, to: :processing
-    end
+## 4. Data
+Backfill history in batches. Dual-write new records to
+both databases. Automated parity job gates every cutover
+step. Reversible until declared finished.
 
-    event :complete do
-      transitions from: :processing, to: :completed,
-                  after: :publish_success_event
-    end
+## 5. Communication
+# Monolith side: checkout publishes the fact
+broadcast(:order_placed, order_id: order.id, total: order.total)
+# Billing service consumes it from the bus and records
+# the payment in its own database. Client reads arrive
+# through the gateway's billing section.
 
-    event :fail do
-      transitions from: :processing, to: :failed,
-                  after: :publish_failure_event
-    end
-
-    event :refund do
-      transitions from: :completed, to: :refunded,
-                  guard: :within_refund_window?,
-                  after: :publish_refund_event
-    end
-  end
-
-  private
-
-  def publish_success_event
-    EventBus.publish('payment.completed', {
-      payment_id: id,
-      order_id: order_id,
-      amount: amount,
-      tenant_id: company_id
-    })
-  end
-end
-
-# === STEP 3: Event-driven side effects ===
-
-# billing-service/config/initializers/event_subscriptions.rb
-EventBus.subscribe('payment.completed') do |payload|
-  # Each subscriber runs independently
-  NotificationJob.perform_later(payload)
-  InventoryJob.perform_later(payload)
-  AnalyticsJob.perform_later(payload)
-  LoyaltyJob.perform_later(payload)
-end
-
-# === STEP 4: API Gateway routing ===
-
-# gateway/config/routes.rb
-Rails.application.routes.draw do
-  namespace :api do
-    # Route billing to new service (with feature flag)
-    match 'billing/*path', to: 'proxy#forward',
-          via: :all, defaults: { service: 'billing' }
-  end
-end
-
-# gateway/app/controllers/api/proxy_controller.rb
-class Api::ProxyController < ApplicationController
-  before_action :authenticate_at_edge!
-  before_action :rate_limit!
-
-  def forward
-    service_url = ServiceRegistry.url_for(params[:service])
-
-    response = HttpClient.forward(
-      url: "#{service_url}/#{params[:path]}",
-      method: request.method,
-      headers: forwarded_headers,
-      body: request.body.read,
-      timeout: 10
-    )
-
-    render json: response.body, status: response.status
-  end
-end
-
-# === STEP 5: Observability ===
-
-# billing-service/config/initializers/opentelemetry.rb
-OpenTelemetry::SDK.configure do |c|
-  c.service_name = 'billing-service'
-  c.use 'OpenTelemetry::Instrumentation::Rails'
-  c.use 'OpenTelemetry::Instrumentation::ActiveRecord'
-end
-
-# === STEP 6: Gradual rollout with feature flags ===
-
-# monolith/app/services/billing_service.rb
-module BillingService
-  def self.charge(order)
-    if Flipper.enabled?(:billing_v2, order.company)
-      # New service via gateway
-      BillingClient.charge(order)
-    else
-      # Old monolith code
-      order.charge!
-    end
-  end
-end
-
-# Rollout: 5% -> 25% -> 50% -> 100%
-Flipper.enable_percentage_of_actors(:billing_v2, 5)`,
+## 6. Cutover
+Flag-gated: 5 -> 25 -> 50 -> 100 percent of billing
+traffic, each step held until parity + error budget stay
+clean. Rollback = flag to 0%. No deploy in either
+direction.`,
 		commonMistakes: [
-			'Extracting without a feature flag (no rollback path)',
-			'Forgetting to handle dual-write consistency during migration',
-			'Not adding observability to the new service from day one',
-			'Skipping the state machine and using string statuses (repeating old mistakes)',
-			'Tight coupling between gateway and billing service (gateway should be thin)',
-			'Not testing tenant isolation in the extracted service',
+			'Extracting by fashion instead of evidence (a service you did not need costs a network hop, a pager rotation, and a versioned contract, forever)',
+			'Big-bang cutover (the undocumented edge cases you forgot are discovered by customers, all at once, with no cheap way back)',
+			'Moving the database before the code (cross-database joins appear overnight in every place billing data meets storefront data)',
+			'Synchronous calls between the halves (re-couples availability; the noon leak takes checkout down again, just over HTTP)',
+			'Sharing one database "temporarily" (the contention you are escaping comes along for the ride, and temporary becomes permanent)',
+			'A parallel run with no exit criteria (without a parity threshold and an error budget, the migration never ends and the dual-write tax runs forever)',
 		],
 		whenToUse:
-			'When a domain within the monolith has different scaling, deployment, or team ownership needs.',
+			'When one domain shows structural evidence (deploy cadence, workload isolation, blast radius, team ownership) that the shared runtime is the bottleneck. Extract that domain, not everything.',
 		furtherReading: [
 			{
-				title: 'Strangler Fig Pattern',
+				title: 'Strangler Fig Application (Martin Fowler)',
 				url: 'https://martinfowler.com/bliki/StranglerFigApplication.html',
 			},
 			{
-				title: 'Building Microservices (Sam Newman)',
-				url: 'https://www.oreilly.com/library/view/building-microservices-2nd/9781492034018/',
+				title: 'The Myth of the Modular Monolith (Rails World 2024)',
+				url: 'https://www.youtube.com/watch?v=y2NwK9zTdjM',
 			},
 			{
-				title: 'Domain-Driven Design (Eric Evans)',
-				url: 'https://www.domainlanguage.com/ddd/',
-			},
-			{
-				title: 'Packwerk (Shopify)',
-				url: 'https://github.com/Shopify/packwerk',
-			},
-			{
-				title: 'Rails Scales!, Full Book (Pragmatic Bookshelf)',
-				url: 'https://pragprog.com/titles/cpscale/rails-scales/',
+				title: 'Microservices: API Gateway pattern',
+				url: 'https://microservices.io/patterns/apigateway.html',
 			},
 		],
 	},
 	hint: {
-		delay: 45,
-		text: 'Apply everything: state machine for payments, domain events for side effects, gateway for routing, observability for tracing, tenant isolation for data safety.',
+		delay: 30,
+		text: 'The three pains share one shape: billing shares something physical with everyone else. Ask what each pain would look like if billing had its own runtime, its own database, and its own deploys, and what has to be true for it to get there without customers noticing.',
 	},
 };
