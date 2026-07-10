@@ -106,7 +106,6 @@ const KNOWN_STRANDED_GUARDS = new Set<string>([
 	'src/features/act3-clean-architecture/components/level-18-validation-contracts/Level18ValidationContracts.tsx',
 	'src/features/act3-clean-architecture/components/level-19-query-objects/Level19QueryObjects.tsx',
 	'src/features/act3-clean-architecture/components/level-20-error-handling/Level20ErrorHandling.tsx',
-	'src/features/act6-operations/components/level-41-cors/Level41CORS.tsx',
 ]);
 
 describe('static: getCodeFiles guards reachable in-game', () => {
@@ -310,7 +309,6 @@ const KNOWN_OBSERVE_PHASE_PLACEHOLDERS = new Set<string>([
 	'src/features/act4-performance/components/level-28-caching/Level28Caching.tsx',
 	'src/features/act4-performance/components/level-29-http-caching/Level29HTTPCaching.tsx',
 	'src/features/act5-production/components/level-35-action-mailer/Level35ActionMailer.tsx',
-	'src/features/act6-operations/components/level-41-cors/Level41CORS.tsx',
 	'src/features/act6-operations/components/level-47-observability/Level47Observability.tsx',
 ]);
 

@@ -12,84 +12,89 @@ export const level41CORS: Level = {
 	trigger: {
 		type: 'security_audit',
 		description:
-			'The storefront and the API have always shared one origin, so the browser never blocked a request. Now the frontend is splitting onto its own origin, and every browser call to the API dies with a CORS error. Open the gate deliberately.',
+			'The storefront moved onto its own origin this morning, and now every page is blank. The API is healthy: requests arrive, queries run, responses return 200. The browser just refuses to hand any of it to the page. Find out where the enforcement actually lives, then grant permission deliberately.',
 	},
 	problem: {
 		observation:
-			'Same-origin requests sailed through, and curl bypasses browser security entirely. But now the frontend runs on its own origin (localhost:3001 in development), and the browser blocks its calls to the API at localhost:3000: "Access to XMLHttpRequest has been blocked by CORS policy."',
+			"Customers see an empty storefront while the Rails log shows nothing but 200s. The browser console explains: responses from the API carry no Access-Control-Allow-Origin header, so the browser discards them before the page's script can read a byte. Deletes are worse: the browser asks permission first with an OPTIONS preflight, gets no answer, and never sends the DELETE at all. Meanwhile curl reads the same endpoint perfectly.",
 		rootCause:
-			'Browsers enforce the Same-Origin Policy, blocking requests between different origins (ports count). Same-origin requests never triggered it, and curl sends requests directly, so CORS never mattered until the origins split. The API must explicitly allow the frontend origin with CORS headers.',
-		codeExample: `# Browser console:
-# "Access to XMLHttpRequest at 'http://localhost:3000/api/products'
-#  from origin 'http://localhost:3001' has been blocked by CORS policy"
+			"Browsers protect their users with the Same-Origin Policy: a script from one origin cannot read another origin's responses unless that server grants permission via response headers. The enforcement is entirely browser-side. Requests still reach Rails and Rails still does the work; the browser withholds the result. The API has never granted permission to anyone, because until today everything shared one origin and the question never came up.",
+		codeExample: `# Rails log (the server is fine):
+#   Started GET "/api/products" for 127.0.0.1
+#   Completed 200 OK in 12ms
 
-# The React frontend runs on port 3001
-# The Rails API runs on port 3000
-# Different ports = different origins = blocked by default
+# Browser console (the user sees none of it):
+#   Access to fetch at 'http://localhost:3000/api/products'
+#   from origin 'http://localhost:3001' has been blocked
+#   by CORS policy: No 'Access-Control-Allow-Origin' header
+#   is present on the requested resource.
 
-# Rails does not configure CORS out of the box.
-# You need the rack-cors gem to add CORS middleware.`,
-		goal: 'Configure cross-origin resource sharing so a separate frontend can call your API, lock down allowed origins, and whitelist specific HTTP methods.',
+# Same endpoint from curl: 200 OK, full JSON.
+# No browser, no Same-Origin Policy, no check.
+
+# The gap is a missing RESPONSE HEADER, not broken
+# request handling. Only the server can grant the
+# permission; only the browser enforces it.`,
+		goal: 'Grant the storefront origin permission to read API responses, answer preflight checks so riskier requests can go out, and keep every other origin locked out, without affecting non-browser clients.',
 		thresholds: {},
 	},
 	learningContent: {
 		title: 'Cross-Origin Resource Sharing (CORS)',
-		goal: `In this level, you'll:\n- understand why browsers block cross-origin requests by default.\n- install a CORS middleware gem and configure allowed origins.\n- learn why wildcard origins are dangerous in production.\n- whitelist specific HTTP methods for your API.`,
-		conceptExplanation: `CORS (Cross-Origin Resource Sharing) is a browser security feature that blocks requests from one origin to another unless the server explicitly allows it.
+		goal: `In this level, you'll:\n- learn where CORS is actually enforced (the browser, not the server) and who it protects (the browser's user).\n- see why a cross-origin GET still reaches Rails and still runs, even while the page shows nothing.\n- learn what a preflight is, which requests trigger one, and what happens when it fails.\n- configure allowed origins and methods, and understand why wildcards defeat the point.`,
+		conceptExplanation: `CORS (Cross-Origin Resource Sharing) is how a server grants browsers permission to share its responses with pages from other origins. The enforcement lives entirely in the browser; the protection is for the browser's user.
 
-**Why CORS exists:**
-- Without CORS, any website could make API calls to your server using the user's cookies
-- CORS forces the server to declare which origins are trusted
-- The browser checks the CORS headers before allowing the response through
+**The mechanism, precisely (per MDN's CORS guide):**
+- **Simple requests (like GET) are sent normally.** The request reaches Rails, Rails runs it, and the response travels back. The browser then checks for an Access-Control-Allow-Origin header; if it is missing, the browser withholds the response from the page's script. The server did the work; the script gets nothing. Nothing was "blocked before reaching the server".
+- **Riskier requests (DELETE, PUT, custom headers) are preflighted.** The browser first sends an OPTIONS request asking "may I send DELETE from this origin?". Only if that preflight comes back with permission does the actual request go out. A failed preflight means the real request is NEVER sent.
+- **Only browsers enforce any of this.** curl, mobile apps, and server-to-server calls read cross-origin responses freely. CORS is not a wall around your API; it is a rule browsers follow to stop one website's script from reading another site's data through a visitor's browser.
 
-**How it works:**
-- Browser sends a "preflight" OPTIONS request to check permissions
-- Server responds with Access-Control-Allow-Origin, Allow-Methods, etc.
-- If the origin matches, the browser allows the actual request
-- If not, the browser blocks it (the request never reaches your code)
+**The fix in Rails: rack-cors.** A Rack middleware (from the gem rack-cors) that sits in front of routing. Per its source: it answers preflight OPTIONS requests itself, directly, without ever calling the app; and for actual requests it never blocks anything, it just adds the permission headers when the origin is on your list. A disallowed origin's request still runs; its response simply carries no permission header, and the visitor's browser withholds it.
 
-**rack-cors gem:**
-- Adds CORS middleware at the Rack level (before Rails routing)
-- Configure allowed origins, methods, and headers in an initializer
-- Never use wildcard (\`"*"\`) in production`,
+**Rails ships the starting point.** An API-mode Rails app generates config/initializers/cors.rb with a commented-out example and a commented gem line, because the framework cannot guess which origins you trust. Naming them is your call, and this level's build.
+
+**Why never a wildcard:** origins "*" tells every browser on earth that any website may read your API's responses from its visitors' browsers. The value of the list is that it is short and deliberate.`,
 		railsCodeExample: `# Gemfile
 gem "rack-cors"
 
 # config/initializers/cors.rb
+# (rails new --api generates this file commented out;
+#  the build fills it in)
 Rails.application.config.middleware.insert_before 0, Rack::Cors do
   allow do
-    origins "https://yourdomain.com", "http://localhost:3001"
+    origins "http://localhost:3001"
+
     resource "/api/*",
       headers: :any,
-      methods: [:get, :post, :put, :patch, :delete, :options],
-      expose: ["Authorization"],
-      max_age: 600
+      methods: [:get, :post, :put, :patch, :delete, :options, :head]
   end
 end
 
-# What each option does:
-# origins   - which domains can call your API
-# resource  - which URL paths the CORS config applies to
-# headers   - which request headers are allowed (:any = all)
-# methods   - which HTTP methods are allowed
-# expose    - which response headers the browser can read
-# max_age   - how long (seconds) the browser caches preflight results`,
+# What each piece does:
+# insert_before 0 - runs before everything, so preflights
+#                   are answered without touching routing
+# origins         - who may READ responses (the callers'
+#                   origins, never the API's own address)
+# resource        - which API paths this permission covers
+# headers: :any   - which request headers callers may send
+# methods         - which verbs a permitted origin may use
+#                   (matches the Rails-generated template)`,
 		commonMistakes: [
-			'Setting origins to "*" in production (allows any website to call your API)',
-			'Forgetting to include :options in allowed methods (breaks preflight requests)',
-			'Not installing rack-cors and trying to set headers manually',
-			'Using methods: :any instead of whitelisting specific methods',
+			'Believing CORS blocks requests from reaching the server (simple requests reach Rails and run; the browser withholds the response from the script)',
+			'Treating CORS as server security (an attacker with curl is not affected; CORS protects browser users, and server-side auth is still on you)',
+			'Setting origins to "*" (any website may then read your API responses through its visitors\' browsers)',
+			"Listing the API's own address as an origin (the list names where calls come FROM)",
+			'Forgetting that DELETE and PUT preflight first (a failed OPTIONS means the real request is never sent, which looks like a dead button)',
 		],
 		whenToUse:
-			'Every Rails API that serves a browser-based frontend (React, Vue, Next.js) needs CORS configuration. curl and mobile apps are not affected by CORS. Set it up when you connect your first browser frontend.',
+			'The moment a browser frontend is served from a different origin than the API (different port counts). curl, mobile apps, and server-to-server calls never need it. Set it up deliberately with named origins; revisit the list at deploy time when the real domain exists.',
 		furtherReading: [
+			{
+				title: 'MDN: Cross-Origin Resource Sharing',
+				url: 'https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CORS',
+			},
 			{
 				title: 'rack-cors',
 				url: 'https://github.com/cyu/rack-cors',
-			},
-			{
-				title: 'MDN: Cross-Origin Resource Sharing',
-				url: 'https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS',
 			},
 			{
 				title: 'Rails Security Guide',
@@ -99,6 +104,6 @@ end
 	},
 	hint: {
 		delay: 20,
-		text: 'A browser blocks JavaScript from loading data across origins by default. Your Rails app needs to opt-in by sending the right response headers; the standard Rack middleware for that lives in a well-known gem. Production config never uses a wildcard origin -- list the exact origins that should be allowed and reject everything else.',
+		text: 'The server is fine; the browser is waiting for a response header that grants permission. Rails cannot guess which origins you trust, so an API-mode app ships a commented-out starting point in config/initializers. Name the exact origin the storefront is served from; a wildcard would grant everyone.',
 	},
 };
