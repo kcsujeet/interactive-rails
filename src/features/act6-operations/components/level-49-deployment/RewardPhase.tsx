@@ -90,7 +90,7 @@ export function RewardPhase({
 				<LevelHeader
 					actNumber={6}
 					levelName="Deployment"
-					levelNumber={42}
+					levelNumber={49}
 					onComplete={onComplete}
 					onReset={() => window.location.reload()}
 					onValidate={onValidate}

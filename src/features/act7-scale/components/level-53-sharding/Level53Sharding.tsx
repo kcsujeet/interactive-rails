@@ -2432,7 +2432,7 @@ export function Level53Sharding({ onComplete }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={7}
 					levelName="Database Sharding"
-					levelNumber={52}
+					levelNumber={53}
 					onComplete={handleComplete}
 					onReset={() => window.location.reload()}
 					onValidate={validateSolution}

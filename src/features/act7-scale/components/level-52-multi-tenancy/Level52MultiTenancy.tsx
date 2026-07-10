@@ -1878,7 +1878,7 @@ export function Level52MultiTenancy({ onComplete }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={7}
 					levelName="Multi-Tenancy"
-					levelNumber={53}
+					levelNumber={52}
 					onComplete={handleComplete}
 					onReset={() => window.location.reload()}
 					onValidate={validateSolution}
