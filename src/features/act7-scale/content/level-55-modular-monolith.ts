@@ -9,177 +9,133 @@ export const level55ModularMonolith: Level = {
 	trigger: {
 		type: 'incident',
 		description:
-			'The monolith has grown to 200 files. A change to billing breaks notifications. No ownership. No boundaries. Team grew from 3 to 12 engineers and everyone touches everything.',
+			'A notifications developer renamed one of their own helper classes. Every test passed, the deploy shipped, and twenty minutes later billing receipts stopped: billing code had been calling that helper directly, and nobody knew. Twelve engineers, two hundred files, no boundaries, no owners.',
 	},
 	startingPipeline: { nodes: [], connections: [] },
 	problem: {
 		observation:
-			'A billing change broke notifications because there are no boundaries. Every team touches every part of the codebase. PR reviews take days because nobody knows who owns what.',
+			'Three incidents in one month, all with the same root: a safe-looking rename broke receipts in production while CI stayed green; an inventory overselling hotfix stalled two days because inventory and orders rewrite each other; and a 2am refunds incident lost forty minutes to "who owns payment.rb?" (twelve authors, zero owners).',
 		rootCause:
-			'No domain boundaries enforced. Code is organized by Rails convention (models/, controllers/) not by business domain. Cross-domain coupling is invisible until something breaks.',
-		codeExample: `# Everything lives in one flat structure:
-# app/models/
-#   order.rb          ← Billing domain
-#   payment.rb        ← Billing domain
-#   notification.rb   ← Notifications domain
-#   subscription.rb   ← Billing domain
-#   audit.rb          ← Compliance domain
-#
-# A billing change in order.rb directly calls:
-class Order < ApplicationRecord
-  after_create :send_notification   # Cross-domain coupling!
-  after_update :update_audit_trail  # Cross-domain coupling!
-
-  def send_notification
-    Notification.create!(            # Reaches into notifications domain
-      user: user,
-      message: "Order ##{id} created"
-    )
-  end
-
-  def update_audit_trail
-    Audit.create!(                   # Reaches into compliance domain
-      auditable: self,
-      action: "updated"
-    )
+			'The code is organized by Rails convention (models/, controllers/), not by business domain. Any file can reference any constant, so cross-domain references accumulate invisibly: nothing declares them, nothing checks them, and the test suite verifies behavior, not boundaries. There is also no recorded ownership, so incidents start with a manhunt.',
+		codeExample: `# app/services/invoice_sender.rb  (billing's code)
+class InvoiceSender
+  def deliver(invoice)
+    # Reaches straight into another team's helper class.
+    # Nothing declares this reference; nothing checks it.
+    body = ReceiptFormatter.format(invoice)
+    NotificationMailer.invoice(body).deliver_later
   end
 end
 
-# When billing changes Notification's interface,
-# notifications break. No one knows until production.`,
-		goal: 'Organize code into domain packages with enforced boundaries, public APIs, and ownership rules.',
+# The notifications team renames ReceiptFormatter
+# (their own class, their own code):
+#   CI: 1,412 tests green. Merged. Deployed.
+#   Production, 20 min later:
+#     NoMethodError in InvoiceSender
+#     Receipts stop. Support tickets pile up
+#     against billing, who changed nothing.
+
+# And when it breaks, who gets paged?
+#   $ git shortlog -sn app/models/payment.rb
+#   12 different authors. No team name anywhere.`,
+		goal: 'Carve the flat codebase into domain packages, each with a small public surface, an explicit list of what it may reference, and a named owning team, and make any pull request that reaches across a boundary fail automatically before it can merge.',
 		thresholds: {},
 	},
 	successConditions: [{ type: 'service_created' }],
 	availableNodes: ['event_bus'],
 	unlockedNodes: [],
 	learningContent: {
-		title: 'Modular Monolith with Packwerk',
-		goal: `In this level, you'll:\n- learn how to organize a growing monolith into well-defined domain packages.\n- draw boundaries between domains.\n- mark public APIs versus private internals in each package.\n- enforce those boundaries in CI so teams can work independently without accidentally coupling their code together.`,
-		conceptExplanation: `The modular monolith is the critical step BEFORE microservice extraction. It enforces domain boundaries within a single deployable codebase.
+		title: 'Modular Monolith: Boundaries Enforced in CI',
+		goal: `In this level, you'll:\n- see how invisible cross-domain references turn safe internal changes into production incidents.\n- carve one flat codebase into domain packages without splitting the deployable.\n- give each package a small public API and an explicit dependency list.\n- run a boundary check on every pull request so violations fail before merge, never in production.\n- map every package to a named owning team so incidents start with a lookup, not a manhunt.`,
+		conceptExplanation: `The modular monolith is the critical step BEFORE any service extraction. It enforces domain boundaries inside a single deployable codebase.
 
 **Why modular monolith?**
 - Microservices add network latency, distributed transactions, and operational complexity
 - A modular monolith gives you domain isolation WITHOUT the infrastructure cost
-- When you DO need to extract a service later, the boundaries are already clean
+- When you DO need to extract a service later, the boundaries are already clean seams
 
-**Real users:** Shopify (the largest Rails app in the world), Zendesk, GitHub. All use Packwerk-style modular monoliths.
+**Real users:** Shopify (the largest Rails app in the world), Gusto, Zendesk. Packwerk is Shopify's tool, built for exactly this.
 
-**Packwerk packages:**
-- Each business domain becomes a "package" with its own \`package.yml\`
-- \`enforce_dependencies: true\`: only allow explicit dependencies between packages
-- \`enforce_privacy: true\`: only allow access through the package's public API
-- \`bin/packwerk check\` catches unauthorized cross-package references at CI time
+**How Packwerk actually works (this matters):** Packwerk is STATIC ANALYSIS. It parses your Ruby files, resolves every constant reference (classes, modules), and checks each cross-package reference against the boundaries you declared. It runs as a command, \`bin/packwerk check\`, and the README recommends running it in your CI pipeline. Nothing runs in production; nothing intercepts calls at runtime. A violation fails the pull request BEFORE merge, which is the whole point: the bad reference never reaches production in the first place.
+
+**Packages:**
+- A package is simply a folder containing a \`package.yml\`; the folder path is the package name (e.g. \`packs/billing\`)
+- \`enforce_dependencies: true\` makes undeclared cross-package references a violation
+- \`dependencies:\` lists the packages this one may reference; short lists are the point
+- \`enforce_dependencies: strict\` refuses NEW violations entirely while recorded legacy ones burn down over time
+- A recommended convention: one public namespace (e.g. \`Notifications::Public::SendReceipt\`) holds what other packages may call; everything else is internal
+- Privacy enforcement (a separate check on WHICH constants may be referenced) moved out of core Packwerk into the packwerk-extensions gem; the core tool checks dependencies
 
 **CODEOWNERS:**
-- \`.github/CODEOWNERS\` assigns domain experts as required reviewers
-- PRs to \`components/billing/\` require approval from the billing team
-- Branch protection rules enforce it: no merging without domain owner approval
+- \`.github/CODEOWNERS\` maps paths to owning teams: \`packs/billing/ @myapp/billing-team\`
+- PRs touching a pack require that team's review, and incident response starts with a file lookup instead of \`git shortlog\` archaeology
 
-**Eileen Uchitelle's keynote (Rails World 2024):** "The Myth of the Modular Monolith". Modularity can't fully solve human problems, but it delivers value by reorganizing complexity in ways humans can better understand.`,
-		railsCodeExample: `# === Step 1: Organize into Packwerk packages ===
+**Eileen Uchitelle's keynote (Rails World 2024):** "The Myth of the Modular Monolith". Modularity cannot fully solve human problems, but it delivers value by reorganizing complexity in ways humans can better understand. The boundaries are for the twelve engineers, not for the CPU.`,
+		railsCodeExample: `# === Step 1: Install (gem + binstub, per the README) ===
+$ bundle add packwerk && bundle binstub packwerk
 
-# Gemfile
-gem 'packwerk'
+# === Step 2: Initialize ===
+$ bin/packwerk init
+# Created packwerk.yml. The whole app is one
+# implicit root package until folders opt in.
 
-# Directory structure:
-# components/
-#   billing/
-#     app/models/billing/order.rb
-#     app/models/billing/payment.rb
-#     app/public/billing_interface.rb  ← Public API
-#     package.yml
-#   notifications/
-#     app/models/notifications/notification.rb
-#     app/public/notification_interface.rb
-#     package.yml
-#   compliance/
-#     app/models/compliance/audit.rb
-#     app/public/audit_interface.rb
-#     package.yml
+# === Step 3: A package is a folder with a package.yml ===
+$ mkdir -p packs/billing
+$ git mv app/services/invoice_sender.rb packs/billing/app/services/
 
-# === Step 2: Define package.yml ===
-
-# components/billing/package.yml
+# packs/billing/package.yml
 enforce_dependencies: true
-enforce_privacy: true
 dependencies:
-  - '.'  # Root package only, no direct dependency on notifications!
+  - packs/notifications
+  - packs/orders
 
-# components/notifications/package.yml
-enforce_dependencies: true
-enforce_privacy: true
-dependencies:
-  - '.'
-
-# === Step 3: Create public APIs ===
-
-# components/billing/app/public/billing_interface.rb
-module BillingInterface
-  def self.create_order(user:, items:)
-    Billing::Order.create!(user: user, items: items)
-  end
-
-  def self.process_payment(order_id:)
-    order = Billing::Order.find(order_id)
-    Billing::PaymentService.charge(order)
+# === Step 4: One public namespace per package ===
+# packs/notifications/app/public/send_receipt.rb
+module Notifications
+  module Public
+    class SendReceipt
+      def self.call(invoice:)
+        body = ReceiptFormatter.format(invoice)   # internal, fine HERE
+        NotificationMailer.invoice(body).deliver_later
+      end
+    end
   end
 end
 
-# components/compliance/app/public/audit_interface.rb
-module AuditInterface
-  def self.record(auditable:, action:, user: nil)
-    Compliance::Audit.create!(
-      auditable: auditable,
-      action: action,
-      user: user
-    )
-  end
-end
+# Billing now calls Notifications::Public::SendReceipt.call(...)
+# and never touches ReceiptFormatter again. The rename that
+# broke production becomes a private, safe change.
 
-# === Step 4: Use public APIs, not direct access ===
+# === Step 5: The gate ===
+# .github/workflows/ci.yml
+- name: Boundary check
+  run: bin/packwerk check
+# A violating PR fails BEFORE merge. Production never sees it.
 
-# BEFORE (privacy violation, Packwerk will flag this):
-Audit.create!(auditable: order, action: "created")
-
-# AFTER (goes through public API):
-AuditInterface.record(auditable: order, action: "created")
-
-# === Step 5: CODEOWNERS ===
-
+# === Step 6: Ownership ===
 # .github/CODEOWNERS
-components/billing/   @billing-team
-components/notifications/  @platform-team
-components/compliance/     @compliance-team
-config/                    @infra-team
-
-# === Step 6: CI enforcement ===
-
-# bin/packwerk check
-# Checking 342 files...
-#
-# components/billing/app/models/billing/order.rb:15
-#   Privacy violation: Notification is private to components/notifications/
-#   Use NotificationInterface instead.
-#
-# 1 violation found. ← CI fails!
-
-# .github/workflows/packwerk.yml
-- name: Check package boundaries
-  run: bin/packwerk check`,
+packs/billing/        @myapp/billing-team
+packs/notifications/  @myapp/notifications-team
+packs/orders/         @myapp/orders-team
+packs/inventory/      @myapp/inventory-team`,
 		commonMistakes: [
-			'Organizing by Rails convention (models/, controllers/) instead of by domain',
-			'Allowing direct model access across packages (bypassing public APIs)',
-			'Not running packwerk check in CI (boundaries only enforced locally)',
-			'Making packages too granular (one per model, which defeats the purpose)',
-			'Not setting up CODEOWNERS (no ownership enforcement)',
+			'Treating the boundary check as a runtime guard (it is static analysis run in CI; production never executes it, and a violation that merges anyway WILL run)',
+			'One root package for the whole app (one boundary around everything separates nothing)',
+			'Declaring every package as a dependency of every other (the old tangle, now written down in YAML)',
+			'Running the check manually before releases instead of on every PR in CI (by release time the violation merged weeks ago)',
+			'Making packages too granular (one per model defeats the purpose; packages map to domains and teams)',
+			'Skipping ownership mapping (boundaries without owners still leave 2am incidents unrouted)',
 		],
 		whenToUse:
-			'When your team grows beyond 5-6 engineers, or when a change in one domain frequently breaks another. The modular monolith is the bridge between a tangled monolith and microservices.',
+			'When the team grows past the point where everyone can hold the whole codebase in their head (roughly 5-6 engineers), or when a change in one domain keeps breaking another. The modular monolith is the bridge between a tangled monolith and any future extraction.',
 		furtherReading: [
 			{
 				title: 'Packwerk (Shopify)',
 				url: 'https://github.com/Shopify/packwerk',
+			},
+			{
+				title: 'Packwerk usage guide (packages, dependencies, strict mode)',
+				url: 'https://github.com/Shopify/packwerk/blob/main/USAGE.md',
 			},
 			{
 				title: 'CODEOWNERS (GitHub)',
@@ -194,6 +150,6 @@ config/                    @infra-team
 	},
 	hint: {
 		delay: 25,
-		text: 'A Ruby gem from Shopify adds package boundaries to a Rails monolith: each package declares its public API and which other packages it depends on. Cross-package access outside that contract becomes a check failure at CI time.',
+		text: 'A Ruby gem from Shopify adds package boundaries to a Rails monolith: each package declares what it may reference and exposes a small public surface. The check is static analysis, so run it where every pull request already has to pass.',
 	},
 };

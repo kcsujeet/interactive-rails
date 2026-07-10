@@ -1162,9 +1162,9 @@ function getCodeFiles(phase: Phase, completedStep: number) {
 				language: 'yaml',
 				code: `# Clean boundaries since the modular monolith work:
 enforce_dependencies: true
-enforce_privacy: true
 dependencies:
-  - packs/core
+  - packs/notifications
+  - packs/orders
 
 # The boundary is code-deep only. Billing still shares:
 #   - the Puma workers   (a leak kills everyone)

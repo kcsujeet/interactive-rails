@@ -21,7 +21,9 @@ export const level58Architect: Level = {
 
 # packs/billing/package.yml (since the modular monolith work)
 enforce_dependencies: true
-enforce_privacy: true
+dependencies:
+  - packs/notifications
+  - packs/orders
 
 # And yet:
 #

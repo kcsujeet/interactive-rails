@@ -3,34 +3,43 @@
  *
  * Sequential phase flow: observe -> build -> reward
  *
- * Phase 1 (WHY - observe): Custom 2x2 grid visualization of domain packages.
- *   Billing (top-left), Notifications (top-right), Orders (bottom-left),
- *   Inventory (bottom-right). Red dashed arrows criss-cross between boxes
- *   showing undeclared coupling. Probes reveal coupling, circular deps,
- *   unclear ownership, and privacy violations.
+ * The world entering this level: 200+ files, 12 engineers, no internal
+ * boundaries. Billing code calls notifications internals directly, orders
+ * and inventory reference each other, and `git shortlog` on payment.rb
+ * lists a dozen authors and no owner.
  *
- * Phase 2 (HOW - build): 6 steps (2 terminal + 4 OptionCard)
- *   Step 0: bundle add packwerk (terminal)
- *   Step 1: bin/packwerk init (terminal)
- *   Step 2: Configure package.yml (OptionCard)
- *   Step 3: Define public API (OptionCard)
- *   Step 4: Declare dependencies (OptionCard)
- *   Step 5: Set up CODEOWNERS (OptionCard)
+ * The damage is customer-visible, not aesthetic:
+ *   1. Hidden coupling: a notifications dev renames THEIR OWN helper,
+ *      CI is green (nothing checks cross-domain references), the deploy
+ *      ships, and billing's receipt sender starts crashing in production.
+ *   2. Circular tangle: orders <-> inventory reference each other, so an
+ *      inventory overselling hotfix drags orders code into review and
+ *      waits two days while customers keep buying out-of-stock items.
+ *   3. No ownership: a 2am refunds incident pages nobody in particular;
+ *      40 minutes of pager roulette while refunds stay down.
  *
- * Phase 3 (ADVANTAGE - reward): Same 2x2 grid but solid colored borders,
- *   valid dependency arrows green, "Public API" labels visible.
- *   Stress test fires valid/invalid dependency and privacy scenarios.
+ * Phase 2 (HOW - build): 7 steps adopting Packwerk (Shopify's static
+ *   analysis tool for boundaries) + CODEOWNERS:
+ *   install -> init -> define the billing package -> public API namespace
+ *   -> declare dependencies -> run the check in CI -> CODEOWNERS.
+ *
+ * Phase 3 (ADVANTAGE - reward): MECHANISM-HONEST. Packwerk is CI-time
+ *   static analysis (per its README), not a runtime firewall. Reward
+ *   scenarios are pull requests hitting the CI gate: the bad reference
+ *   is blocked BEFORE merge; production never sees it. Nothing is ever
+ *   shown "blocked" mid-request at runtime.
+ *
+ * Doc sources (fetched 2026-07-10):
+ *   - https://github.com/Shopify/packwerk (install chain, static analysis)
+ *   - Packwerk USAGE.md (enforce_dependencies, dependencies list,
+ *     package-is-a-folder, "We recommend running bin/packwerk check in
+ *     your CI pipeline", public-constants namespace recommendation)
+ *   - Privacy checking lives in packwerk-extensions, not core.
  */
 
-import {
-	BaseEdge,
-	type Edge,
-	EdgeLabelRenderer,
-	type EdgeProps,
-	getStraightPath,
-	type Node,
-} from '@xyflow/react';
-import { ArrowRight, FileCode, Shield, ShieldAlert } from 'lucide-react';
+import type { Edge, EdgeProps, Node } from '@xyflow/react';
+import { BaseEdge, EdgeLabelRenderer, getStraightPath } from '@xyflow/react';
+import { ArrowRight, GitPullRequest, Users } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
 	buildTerminalHistory,
@@ -87,13 +96,12 @@ type Phase = 'observe' | 'build' | 'reward';
 
 type ZoneFlash = 'idle' | 'red' | 'green' | 'amber';
 
-interface PackageVizState {
+interface ZoneVizState {
 	[key: string]: unknown;
 	label: string;
 	flash: ZoneFlash;
 	sublabel: string | null;
 	badge: string | null;
-	hasPublicApi: boolean;
 }
 
 interface EdgeVizState {
@@ -102,655 +110,545 @@ interface EdgeVizState {
 	reverse: boolean;
 	label: string;
 	dotColor: string;
-	isDanger: boolean;
 }
 
-interface AnimFrame {
-	billing?: Partial<PackageVizState>;
-	notifications?: Partial<PackageVizState>;
-	orders?: Partial<PackageVizState>;
-	inventory?: Partial<PackageVizState>;
-	edgeA?: Partial<EdgeVizState>;
-	edgeB?: Partial<EdgeVizState>;
-	edgeC?: Partial<EdgeVizState>;
-	edgeD?: Partial<EdgeVizState>;
-	edgeE?: Partial<EdgeVizState>;
-}
+// Same topology in both phases: four domains, the CI pipeline (exists
+// since the deployment work), and customers. Only STATE changes between
+// observe and reward; that contrast IS the lesson.
+type ZoneKey =
+	| 'customer'
+	| 'ci'
+	| 'billing'
+	| 'notifications'
+	| 'orders'
+	| 'inventory';
+
+type EdgeKey =
+	| 'eBillNotif' // billing -> notifications (the hidden reference)
+	| 'eOrdInv' // orders -> inventory
+	| 'eInvOrd' // inventory -> orders (the circle back)
+	| 'eCiDeploy' // ci -> notifications (the deploy path)
+	| 'eCustomer'; // customer <-> billing (receipts, refunds)
+
+type AnimFrame = {
+	zones?: Partial<Record<ZoneKey, Partial<ZoneVizState>>>;
+	edges?: Partial<Record<EdgeKey, Partial<EdgeVizState>>>;
+};
 
 // ─── Defaults ─────────────────────────────────────────────────────────
-
-const DEFAULT_PKG: PackageVizState = {
-	label: '',
-	flash: 'idle',
-	sublabel: null,
-	badge: null,
-	hasPublicApi: false,
-};
-
-const DEFAULT_BILLING: PackageVizState = {
-	...DEFAULT_PKG,
-	label: 'Billing',
-	flash: 'red',
-	sublabel: 'No boundaries',
-};
-
-const DEFAULT_NOTIFICATIONS: PackageVizState = {
-	...DEFAULT_PKG,
-	label: 'Notifications',
-	flash: 'red',
-	sublabel: 'No boundaries',
-};
-
-const DEFAULT_ORDERS: PackageVizState = {
-	...DEFAULT_PKG,
-	label: 'Orders',
-	flash: 'red',
-	sublabel: 'No boundaries',
-};
-
-const DEFAULT_INVENTORY: PackageVizState = {
-	...DEFAULT_PKG,
-	label: 'Inventory',
-	flash: 'red',
-	sublabel: 'No boundaries',
-};
 
 const DEFAULT_EDGE: EdgeVizState = {
 	active: false,
 	reverse: false,
 	label: '',
 	dotColor: '#ef4444',
-	isDanger: true,
 };
 
-// Reward defaults: solid borders, public API labels
-const DEFAULT_BILLING_REWARD: PackageVizState = {
-	...DEFAULT_PKG,
-	label: 'Billing',
-	flash: 'green',
-	sublabel: 'enforce_dependencies: true',
-	hasPublicApi: true,
+const OBSERVE_ZONES: Record<string, ZoneVizState> = {
+	customer: {
+		label: 'Customers',
+		flash: 'idle',
+		sublabel: 'receipts, refunds, stock',
+		badge: null,
+	},
+	ci: {
+		label: 'CI pipeline',
+		flash: 'idle',
+		sublabel: 'tests pass; references unchecked',
+		badge: null,
+	},
+	billing: {
+		label: 'Billing code',
+		flash: 'red',
+		sublabel: 'reaches into notifications',
+		badge: null,
+	},
+	notifications: {
+		label: 'Notifications code',
+		flash: 'red',
+		sublabel: 'internals used by strangers',
+		badge: null,
+	},
+	orders: {
+		label: 'Orders code',
+		flash: 'red',
+		sublabel: 'references inventory internals',
+		badge: null,
+	},
+	inventory: {
+		label: 'Inventory code',
+		flash: 'red',
+		sublabel: 'references orders back',
+		badge: null,
+	},
 };
 
-const DEFAULT_NOTIFICATIONS_REWARD: PackageVizState = {
-	...DEFAULT_PKG,
-	label: 'Notifications',
-	flash: 'green',
-	sublabel: 'enforce_privacy: true',
-	hasPublicApi: true,
-};
-
-const DEFAULT_ORDERS_REWARD: PackageVizState = {
-	...DEFAULT_PKG,
-	label: 'Orders',
-	flash: 'green',
-	sublabel: 'dependencies: [billing]',
-	hasPublicApi: true,
-};
-
-const DEFAULT_INVENTORY_REWARD: PackageVizState = {
-	...DEFAULT_PKG,
-	label: 'Inventory',
-	flash: 'green',
-	sublabel: 'enforce_privacy: true',
-	hasPublicApi: true,
-};
-
-const DEFAULT_EDGE_REWARD: EdgeVizState = {
-	active: false,
-	reverse: false,
-	label: '',
-	dotColor: '#22c55e',
-	isDanger: false,
+const REWARD_ZONES: Record<string, ZoneVizState> = {
+	customer: {
+		label: 'Customers',
+		flash: 'green',
+		sublabel: 'never see the caught mistakes',
+		badge: null,
+	},
+	ci: {
+		label: 'CI pipeline',
+		flash: 'green',
+		sublabel: 'boundary check on every PR',
+		badge: null,
+	},
+	billing: {
+		label: 'packs/billing',
+		flash: 'green',
+		sublabel: 'owned; deps declared',
+		badge: null,
+	},
+	notifications: {
+		label: 'packs/notifications',
+		flash: 'green',
+		sublabel: 'public API namespace',
+		badge: null,
+	},
+	orders: {
+		label: 'packs/orders',
+		flash: 'green',
+		sublabel: 'one-way dependency',
+		badge: null,
+	},
+	inventory: {
+		label: 'packs/inventory',
+		flash: 'green',
+		sublabel: 'changes alone now',
+		badge: null,
+	},
 };
 
 // ─── Discovery definitions ────────────────────────────────────────────
 
-const DISCOVERY_DEFS: DiscoveryDef[] = [
-	{ id: 'cross-domain-coupling', label: 'Cross-domain coupling detected' },
-	{ id: 'circular-deps', label: 'Circular dependency found' },
-	{ id: 'no-ownership', label: 'No code ownership defined' },
-	{ id: 'no-privacy', label: 'Private methods accessible externally' },
+export const DISCOVERY_DEFS: DiscoveryDef[] = [
+	{
+		id: 'hidden-coupling',
+		label: "A safe-looking rename broke another team's feature",
+	},
+	{
+		id: 'circular-tangle',
+		label: 'Orders and inventory cannot change independently',
+	},
+	{
+		id: 'no-owner',
+		label: 'Nobody owns the code that handles money',
+	},
 ];
 
 // ─── Probe definitions ────────────────────────────────────────────────
+// Every probe is an action in the BEFORE world: git, deploys, pagers.
+// The boundary tool does not exist yet, so no probe mentions it.
 
-const PROBES: ProbeConfig[] = [
+export const PROBES: ProbeConfig[] = [
 	{
-		id: 'billing-notification-coupling',
-		label: 'Grep for cross-domain calls',
-		command: 'grep -r "Notification" components/billing/',
+		id: 'internal-rename',
+		label: 'Rename a notifications helper (their own code)',
+		command: 'git mv receipt_formatter.rb message_formatter.rb && git push',
 		responseLines: [
-			{
-				text: 'billing/services/invoice_sender.rb:  Notification.deliver(user, invoice)',
-				color: 'red',
-			},
-			{
-				text: 'billing/models/payment.rb:  NotificationMailer.receipt(self).deliver_later',
-				color: 'red',
-			},
+			{ text: 'CI: 1,412 tests passed. Merged. Deployed.', color: 'green' },
 			{ text: '', color: 'muted' },
 			{
-				text: 'Billing directly calls Notification internals.',
-				color: 'yellow',
-			},
-			{
-				text: 'If Notification renames a class, Billing breaks silently.',
+				text: 'Production, 20 min later: NoMethodError in InvoiceSender',
 				color: 'red',
 			},
+			{
+				text: 'billing/invoice_sender.rb called the OLD class directly.',
+				color: 'red',
+			},
+			{ text: 'Receipts stopped. Nobody on notifications knew.', color: 'red' },
 		],
 		story: [
-			'You search the billing package for references to other domains.',
-			'InvoiceSender directly instantiates Notification models.',
-			'Payment model calls NotificationMailer internals.',
-			'No declared dependency. No public API boundary.',
-			'A rename in notifications will break billing at runtime.',
+			'A notifications developer renames a helper class in code their team wrote and owns.',
+			'Every test passes. Nothing in CI checks who ELSE references that constant.',
+			'The deploy ships. Twenty minutes later, billing’s invoice sender starts crashing: it had been calling the notifications internal directly.',
+			'Customers stop receiving receipts, and support tickets pile up against the billing team, who changed nothing.',
+			'The reference was invisible: not declared anywhere, checked by nothing.',
 		],
 	},
 	{
-		id: 'circular-dependency',
-		label: 'Run packwerk check',
-		command: 'bin/packwerk check',
+		id: 'circular-hotfix',
+		label: 'Ship an overselling hotfix to inventory',
+		command: 'git diff --stat inventory-oversell-fix',
 		responseLines: [
+			{ text: 'inventory/stock_check.rb   | 14 +-', color: 'yellow' },
+			{ text: 'orders/order.rb            | 22 +-', color: 'red' },
+			{ text: 'orders/fulfillment.rb      |  9 +-', color: 'red' },
+			{ text: '', color: 'muted' },
 			{
-				text: 'E: Circular dependency: orders -> inventory -> orders',
+				text: 'The "inventory" fix rewrites orders code too.',
 				color: 'red',
 			},
 			{
-				text: '  orders/models/order.rb references Inventory::StockItem',
-				color: 'yellow',
-			},
-			{
-				text: '  inventory/models/stock_item.rb references Order',
-				color: 'yellow',
-			},
-			{ text: '', color: 'muted' },
-			{
-				text: 'Cannot deploy orders or inventory independently.',
+				text: 'Orders owner is out. Review stalls. Overselling continues.',
 				color: 'red',
 			},
 		],
 		story: [
-			'You run packwerk to check package boundaries.',
-			'Orders references Inventory::StockItem for stock checks.',
-			'Inventory references Order to track reservations.',
-			'Circular dependency: neither can be extracted later.',
-			'Changes in one domain force testing both.',
+			'Customers are buying items that are already out of stock. Inventory has the fix ready.',
+			'But inventory and orders reference each other’s internals both ways, so the "inventory" diff rewrites orders code too.',
+			'Now the PR needs an orders review, and the person who understands that code is unreachable.',
+			'Two more days of overselling, refund tickets, and apology emails.',
+			'Two domains that cannot change independently are one domain with two names.',
 		],
 	},
 	{
-		id: 'who-owns-invoice',
-		label: 'Check file ownership',
-		command: 'git log --format="%an" components/billing/ | sort -u | wc -l',
+		id: 'incident-owner',
+		label: 'Page the owner of payment.rb at 2am',
+		command: 'git shortlog -sn app/models/payment.rb | head -5',
 		responseLines: [
-			{ text: '12', color: 'red' },
+			{ text: '  38  (12 different authors total)', color: 'yellow' },
 			{ text: '', color: 'muted' },
+			{ text: '2:04am: refunds endpoint returning 500s.', color: 'red' },
+			{ text: '2:11am: who owns this? Slack silence.', color: 'red' },
 			{
-				text: '12 different authors committed to billing/ in the last month.',
-				color: 'yellow',
-			},
-			{
-				text: 'No CODEOWNERS file. No required reviewers for billing PRs.',
-				color: 'red',
-			},
-			{
-				text: 'Anyone can merge changes without domain expert review.',
+				text: '2:44am: someone who "touched it once" starts debugging.',
 				color: 'red',
 			},
 		],
 		story: [
-			'You check who has been committing to the billing package.',
-			'12 different engineers touched billing code this month.',
-			'No CODEOWNERS file maps billing/ to a responsible team.',
-			'PRs merge without billing-domain expert review.',
-			'Subtle billing logic bugs ship undetected.',
-		],
-	},
-	{
-		id: 'privacy-violation',
-		label: 'Test package privacy',
-		command:
-			'ruby -e "require_relative \'components/billing/models/ledger_entry\'"',
-		responseLines: [
-			{
-				text: '=> true (loaded successfully)',
-				color: 'yellow',
-			},
-			{ text: '', color: 'muted' },
-			{
-				text: 'LedgerEntry is an internal billing model, but any package can load it.',
-				color: 'red',
-			},
-			{
-				text: 'No enforce_privacy. All internal classes are globally accessible.',
-				color: 'red',
-			},
-			{
-				text: 'Other teams bypass BillingInterface and call LedgerEntry directly.',
-				color: 'yellow',
-			},
-		],
-		story: [
-			'You try loading an internal billing model from outside.',
-			'LedgerEntry loads without error. No privacy enforcement.',
-			'Any package can reach into billing internals directly.',
-			'Teams skip the public API and query LedgerEntry.where(...).',
-			'Billing team cannot refactor internals without breaking callers.',
+			'Refunds start failing at 2am.',
+			'The on-call engineer opens payment.rb: twelve authors, no owner, no team name anywhere.',
+			'Forty minutes of pager roulette before someone who once touched the file volunteers.',
+			'Customers wait on refunds the whole time.',
+			'Code that handles money has no name attached to it.',
 		],
 	},
 ];
 
-const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
-	'billing-notification-coupling': ['cross-domain-coupling'],
-	'circular-dependency': ['circular-deps'],
-	'who-owns-invoice': ['no-ownership'],
-	'privacy-violation': ['no-privacy'],
+export const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
+	'internal-rename': ['hidden-coupling'],
+	'circular-hotfix': ['circular-tangle'],
+	'incident-owner': ['no-owner'],
 };
 
 // ─── Observe animation frames ─────────────────────────────────────────
-// Observe: 4 nodes (Billing, Notifications, Orders, Inventory)
-// edgeA = Billing -> Notifications (cross-domain coupling)
-// edgeB = Orders -> Inventory (circular dep direction 1)
-// edgeC = Inventory -> Orders (circular dep direction 2)
-// edgeD = Billing -> Orders (undeclared)
-// edgeE = Notifications -> Inventory (undeclared)
 
-const COUPLING_FRAMES: AnimFrame[] = [
+const RENAME_FRAMES: AnimFrame[] = [
 	{
-		billing: {
-			flash: 'amber',
-			sublabel: 'Calling Notification internals...',
+		zones: {
+			notifications: {
+				flash: 'amber',
+				sublabel: 'renames its own helper',
+				badge: 'RENAME',
+			},
+			ci: { flash: 'green', sublabel: '1,412 tests green', badge: 'MERGED' },
 		},
-		notifications: {
-			flash: 'amber',
-			sublabel: 'Receiving undeclared call',
-		},
-		edgeA: {
-			active: true,
-			reverse: false,
-			label: 'Notification.deliver()',
-			dotColor: '#ef4444',
-			isDanger: true,
+		edges: {
+			eCiDeploy: {
+				active: true,
+				reverse: false,
+				label: 'deploys cleanly',
+				dotColor: '#22c55e',
+			},
 		},
 	},
 	{
-		billing: {
-			flash: 'red',
-			sublabel: 'Undeclared dependency!',
-			badge: 'COUPLED',
+		zones: {
+			billing: {
+				flash: 'red',
+				sublabel: 'InvoiceSender: NoMethodError',
+				badge: '500',
+			},
 		},
-		notifications: {
-			flash: 'red',
-			sublabel: 'Internal class exposed',
-			badge: 'NO BOUNDARY',
-		},
-		edgeA: {
-			active: true,
-			reverse: false,
-			label: 'NotificationMailer.receipt()',
-			dotColor: '#ef4444',
-			isDanger: true,
+		edges: {
+			eCiDeploy: { active: false, label: '' },
+			eBillNotif: {
+				active: true,
+				reverse: false,
+				label: 'hidden reference, now broken',
+				dotColor: '#ef4444',
+			},
 		},
 	},
 	{
-		billing: { flash: 'red', sublabel: 'No boundaries', badge: null },
-		notifications: { flash: 'red', sublabel: 'No boundaries', badge: null },
-		edgeA: { active: false, label: '' },
+		zones: {
+			customer: {
+				flash: 'red',
+				sublabel: 'receipts stopped arriving',
+				badge: 'NO RECEIPTS',
+			},
+			notifications: {
+				flash: 'idle',
+				sublabel: 'team has no idea',
+				badge: null,
+			},
+		},
+		edges: {
+			eBillNotif: { active: false, label: '' },
+			eCustomer: {
+				active: true,
+				reverse: false,
+				label: 'support tickets rising',
+				dotColor: '#ef4444',
+			},
+		},
 	},
 ];
 
 const CIRCULAR_FRAMES: AnimFrame[] = [
 	{
-		orders: {
-			flash: 'amber',
-			sublabel: 'References Inventory::StockItem',
-		},
-		inventory: {
-			flash: 'amber',
-			sublabel: 'Receiving reference',
-		},
-		edgeB: {
-			active: true,
-			reverse: false,
-			label: 'Inventory::StockItem',
-			dotColor: '#ef4444',
-			isDanger: true,
+		zones: {
+			inventory: {
+				flash: 'amber',
+				sublabel: 'overselling fix ready',
+				badge: 'FIX',
+			},
+			customer: {
+				flash: 'red',
+				sublabel: 'buying out-of-stock items',
+				badge: 'OVERSOLD',
+			},
 		},
 	},
 	{
-		orders: {
-			flash: 'red',
-			sublabel: 'Referenced by Inventory',
-			badge: 'CIRCULAR',
+		zones: {
+			orders: {
+				flash: 'red',
+				sublabel: 'fix drags orders code in',
+				badge: 'REVIEW?',
+			},
 		},
-		inventory: {
-			flash: 'red',
-			sublabel: 'References Order model',
-			badge: 'CIRCULAR',
-		},
-		edgeC: {
-			active: true,
-			reverse: false,
-			label: 'Order (back-reference)',
-			dotColor: '#ef4444',
-			isDanger: true,
+		edges: {
+			eOrdInv: {
+				active: true,
+				reverse: false,
+				label: 'orders -> inventory internals',
+				dotColor: '#ef4444',
+			},
+			eInvOrd: {
+				active: true,
+				reverse: false,
+				label: 'inventory -> orders internals',
+				dotColor: '#ef4444',
+			},
 		},
 	},
 	{
-		orders: { flash: 'red', sublabel: 'No boundaries', badge: null },
-		inventory: { flash: 'red', sublabel: 'No boundaries', badge: null },
-		edgeB: { active: false, label: '' },
-		edgeC: { active: false, label: '' },
+		zones: {
+			inventory: {
+				flash: 'red',
+				sublabel: 'PR stalled 2 days',
+				badge: 'STALLED',
+			},
+			customer: {
+				flash: 'red',
+				sublabel: 'overselling continues',
+				badge: 'DAY 2',
+			},
+		},
+		edges: {
+			eOrdInv: { active: false, label: '' },
+			eInvOrd: { active: false, label: '' },
+		},
 	},
 ];
 
-const OWNERSHIP_FRAMES: AnimFrame[] = [
+const OWNER_FRAMES: AnimFrame[] = [
 	{
-		billing: {
-			flash: 'amber',
-			sublabel: 'Checking git log...',
+		zones: {
+			billing: {
+				flash: 'red',
+				sublabel: 'refunds returning 500',
+				badge: '2:04am',
+			},
+			customer: { flash: 'red', sublabel: 'refunds stuck', badge: null },
 		},
 	},
 	{
-		billing: {
-			flash: 'red',
-			sublabel: '12 authors, no owner',
-			badge: 'NO CODEOWNERS',
-		},
-		orders: {
-			flash: 'red',
-			sublabel: '9 authors, no owner',
-			badge: 'NO CODEOWNERS',
+		zones: {
+			billing: {
+				flash: 'red',
+				sublabel: 'payment.rb: 12 authors, 0 owners',
+				badge: 'WHO?',
+			},
+			ci: { flash: 'idle', sublabel: 'no ownership map anywhere' },
 		},
 	},
 	{
-		billing: { flash: 'red', sublabel: 'No boundaries', badge: null },
-		orders: { flash: 'red', sublabel: 'No boundaries', badge: null },
+		zones: {
+			billing: {
+				flash: 'red',
+				sublabel: 'debugging starts 40 min late',
+				badge: '2:44am',
+			},
+			customer: {
+				flash: 'red',
+				sublabel: 'refunds down the whole time',
+				badge: '40 MIN',
+			},
+		},
 	},
 ];
 
-const PRIVACY_FRAMES: AnimFrame[] = [
-	{
-		billing: {
-			flash: 'amber',
-			sublabel: 'Testing privacy...',
-		},
-	},
-	{
-		billing: {
-			flash: 'red',
-			sublabel: 'LedgerEntry exposed!',
-			badge: 'NO PRIVACY',
-		},
-		edgeD: {
-			active: true,
-			reverse: true,
-			label: 'LedgerEntry.where(...)',
-			dotColor: '#ef4444',
-			isDanger: true,
-		},
-	},
-	{
-		billing: { flash: 'red', sublabel: 'No boundaries', badge: null },
-		edgeD: { active: false, label: '' },
-	},
-];
-
-const OBSERVE_PROBE_FRAMES: Record<string, AnimFrame[]> = {
-	'billing-notification-coupling': COUPLING_FRAMES,
-	'circular-dependency': CIRCULAR_FRAMES,
-	'who-owns-invoice': OWNERSHIP_FRAMES,
-	'privacy-violation': PRIVACY_FRAMES,
+export const OBSERVE_PROBE_FRAMES: Record<string, AnimFrame[]> = {
+	'internal-rename': RENAME_FRAMES,
+	'circular-hotfix': CIRCULAR_FRAMES,
+	'incident-owner': OWNER_FRAMES,
 };
 
-// ─── Reward animation frames ─────────────────────────────────────────
-// Reward: same 4 nodes but with enforced boundaries and public APIs.
+// ─── Reward animation frames ──────────────────────────────────────────
+// MECHANISM-HONEST: the check runs in CI on pull requests, per the
+// Packwerk README recommendation. Nothing blocks at runtime; the bad
+// change never reaches production in the first place.
 
-const REWARD_VALID_DEP_FRAMES: AnimFrame[] = [
+const REWARD_RENAME_FRAMES: AnimFrame[] = [
 	{
-		orders: {
-			flash: 'amber',
-			sublabel: 'Calling BillingInterface...',
-		},
-		billing: {
-			flash: 'amber',
-			sublabel: 'Receiving declared call',
-		},
-		edgeD: {
-			active: true,
-			reverse: true,
-			label: 'BillingInterface.create_invoice()',
-			dotColor: '#22c55e',
-			isDanger: false,
+		zones: {
+			notifications: {
+				flash: 'amber',
+				sublabel: 'same rename, PR opened',
+				badge: 'PR',
+			},
 		},
 	},
 	{
-		orders: {
-			flash: 'green',
-			sublabel: 'Declared dependency',
-			badge: 'ALLOWED',
+		zones: {
+			ci: {
+				flash: 'red',
+				sublabel: 'boundary check: billing references this constant',
+				badge: 'CHECK FAILED',
+			},
 		},
-		billing: {
-			flash: 'green',
-			sublabel: 'Public API used',
-			badge: 'ALLOWED',
-		},
-		edgeD: {
-			active: true,
-			reverse: true,
-			label: 'dependencies: [billing]',
-			dotColor: '#22c55e',
-			isDanger: false,
-		},
-	},
-];
-
-const REWARD_PUBLIC_API_FRAMES: AnimFrame[] = [
-	{
-		notifications: {
-			flash: 'amber',
-			sublabel: 'Calling NotificationInterface...',
-		},
-		billing: {
-			flash: 'idle',
-			sublabel: 'enforce_dependencies: true',
-		},
-		edgeA: {
-			active: true,
-			reverse: true,
-			label: 'NotificationInterface.send()',
-			dotColor: '#22c55e',
-			isDanger: false,
+		edges: {
+			eCiDeploy: {
+				active: true,
+				reverse: true,
+				label: 'PR blocked before merge',
+				dotColor: '#ef4444',
+			},
 		},
 	},
 	{
-		notifications: {
-			flash: 'green',
-			sublabel: 'Public API respected',
-			badge: 'ALLOWED',
+		zones: {
+			notifications: {
+				flash: 'green',
+				sublabel: 'rename ships via the public API',
+				badge: 'MERGED',
+			},
+			billing: { flash: 'green', sublabel: 'switched to the public API' },
+			customer: {
+				flash: 'green',
+				sublabel: 'receipts never stopped',
+				badge: null,
+			},
 		},
-		edgeA: {
-			active: true,
-			reverse: true,
-			label: 'app/public/ interface',
-			dotColor: '#22c55e',
-			isDanger: false,
-		},
-	},
-];
-
-const REWARD_CI_CHECK_FRAMES: AnimFrame[] = [
-	{
-		billing: { flash: 'amber', sublabel: 'Running packwerk check...' },
-		notifications: { flash: 'amber', sublabel: 'Running packwerk check...' },
-		orders: { flash: 'amber', sublabel: 'Running packwerk check...' },
-		inventory: { flash: 'amber', sublabel: 'Running packwerk check...' },
-	},
-	{
-		billing: {
-			flash: 'green',
-			sublabel: 'All dependencies valid',
-			badge: 'CI PASS',
-		},
-		notifications: {
-			flash: 'green',
-			sublabel: 'Privacy enforced',
-			badge: 'CI PASS',
-		},
-		orders: {
-			flash: 'green',
-			sublabel: 'Deps declared',
-			badge: 'CI PASS',
-		},
-		inventory: {
-			flash: 'green',
-			sublabel: 'No circular deps',
-			badge: 'CI PASS',
-		},
-	},
-];
-
-const REWARD_PRIVATE_ACCESS_FRAMES: AnimFrame[] = [
-	{
-		orders: {
-			flash: 'amber',
-			sublabel: 'Trying LedgerEntry.where()...',
-		},
-		billing: {
-			flash: 'amber',
-			sublabel: 'Privacy check...',
-		},
-		edgeD: {
-			active: true,
-			reverse: true,
-			label: 'LedgerEntry.where()',
-			dotColor: '#ef4444',
-			isDanger: true,
-		},
-	},
-	{
-		orders: {
-			flash: 'red',
-			sublabel: 'Privacy violation!',
-			badge: 'BLOCKED',
-		},
-		billing: {
-			flash: 'green',
-			sublabel: 'enforce_privacy: true',
-			badge: 'PROTECTED',
-		},
-		edgeD: {
-			active: true,
-			reverse: true,
-			label: 'VIOLATION: private constant',
-			dotColor: '#ef4444',
-			isDanger: true,
-		},
-	},
-];
-
-const REWARD_UNDECLARED_DEP_FRAMES: AnimFrame[] = [
-	{
-		inventory: {
-			flash: 'amber',
-			sublabel: 'Trying Notification.deliver()...',
-		},
-		notifications: {
-			flash: 'amber',
-			sublabel: 'Dependency check...',
-		},
-		edgeE: {
-			active: true,
-			reverse: false,
-			label: 'Notification.deliver()',
-			dotColor: '#ef4444',
-			isDanger: true,
-		},
-	},
-	{
-		inventory: {
-			flash: 'red',
-			sublabel: 'Undeclared dependency!',
-			badge: 'BLOCKED',
-		},
-		notifications: {
-			flash: 'green',
-			sublabel: 'enforce_dependencies: true',
-			badge: 'PROTECTED',
-		},
-		edgeE: {
-			active: true,
-			reverse: false,
-			label: 'VIOLATION: not in dependencies',
-			dotColor: '#ef4444',
-			isDanger: true,
-		},
+		edges: { eCiDeploy: { active: false, label: '' } },
 	},
 ];
 
 const REWARD_CIRCULAR_FRAMES: AnimFrame[] = [
 	{
-		orders: {
-			flash: 'amber',
-			sublabel: 'Checking for circular deps...',
-		},
-		inventory: {
-			flash: 'amber',
-			sublabel: 'Checking for circular deps...',
-		},
-		edgeB: {
-			active: true,
-			reverse: false,
-			label: 'Order -> Inventory?',
-			dotColor: '#ef4444',
-			isDanger: true,
+		zones: {
+			inventory: {
+				flash: 'amber',
+				sublabel: 'same overselling fix',
+				badge: 'FIX',
+			},
 		},
 	},
 	{
-		orders: {
-			flash: 'green',
-			sublabel: 'Uses InventoryInterface',
-			badge: 'REFACTORED',
+		zones: {
+			orders: {
+				flash: 'green',
+				sublabel: 'depends on inventory one way only',
+				badge: null,
+			},
+			inventory: {
+				flash: 'green',
+				sublabel: 'fix touches only packs/inventory',
+				badge: null,
+			},
 		},
-		inventory: {
-			flash: 'green',
-			sublabel: 'No back-reference to Order',
-			badge: 'CLEAN',
+		edges: {
+			eOrdInv: {
+				active: true,
+				reverse: false,
+				label: 'declared, one-way',
+				dotColor: '#22c55e',
+			},
 		},
-		edgeB: {
-			active: true,
-			reverse: false,
-			label: 'One-way via public API',
-			dotColor: '#22c55e',
-			isDanger: false,
+	},
+	{
+		zones: {
+			inventory: {
+				flash: 'green',
+				sublabel: 'merged same day',
+				badge: 'SHIPPED',
+			},
+			customer: {
+				flash: 'green',
+				sublabel: 'overselling stopped',
+				badge: null,
+			},
+		},
+		edges: { eOrdInv: { active: false, label: '' } },
+	},
+];
+
+const REWARD_OWNER_FRAMES: AnimFrame[] = [
+	{
+		zones: {
+			billing: {
+				flash: 'red',
+				sublabel: 'same 2am refunds incident',
+				badge: '2:04am',
+			},
+		},
+	},
+	{
+		zones: {
+			billing: {
+				flash: 'amber',
+				sublabel: 'CODEOWNERS: packs/billing -> billing team',
+				badge: 'PAGED',
+			},
+			ci: { flash: 'green', sublabel: 'ownership is a file, not folklore' },
+		},
+	},
+	{
+		zones: {
+			billing: {
+				flash: 'green',
+				sublabel: 'right person debugging by 2:08am',
+				badge: '2:08am',
+			},
+			customer: { flash: 'green', sublabel: 'refunds back quickly' },
 		},
 	},
 ];
 
-const REWARD_NO_PRIVACY_FRAMES: AnimFrame[] = [
+const REWARD_STRICT_FRAMES: AnimFrame[] = [
 	{
-		billing: {
-			flash: 'amber',
-			sublabel: 'Trying Invoice.new from outside...',
+		zones: {
+			ci: {
+				flash: 'amber',
+				sublabel: 'legacy violations recorded in TODO lists',
+				badge: 'ADOPTING',
+			},
 		},
 	},
 	{
-		billing: {
-			flash: 'green',
-			sublabel: 'enforce_privacy: true',
-			badge: 'BLOCKED',
+		zones: {
+			ci: {
+				flash: 'green',
+				sublabel: 'strict mode: no NEW violations can land',
+				badge: 'STRICT',
+			},
+			billing: { flash: 'green', sublabel: 'old debt shrinks PR by PR' },
+			orders: { flash: 'green', sublabel: 'boundaries hold from here on' },
 		},
 	},
 ];
 
-const REWARD_PROBE_FRAMES: Record<string, AnimFrame[]> = {
-	'valid-dep-call': REWARD_VALID_DEP_FRAMES,
-	'public-api-call': REWARD_PUBLIC_API_FRAMES,
-	'ci-check': REWARD_CI_CHECK_FRAMES,
-	'private-access': REWARD_PRIVATE_ACCESS_FRAMES,
-	'undeclared-dep': REWARD_UNDECLARED_DEP_FRAMES,
-	'circular-attempt': REWARD_CIRCULAR_FRAMES,
-	'no-privacy-bypass': REWARD_NO_PRIVACY_FRAMES,
+export const REWARD_PROBE_FRAMES: Record<string, AnimFrame[]> = {
+	'internal-rename': REWARD_RENAME_FRAMES,
+	'circular-hotfix': REWARD_CIRCULAR_FRAMES,
+	'incident-owner': REWARD_OWNER_FRAMES,
+	'strict-mode': REWARD_STRICT_FRAMES,
 };
 
 // ─── Stage inspector data ─────────────────────────────────────────────
@@ -758,188 +656,185 @@ const REWARD_PROBE_FRAMES: Record<string, AnimFrame[]> = {
 const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 	billing: {
 		stageId: 'billing',
-		title: 'Billing Package',
+		title: 'Billing code',
 		description:
-			'Handles invoices, payments, and ledger entries. Currently has no package.yml. Any file can reach into billing internals directly. 12 engineers commit here without domain review.',
-		code: `# components/billing/
-#   app/models/invoice.rb
-#   app/models/payment.rb
-#   app/models/ledger_entry.rb  (internal)
-#   app/services/invoice_sender.rb
-# No package.yml. No enforce_dependencies.
-# No enforce_privacy. No CODEOWNERS entry.`,
+			'Invoices, refunds, payments. Its files sit in the same flat app/ directories as everyone else’s and call whatever constants they can see, including other domains’ internals.',
+		code: `# app/services/invoice_sender.rb
+class InvoiceSender
+  def deliver(invoice)
+    # Reaches straight into another domain's internals.
+    # Nothing declares it; nothing checks it.
+    body = ReceiptFormatter.format(invoice)
+    NotificationMailer.invoice(body).deliver_later
+  end
+end`,
 	},
 	notifications: {
 		stageId: 'notifications',
-		title: 'Notifications Package',
+		title: 'Notifications code',
 		description:
-			'Sends emails, SMS, and push notifications. Billing calls Notification classes directly without going through any public API. A class rename here breaks billing at runtime.',
-		code: `# components/notifications/
-#   app/models/notification.rb
-#   app/mailers/notification_mailer.rb
-# No package.yml. No public interface.
-# Other packages call internals directly.`,
+			'Mailers, formatters, push notifications. Its helpers are referenced by other domains it has never heard of, which makes every internal rename a production gamble.',
 	},
 	orders: {
 		stageId: 'orders',
-		title: 'Orders Package',
+		title: 'Orders code',
 		description:
-			'Manages order lifecycle and fulfillment. Has a circular dependency with Inventory: Orders references StockItem, and Inventory references Order. Neither package can be deployed or tested independently.',
-		code: `# components/orders/
-#   app/models/order.rb
-#     references Inventory::StockItem
-#   app/services/fulfillment_service.rb
-# Circular dependency with inventory/`,
+			'Order lifecycle and fulfillment. References inventory internals directly, and inventory references back: a circle that makes independent change impossible.',
 	},
 	inventory: {
 		stageId: 'inventory',
-		title: 'Inventory Package',
+		title: 'Inventory code',
 		description:
-			'Tracks stock levels and warehouse locations. References the Order model from the orders package, creating a circular dependency that prevents independent deployment.',
-		code: `# components/inventory/
-#   app/models/stock_item.rb
-#     references Order (back-reference)
-#   app/services/stock_checker.rb
-# Circular dependency with orders/`,
+			'Stock levels and reservations. Cannot ship a fix without dragging orders code into the diff, because the two reference each other both ways.',
+	},
+	ci: {
+		stageId: 'ci',
+		title: 'CI pipeline',
+		description:
+			'Runs the test suite on every PR and it stays green through all of this: tests check behavior, not boundaries. Nothing in the pipeline knows which domain may reference which.',
 	},
 };
 
-const STAGE_DISCOVERY_MAP: Record<string, string> = {
-	billing: 'cross-domain-coupling',
-	orders: 'circular-deps',
-};
+const STAGE_DISCOVERY_MAP: Record<string, string> = {};
 
 // ─── Stress test scenarios (reward) ───────────────────────────────────
+// Reward scenarios are PULL REQUESTS hitting the CI gate, not runtime
+// requests. "Blocked" means blocked BEFORE merge.
 
-const STRESS_SCENARIOS: StressScenario[] = [
+export const STRESS_SCENARIOS: StressScenario[] = [
 	{
-		id: 'valid-dep-call',
-		label: 'Call declared dependency',
-		description: 'Orders calls BillingInterface (declared dep)',
-		method: 'GET',
-		path: 'Orders -> BillingInterface.create_invoice()',
-		actor: 'orders-package',
+		id: 'internal-rename',
+		label: 'Rename a notifications helper (their own code)',
+		description: 'CI boundary check fails the PR before merge',
+		method: 'PR',
+		path: 'rename ReceiptFormatter (referenced by billing)',
+		actor: 'notifications team',
+		expectedResult: 'blocked',
+		story: [
+			'Same developer, same rename, PR opened.',
+			'The CI boundary check reads every constant reference and finds billing calling this class.',
+			'The PR fails BEFORE merge with the exact file and line; production never sees the break.',
+			'The rename ships an hour later with billing switched to the public API. Receipts never stop.',
+		],
+	},
+	{
+		id: 'circular-hotfix',
+		label: 'Ship an overselling hotfix to inventory',
+		description:
+			'One-way dependency: the fix touches one pack, merges same day',
+		method: 'PR',
+		path: 'packs/inventory/stock_check.rb',
+		actor: 'inventory team',
 		expectedResult: 'allowed',
+		story: [
+			'Same overselling bug, same fix.',
+			'The adoption cleanup broke the circle: orders depends on inventory’s public API, one way only.',
+			'The fix touches only packs/inventory, needs only the inventory owner’s review, and merges the same day.',
+			'Overselling stops in hours, not days.',
+		],
 	},
 	{
-		id: 'public-api-call',
-		label: 'Use public API',
-		description: 'Billing calls NotificationInterface (public API)',
-		method: 'POST',
-		path: 'Billing -> NotificationInterface.send()',
-		actor: 'billing-package',
+		id: 'incident-owner',
+		label: 'Page the owner of payment.rb at 2am',
+		description: 'CODEOWNERS routes the page to the billing team in minutes',
+		method: 'PAGE',
+		path: '.github/CODEOWNERS: packs/billing/ -> billing team',
+		actor: 'on-call',
 		expectedResult: 'allowed',
+		story: [
+			'Same 2am refunds incident.',
+			'Ownership is a file now: packs/billing/ maps to the billing team.',
+			'The page reaches the right people at 2:08 instead of 2:44.',
+			'Refunds are back before most customers notice.',
+		],
 	},
 	{
-		id: 'ci-check',
-		label: 'Run packwerk check in CI',
-		description: 'bin/packwerk check validates all boundaries',
-		method: 'GET',
-		path: 'bin/packwerk check',
-		actor: 'ci-pipeline',
+		id: 'strict-mode',
+		label: 'Turn the boundary check to strict',
+		description: 'Legacy violations grandfathered; no NEW ones can land',
+		method: 'PR',
+		path: 'packs/*/package.yml: enforce_dependencies: strict',
+		actor: 'platform team',
 		expectedResult: 'allowed',
-	},
-	{
-		id: 'private-access',
-		label: 'Access private model',
-		description: 'Orders tries LedgerEntry.where() directly',
-		method: 'GET',
-		path: 'Orders -> LedgerEntry.where()',
-		actor: 'orders-package',
-		expectedResult: 'blocked',
-	},
-	{
-		id: 'undeclared-dep',
-		label: 'Undeclared dependency',
-		description: 'Inventory calls Notification without declaring dep',
-		method: 'POST',
-		path: 'Inventory -> Notification.deliver()',
-		actor: 'inventory-package',
-		expectedResult: 'blocked',
-	},
-	{
-		id: 'circular-attempt',
-		label: 'Circular dependency check',
-		description: 'Inventory back-references Order (was circular)',
-		method: 'GET',
-		path: 'Inventory -> Order (circular?)',
-		actor: 'inventory-package',
-		expectedResult: 'blocked',
-	},
-	{
-		id: 'no-privacy-bypass',
-		label: 'Bypass privacy boundary',
-		description: 'External code tries Invoice.new directly',
-		method: 'POST',
-		path: 'External -> Invoice.new()',
-		actor: 'other-package',
-		expectedResult: 'blocked',
+		story: [
+			'Adoption is honest about the past: existing violations are recorded, not fixed overnight.',
+			'Strict mode draws the line: recorded debt stays visible, but no NEW violation can merge.',
+			'Old debt shrinks pull request by pull request; the boundary holds from here on.',
+			'The tangle stops growing the day the gate turns on.',
+		],
 	},
 ];
 
 // ─── Build step definitions ───────────────────────────────────────────
 
-const STEP_DEFS: StepDef[] = [
-	{ id: 'add-packwerk', title: 'Install Packwerk' },
-	{ id: 'init-packwerk', title: 'Initialize Packwerk' },
-	{ id: 'configure-yml', title: 'Configure package.yml' },
-	{ id: 'define-public-api', title: 'Define Public API' },
+export const STEP_DEFS: StepDef[] = [
+	{ id: 'install', title: 'Install the Boundary Checker' },
+	{ id: 'init', title: 'Initialize the Configuration' },
+	{ id: 'define-package', title: 'Carve Out the Billing Package' },
+	{ id: 'public-api', title: 'Give the Package a Public API' },
 	{ id: 'declare-deps', title: 'Declare Dependencies' },
-	{ id: 'setup-codeowners', title: 'Set Up CODEOWNERS' },
+	{ id: 'ci-gate', title: 'Put the Check in CI' },
+	{ id: 'codeowners', title: 'Name the Owners' },
 ];
 
 const STEP_TYPES: ('terminal' | 'option')[] = [
-	'terminal', // 0: bundle add packwerk
-	'terminal', // 1: bin/packwerk init
-	'option', // 2: configure package.yml
-	'option', // 3: define public API
-	'option', // 4: declare dependencies
-	'option', // 5: setup CODEOWNERS
+	'terminal',
+	'terminal',
+	'option',
+	'option',
+	'option',
+	'option',
+	'option',
 ];
 
-// ─── Step 0: Install packwerk (Terminal) ──────────────────────────────
-
-const installPackwerkCommands: TerminalCommand[] = [
+// Step 0: install (per the Packwerk README: gem + binstub).
+export const INSTALL_COMMANDS: TerminalCommand[] = [
 	{
-		id: 'wrong-npm',
-		label: 'npm install packwerk',
-		command: 'npm install packwerk',
-		correct: false,
-		feedback:
-			'Packwerk is a Ruby gem, not an npm package. Ruby dependencies are managed with Bundler.',
-	},
-	{
-		id: 'wrong-gem',
+		id: 'wrong-gem-install',
 		label: 'gem install packwerk',
 		command: 'gem install packwerk',
 		correct: false,
 		feedback:
-			'Installing globally with gem install does not add it to your Gemfile. Use Bundler so the dependency is tracked with your project.',
+			'A system-wide install lands only on your machine. The other eleven engineers and the CI runners never get it, and this tool has to run everywhere the code does.',
 	},
 	{
 		id: 'correct',
-		label: 'bundle add packwerk',
-		command: 'bundle add packwerk',
+		label: 'bundle add packwerk && bundle binstub packwerk',
+		command: 'bundle add packwerk && bundle binstub packwerk',
 		correct: true,
+	},
+	{
+		id: 'wrong-extensions-first',
+		label: 'bundle add packwerk-extensions',
+		command: 'bundle add packwerk-extensions',
+		correct: false,
+		feedback:
+			'That package extends a checker you have not installed yet. The core tool comes first; extensions can layer on later if you need them.',
 	},
 ];
 
-const installPackwerkOutput: TerminalOutputLine[] = [
+const INSTALL_OUTPUT: TerminalOutputLine[] = [
 	{ text: 'Fetching packwerk 3.2.1', color: 'green' },
-	{ text: 'Installing packwerk 3.2.1', color: 'green' },
-	{ text: 'Added to Gemfile: gem "packwerk", "~> 3.2"', color: 'cyan' },
+	{ text: 'Generated binstub: bin/packwerk', color: 'cyan' },
 ];
 
-// ─── Step 1: Init packwerk (Terminal) ─────────────────────────────────
-
-const initPackwerkCommands: TerminalCommand[] = [
+// Step 1: init.
+export const INIT_COMMANDS: TerminalCommand[] = [
 	{
-		id: 'wrong-rails-generate',
-		label: 'rails generate packwerk:install',
-		command: 'rails generate packwerk:install',
+		id: 'wrong-generator',
+		label: 'bin/rails generate packwerk:install',
+		command: 'bin/rails generate packwerk:install',
 		correct: false,
 		feedback:
-			'Packwerk does not hook into Rails generators. It ships its own tooling for creating the root configuration.',
+			'This tool does not hook into Rails generators. It ships its own binstub with its own subcommands.',
+	},
+	{
+		id: 'wrong-check-first',
+		label: 'bin/packwerk check',
+		command: 'bin/packwerk check',
+		correct: false,
+		feedback:
+			'Checking before any configuration exists has nothing to verify against. Scaffold the configuration first, then define packages, then check.',
 	},
 	{
 		id: 'correct',
@@ -947,32 +842,12 @@ const initPackwerkCommands: TerminalCommand[] = [
 		command: 'bin/packwerk init',
 		correct: true,
 	},
-	{
-		id: 'wrong-rake',
-		label: 'rake packwerk:init',
-		command: 'rake packwerk:init',
-		correct: false,
-		feedback:
-			'Packwerk does not register Rake tasks. Its commands run through a dedicated executable instead.',
-	},
 ];
 
-const initPackwerkOutput: TerminalOutputLine[] = [
-	{
-		text: 'Created packwerk.yml',
-		color: 'green',
-	},
-	{
-		text: 'Created package.yml (root package)',
-		color: 'green',
-	},
-	{
-		text: 'Run bin/packwerk check to validate package boundaries.',
-		color: 'cyan',
-	},
+const INIT_OUTPUT: TerminalOutputLine[] = [
+	{ text: 'Created packwerk.yml', color: 'green' },
+	{ text: 'The whole app is one implicit root package so far.', color: 'cyan' },
 ];
-
-// ─── Step 2: Configure package.yml (OptionCard) ──────────────────────
 
 interface StepOption {
 	id: string;
@@ -981,301 +856,289 @@ interface StepOption {
 	feedback?: string;
 }
 
-const CONFIGURE_YML_OPTIONS: StepOption[] = [
+// Step 2: define the billing package. A package IS a folder with a
+// package.yml (per USAGE.md); the code moves under it.
+const PACKAGE_OPTIONS: StepOption[] = [
 	{
-		id: 'deps-only',
-		name: 'enforce_dependencies: true',
+		id: 'root-only',
+		name: '# Keep one package.yml at the project root.\n# All code stays where it is; the tool is\n# installed, so the boundaries exist. Right?',
 		correct: false,
 		feedback:
-			'Enforcing dependencies catches undeclared references, but without enforce_privacy, any package can still access internal classes directly. You need both enforcement flags.',
+			'One root package means one boundary drawn around everything, which separates nothing. Domains get boundaries by becoming packages of their own.',
 	},
 	{
 		id: 'correct',
-		name: 'enforce_dependencies: true\nenforce_privacy: true',
+		name: '# Move billing’s code under its own folder\n# and mark the folder as a package:\n\nmkdir -p packs/billing\ngit mv app/services/invoice_sender.rb \\\n  packs/billing/app/services/\n# ... (billing models, jobs move too)\n\n# packs/billing/package.yml\nenforce_dependencies: true',
 		correct: true,
 	},
 	{
-		id: 'privacy-only',
-		name: 'enforce_privacy: true',
+		id: 'ruby-dsl',
+		name: '# config/initializers/packages.rb\nPackages.define do\n  package :billing do\n    path "app/billing"\n  end\nend',
 		correct: false,
 		feedback:
-			'Enforcing privacy hides internal classes, but without enforce_dependencies, any package can add references to any other without declaring the relationship.',
+			'There is no Ruby DSL for this tool, and packages are never declared in an initializer. Central Ruby config recreates the far-from-the-code problem that boundaries are supposed to fix.',
 	},
 ];
 
-// ─── Step 3: Define public API (OptionCard) ───────────────────────────
-
+// Step 3: the public API namespace (USAGE.md recommends a namespace
+// holding the package's public constants).
 const PUBLIC_API_OPTIONS: StepOption[] = [
 	{
-		id: 'raw-model',
-		name: 'app/models/invoice.rb\n# Expose the model directly',
+		id: 'readme-convention',
+		name: '# packs/notifications/README.md\n#\n# "Please only call NotificationMailer\n# and ReceiptFormatter.format from\n# outside this pack. Thanks!"',
 		correct: false,
 		feedback:
-			'Exposing raw ActiveRecord models lets callers depend on schema details. If you rename a column, every caller breaks. Service objects in app/public/ create a stable API boundary.',
+			'A README is a request, not a boundary. Nothing fails when someone ignores it, so under deadline pressure someone will. The public surface needs to live in code.',
 	},
 	{
-		id: 'wrong-path',
-		name: 'app/services/billing_interface.rb\n# In services, not public',
+		id: 'everything-public',
+		name: '# Treat every constant in the pack as\n# public API. Callers can keep using\n# whatever they already use; nothing\n# breaks during adoption.',
 		correct: false,
 		feedback:
-			'Files in app/services/ are private to the package. Packwerk only exposes files in the app/public/ directory as the package public API.',
+			'A boundary that includes everything excludes nothing: every internal rename is still a breaking change for unknown callers. The point is a surface smaller than the whole pack.',
 	},
 	{
 		id: 'correct',
-		name: 'app/public/billing_interface.rb\n# Service object in app/public/',
+		name: '# One namespace holds what others may\n# call; everything else is internal:\n\nmodule Notifications\n  module Public\n    class SendReceipt\n      def self.call(invoice:)\n        # wraps the pack internals\n      end\n    end\n  end\nend',
 		correct: true,
 	},
 ];
 
-// ─── Step 4: Declare dependencies (OptionCard) ────────────────────────
-
-const DECLARE_DEPS_OPTIONS: StepOption[] = [
+// Step 4: declare dependencies (USAGE.md list syntax).
+const DEPS_OPTIONS: StepOption[] = [
 	{
-		id: 'wrong-wildcard',
-		name: 'dependencies:\n  - "*"',
+		id: 'all-on-all',
+		name: '# Every pack lists every other pack:\ndependencies:\n  - packs/billing\n  - packs/notifications\n  - packs/orders\n  - packs/inventory',
 		correct: false,
 		feedback:
-			'A wildcard dependency defeats the purpose of enforcement. Each package should declare exactly which packages it depends on, no more.',
+			'A fully-connected dependency list is the old tangle, now written down in YAML. Declaring everything permits everything; the list only means something when it is short.',
 	},
 	{
 		id: 'correct',
-		name: 'dependencies:\n  - billing\n  - users',
+		name: '# packs/billing/package.yml\nenforce_dependencies: true\ndependencies:\n  - packs/notifications\n  - packs/orders\n# What billing may reference, written down.\n# Anything else fails the check.',
 		correct: true,
 	},
 	{
-		id: 'wrong-empty',
-		name: 'dependencies: []',
+		id: 'none-declared',
+		name: '# Declare no dependencies anywhere.\n# The checker will list what it finds,\n# and the lists can be tidied someday.\ndependencies: []',
 		correct: false,
 		feedback:
-			'An empty dependency list means the orders package cannot access any other package at all. Orders legitimately needs billing (for invoices) and users (for customer data).',
+			'With nothing declared, every real reference lands in the violation backlog forever and the report becomes noise nobody reads. Declare the references you mean to keep; the leftover list is then the actual debt.',
 	},
 ];
 
-// ─── Step 5: Setup CODEOWNERS (OptionCard) ────────────────────────────
-
-const CODEOWNERS_OPTIONS: StepOption[] = [
+// Step 5: the gate. Per the README: run the check in CI.
+const CI_OPTIONS: StepOption[] = [
 	{
-		id: 'everyone',
-		name: '* @full-team',
+		id: 'manual-releases',
+		name: '# Run the boundary check by hand before\n# each release, from the release\n# checklist doc.',
 		correct: false,
 		feedback:
-			'Assigning the entire team to everything means no one has specific domain responsibility. Every PR needs the full team, creating bottlenecks.',
+			'A manual step runs when someone remembers, which is never during the deadline that matters. By release time the violating code has been merged for weeks.',
 	},
 	{
-		id: 'wrong-generic',
-		name: '/components/billing/ @backend-team\n/components/orders/ @backend-team',
+		id: 'pre-commit',
+		name: '# .git/hooks/pre-commit\nbin/packwerk check || exit 1\n# Every engineer’s machine, every commit.',
 		correct: false,
 		feedback:
-			'A generic backend team does not have domain expertise. CODEOWNERS should map each package to the team that owns that domain.',
+			'Local hooks are per-machine, unversioned, and skippable with a flag. Eleven of twelve engineers will have it; the twelfth ships the violation. A gate only counts if nobody can route around it.',
 	},
 	{
 		id: 'correct',
-		name: '/components/billing/ @billing-team\n/components/orders/ @orders-team\n/components/inventory/ @inventory-team',
+		name: '# .github/workflows/ci.yml\n- name: Boundary check\n  run: bin/packwerk check\n# Every PR, every branch, no exceptions.\n# A reference violation fails the build\n# BEFORE merge, never in production.',
 		correct: true,
+	},
+];
+
+// Step 6: CODEOWNERS.
+const OWNERS_OPTIONS: StepOption[] = [
+	{
+		id: 'single-owner',
+		name: '# .github/CODEOWNERS\n* @cto\n# One responsible adult for everything.',
+		correct: false,
+		feedback:
+			'One name on 200 files is a bottleneck at review time and a mystery at incident time: the CTO approves everything and knows the internals of nothing. Ownership works when it maps to the people who work in the code.',
+	},
+	{
+		id: 'correct',
+		name: '# .github/CODEOWNERS\npacks/billing/        @myapp/billing-team\npacks/notifications/  @myapp/notifications-team\npacks/orders/         @myapp/orders-team\npacks/inventory/      @myapp/inventory-team',
+		correct: true,
+	},
+	{
+		id: 'rely-on-blame',
+		name: '# No owners file. git blame knows who\n# touched what; ask the last committer.',
+		correct: false,
+		feedback:
+			'The last committer fixed a typo in 2024 and knows nothing else about the file. Blame records edits, not responsibility, which is exactly how tonight’s incident lost forty minutes.',
 	},
 ];
 
 // ─── Option step config map ───────────────────────────────────────────
 
-const OPTION_STEP_CONFIG: Record<
+export const OPTION_STEP_CONFIG: Record<
 	number,
 	{ title: string; description: string; options: StepOption[] }
 > = {
 	2: {
-		title: 'Configure Package Enforcement',
+		title: 'Carve Out the Billing Package',
 		description:
-			'Each package needs a package.yml. The billing package has undeclared dependencies and exposed internals. Which enforcement flags should you enable to catch both problems?',
-		options: CONFIGURE_YML_OPTIONS,
+			'The tool is configured, but so far the whole app is one implicit package. Where does the billing boundary actually come from?',
+		options: PACKAGE_OPTIONS,
 	},
 	3: {
-		title: 'Define Public API',
+		title: 'Give the Package a Public API',
 		description:
-			'With enforce_privacy enabled, only files in a specific directory are accessible from outside the package. Where should the billing package expose its interface?',
+			'The rename broke billing because billing called a notifications INTERNAL. Other packs need something they are allowed to call. What defines that surface?',
 		options: PUBLIC_API_OPTIONS,
 	},
 	4: {
 		title: 'Declare Dependencies',
 		description:
-			'The orders package needs to call BillingInterface for invoices and access user data. With enforce_dependencies enabled, which dependency list is correct for orders/package.yml?',
-		options: DECLARE_DEPS_OPTIONS,
+			'With boundaries drawn, each package states what it may reference. How should billing declare its needs?',
+		options: DEPS_OPTIONS,
 	},
 	5: {
-		title: 'Set Up CODEOWNERS',
+		title: 'Put the Check in CI',
 		description:
-			'Domain ownership prevents unreviewed changes. Each package needs a responsible team in .github/CODEOWNERS. Which configuration maps packages to domain experts?',
-		options: CODEOWNERS_OPTIONS,
+			'The check exists; now it needs to run where it can actually stop a bad merge. Where does it live?',
+		options: CI_OPTIONS,
+	},
+	6: {
+		title: 'Name the Owners',
+		description:
+			'The 2am incident lost forty minutes to pager roulette. Ownership should be a lookup, not folklore. What goes in the owners file?',
+		options: OWNERS_OPTIONS,
 	},
 };
 
 // ─── Terminal step map for history ────────────────────────────────────
 
 const SHELL_STEP_MAP: (TerminalStepData | null)[] = [
-	{ commands: installPackwerkCommands, outputLines: installPackwerkOutput },
-	{ commands: initPackwerkCommands, outputLines: initPackwerkOutput },
-	null, // step 2: OptionCard
-	null, // step 3: OptionCard
-	null, // step 4: OptionCard
-	null, // step 5: OptionCard
+	{ commands: INSTALL_COMMANDS, outputLines: INSTALL_OUTPUT },
+	{ commands: INIT_COMMANDS, outputLines: INIT_OUTPUT },
+	null,
+	null,
+	null,
+	null,
+	null,
 ];
 
 // ─── Code preview per phase/step ──────────────────────────────────────
 
-function getCodeFiles(phase: Phase, completedStep: number) {
+export function getCodeFiles(phase: Phase, completedStep: number) {
 	if (phase === 'observe') {
 		return [
 			{
-				filename: 'components/billing/invoice_sender.rb',
+				filename: 'app/services/invoice_sender.rb',
 				language: 'ruby',
-				code: `# components/billing/services/invoice_sender.rb
-class Billing::InvoiceSender < ApplicationService
-  Result = Data.define(:invoice, :success, :error)
-
-  def call(user, invoice)
-    # Direct call to Notification internals!
-    Notification.deliver(user, invoice)
-    NotificationMailer.receipt(invoice).deliver_later
-    Result.new(invoice: invoice, success: true, error: nil)
+				code: `class InvoiceSender
+  def deliver(invoice)
+    # Billing code calling a notifications internal.
+    # No declaration anywhere; nothing checks it.
+    body = ReceiptFormatter.format(invoice)
+    NotificationMailer.invoice(body).deliver_later
   end
-end
-# No package.yml. No dependency declaration.
-# No enforce_privacy. All internals exposed.`,
+end`,
 				highlight: [5, 6],
 			},
 			{
-				filename: 'components/orders/models/order.rb',
-				language: 'ruby',
-				code: `# components/orders/models/order.rb
-class Order < ApplicationRecord
-  def check_stock
-    # Direct reference to Inventory internals
-    Inventory::StockItem.find_by(sku: sku)
-  end
-end
+				filename: 'docs/ownership.md',
+				language: 'markdown',
+				code: `# Who owns what?
 
-# components/inventory/models/stock_item.rb
-class Inventory::StockItem < ApplicationRecord
-  belongs_to :order  # Back-reference! Circular dep.
-end`,
-				highlight: [5, 11],
+    $ git shortlog -sn app/models/payment.rb
+    12 different authors. No team name anywhere.
+
+    $ ls app/models | wc -l
+    87 files, four domains, one flat directory.
+
+Orders references inventory internals; inventory
+references orders back. Billing calls notifications
+helpers directly. Every test is green.`,
 			},
 		];
 	}
 
 	const files = [];
 
-	// Step 0 complete: packwerk added to Gemfile
 	if (completedStep >= 0) {
 		files.push({
 			filename: 'Gemfile',
 			language: 'ruby',
-			code: `# Gemfile
-gem "rails", "~> 8.0"
-gem "packwerk", "~> 3.2"`,
-			highlight: [3],
+			code: `# Boundary checking: static analysis of constant
+# references. Not a runtime layer.
+gem "packwerk"`,
 		});
 	}
 
-	// Step 1 complete: packwerk.yml created
 	if (completedStep >= 1) {
 		files.push({
 			filename: 'packwerk.yml',
 			language: 'yaml',
-			code: `# packwerk.yml
-include:
-  - "components/**/*.rb"
-  - "app/**/*.rb"
-exclude:
-  - "test/**/*"
-  - "spec/**/*"`,
-			highlight: [3, 4],
+			code: `# Generated by bin/packwerk init.
+# So far the whole app is one implicit root package.`,
 		});
 	}
 
-	// Step 2 complete: package.yml configured
 	if (completedStep >= 2) {
 		files.push({
-			filename: 'components/billing/package.yml',
+			filename: 'packs/billing/package.yml',
 			language: 'yaml',
 			code:
 				completedStep >= 4
-					? `# components/billing/package.yml
-enforce_dependencies: true
-enforce_privacy: true
+					? `enforce_dependencies: true
 dependencies:
-  - users`
-					: `# components/billing/package.yml
-enforce_dependencies: true
-enforce_privacy: true`,
-			highlight: completedStep >= 4 ? [2, 3, 4, 5] : [2, 3],
+  - packs/notifications
+  - packs/orders`
+					: `enforce_dependencies: true`,
 		});
 	}
 
-	// Step 3 complete: public API defined
 	if (completedStep >= 3) {
 		files.push({
-			filename: 'components/billing/app/public/billing_interface.rb',
+			filename: 'packs/notifications/app/public/send_receipt.rb',
 			language: 'ruby',
-			code: `# components/billing/app/public/billing_interface.rb
-module BillingInterface
-  def self.create_invoice(user:, items:)
-    Invoice.create!(user: user, line_items: items)
+			code: `module Notifications
+  module Public
+    # The surface other packs may call.
+    # Everything outside Public is internal.
+    class SendReceipt
+      def self.call(invoice:)
+        body = ReceiptFormatter.format(invoice)
+        NotificationMailer.invoice(body).deliver_later
+      end
+    end
   end
-
-  def self.find_invoice(id)
-    Invoice.find(id)
-  end
-end
-# Only files in app/public/ are accessible
-# from outside the billing package.`,
-			highlight: [3, 4, 7, 8],
+end`,
 		});
 	}
 
-	// Step 4 complete: dependencies declared
-	if (completedStep >= 4) {
-		files.push({
-			filename: 'components/orders/package.yml',
-			language: 'yaml',
-			code: `# components/orders/package.yml
-enforce_dependencies: true
-enforce_privacy: true
-dependencies:
-  - billing
-  - users`,
-			highlight: [4, 5, 6],
-		});
-	}
-
-	// Step 5 complete: CODEOWNERS
 	if (completedStep >= 5) {
 		files.push({
-			filename: '.github/CODEOWNERS',
-			language: 'bash',
-			code: `# .github/CODEOWNERS
-/components/billing/   @billing-team
-/components/orders/    @orders-team
-/components/inventory/ @inventory-team
-/components/notifications/ @notifications-team`,
-			highlight: [2, 3, 4, 5],
+			filename: '.github/workflows/ci.yml',
+			language: 'yaml',
+			code: `# The gate. A reference violation fails the PR
+# before merge; production never sees it.
+- name: Boundary check
+  run: bin/packwerk check`,
 		});
 	}
 
-	// Always show root file when no steps complete
-	if (files.length === 0) {
+	if (completedStep >= 6) {
 		files.push({
-			filename: 'Gemfile',
-			language: 'ruby',
-			code: `# Gemfile
-gem "rails", "~> 8.0"
-# TODO: add packwerk gem`,
-			highlight: [3],
+			filename: '.github/CODEOWNERS',
+			language: 'text',
+			code: `packs/billing/        @myapp/billing-team
+packs/notifications/  @myapp/notifications-team
+packs/orders/         @myapp/orders-team
+packs/inventory/      @myapp/inventory-team`,
 		});
 	}
 
 	return files;
 }
 
-// ─── Flash to FlowNode status mapping ────────────────────────────────
+// ─── Node/edge rendering ──────────────────────────────────────────────
 
 function flashToStatus(flash: ZoneFlash): FlowNodeData['status'] {
 	switch (flash) {
@@ -1290,17 +1153,24 @@ function flashToStatus(flash: ZoneFlash): FlowNodeData['status'] {
 	}
 }
 
-// ─── Custom React Flow nodes ──────────────────────────────────────────
+const ZONE_ICONS: Record<ZoneKey, string> = {
+	customer: 'CU',
+	ci: 'CI',
+	billing: 'BI',
+	notifications: 'NO',
+	orders: 'OR',
+	inventory: 'IN',
+};
 
-const PackageNode = memo(function PackageNode({
+const PackZoneNode = memo(function PackZoneNode({
 	data,
 }: {
-	data: PackageVizState;
+	data: ZoneVizState & { zoneKey: ZoneKey };
 }) {
 	const flowData: FlowNodeData = {
 		label: data.label,
-		icon: 'PK',
-		color: '#71717a',
+		icon: ZONE_ICONS[data.zoneKey],
+		color: '#6366f1',
 		description: data.sublabel ?? undefined,
 		status: flashToStatus(data.flash),
 		showTarget: false,
@@ -1314,25 +1184,19 @@ const PackageNode = memo(function PackageNode({
 					className={`mt-1 inline-block px-2 py-0.5 rounded-full text-xs font-mono ${
 						data.flash === 'green'
 							? 'bg-success/20 text-success'
-							: 'bg-destructive/20 text-destructive'
+							: data.flash === 'red'
+								? 'bg-destructive/20 text-destructive'
+								: 'bg-muted text-muted-foreground'
 					}`}
 				>
 					{data.badge}
-				</div>
-			)}
-			{data.hasPublicApi && (
-				<div className="mt-1 flex items-center justify-center gap-1 text-xs text-success">
-					<FileCode className="w-3 h-3" />
-					Public API
 				</div>
 			)}
 		</FlowNode>
 	);
 });
 
-// ─── Custom edge ──────────────────────────────────────────────────────
-
-const PackageEdge = memo(function PackageEdge(props: EdgeProps) {
+const PackEdge = memo(function PackEdge(props: EdgeProps) {
 	const { id, sourceX, sourceY, targetX, targetY, data } = props;
 	const d = (data ?? DEFAULT_EDGE) as EdgeVizState;
 
@@ -1364,7 +1228,7 @@ const PackageEdge = memo(function PackageEdge(props: EdgeProps) {
 				style={{
 					stroke: d.active ? fill : '#a1a1aa',
 					strokeWidth: 2,
-					strokeDasharray: d.isDanger ? '6 4' : undefined,
+					strokeDasharray: d.active ? undefined : '6 4',
 				}}
 			/>
 			{dots.length > 0 && <AnimatedDots dots={dots} path={dotPath} />}
@@ -1373,7 +1237,7 @@ const PackageEdge = memo(function PackageEdge(props: EdgeProps) {
 					<div
 						className="nodrag nopan pointer-events-none absolute text-xs font-mono text-foreground bg-background/90 px-1.5 py-0.5 rounded border border-border max-w-64 text-center whitespace-nowrap"
 						style={{
-							transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY + 20}px)`,
+							transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY + 18}px)`,
 						}}
 					>
 						{d.label}
@@ -1384,8 +1248,25 @@ const PackageEdge = memo(function PackageEdge(props: EdgeProps) {
 	);
 });
 
-const pkgNodeTypes = { pkg: PackageNode };
-const pkgEdgeTypes = { pkg: PackageEdge };
+const packNodeTypes = { pack: PackZoneNode };
+const packEdgeTypes = { pack: PackEdge };
+
+const POSITIONS: Record<ZoneKey, { x: number; y: number }> = {
+	customer: { x: 40, y: 20 },
+	ci: { x: 460, y: 20 },
+	billing: { x: 120, y: 170 },
+	notifications: { x: 420, y: 170 },
+	orders: { x: 120, y: 330 },
+	inventory: { x: 420, y: 330 },
+};
+
+const EDGE_DEFS: { id: EdgeKey; source: ZoneKey; target: ZoneKey }[] = [
+	{ id: 'eCustomer', source: 'customer', target: 'billing' },
+	{ id: 'eCiDeploy', source: 'ci', target: 'notifications' },
+	{ id: 'eBillNotif', source: 'billing', target: 'notifications' },
+	{ id: 'eOrdInv', source: 'orders', target: 'inventory' },
+	{ id: 'eInvOrd', source: 'inventory', target: 'orders' },
+];
 
 // ─── Main component ───────────────────────────────────────────────────
 
@@ -1393,55 +1274,46 @@ export function Level55ModularMonolith({ onComplete }: LevelComponentProps) {
 	const [phase, setPhase] = useState<Phase>('observe');
 	const isReward = phase === 'reward';
 
-	// ── Viz state ──
-	const [billingState, setBillingState] =
-		useState<PackageVizState>(DEFAULT_BILLING);
-	const [notificationsState, setNotificationsState] = useState<PackageVizState>(
-		DEFAULT_NOTIFICATIONS,
+	const [zoneStates, setZoneStates] =
+		useState<Record<string, ZoneVizState>>(OBSERVE_ZONES);
+	const [edgeStates, setEdgeStates] = useState<Record<string, EdgeVizState>>(
+		{},
 	);
-	const [ordersState, setOrdersState] =
-		useState<PackageVizState>(DEFAULT_ORDERS);
-	const [inventoryState, setInventoryState] =
-		useState<PackageVizState>(DEFAULT_INVENTORY);
-	const [edgeAState, setEdgeAState] = useState<EdgeVizState>(DEFAULT_EDGE);
-	const [edgeBState, setEdgeBState] = useState<EdgeVizState>(DEFAULT_EDGE);
-	const [edgeCState, setEdgeCState] = useState<EdgeVizState>(DEFAULT_EDGE);
-	const [edgeDState, setEdgeDState] = useState<EdgeVizState>(DEFAULT_EDGE);
-	const [edgeEState, setEdgeEState] = useState<EdgeVizState>(DEFAULT_EDGE);
 	const [vizAnimating, setVizAnimating] = useState(false);
 	const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
 	const resetViz = useCallback(() => {
-		setBillingState(isReward ? DEFAULT_BILLING_REWARD : DEFAULT_BILLING);
-		setNotificationsState(
-			isReward ? DEFAULT_NOTIFICATIONS_REWARD : DEFAULT_NOTIFICATIONS,
-		);
-		setOrdersState(isReward ? DEFAULT_ORDERS_REWARD : DEFAULT_ORDERS);
-		setInventoryState(isReward ? DEFAULT_INVENTORY_REWARD : DEFAULT_INVENTORY);
-		setEdgeAState(isReward ? DEFAULT_EDGE_REWARD : DEFAULT_EDGE);
-		setEdgeBState(isReward ? DEFAULT_EDGE_REWARD : DEFAULT_EDGE);
-		setEdgeCState(isReward ? DEFAULT_EDGE_REWARD : DEFAULT_EDGE);
-		setEdgeDState(isReward ? DEFAULT_EDGE_REWARD : DEFAULT_EDGE);
-		setEdgeEState(isReward ? DEFAULT_EDGE_REWARD : DEFAULT_EDGE);
+		setZoneStates(structuredClone(isReward ? REWARD_ZONES : OBSERVE_ZONES));
+		setEdgeStates({});
 	}, [isReward]);
 
+	useEffect(() => {
+		resetViz();
+	}, [resetViz]);
+
 	const applyFrame = useCallback((frame: AnimFrame) => {
-		if (frame.billing)
-			setBillingState((prev) => ({ ...prev, ...frame.billing }));
-		if (frame.notifications)
-			setNotificationsState((prev) => ({ ...prev, ...frame.notifications }));
-		if (frame.orders) setOrdersState((prev) => ({ ...prev, ...frame.orders }));
-		if (frame.inventory)
-			setInventoryState((prev) => ({ ...prev, ...frame.inventory }));
-		if (frame.edgeA) setEdgeAState((prev) => ({ ...prev, ...frame.edgeA }));
-		if (frame.edgeB) setEdgeBState((prev) => ({ ...prev, ...frame.edgeB }));
-		if (frame.edgeC) setEdgeCState((prev) => ({ ...prev, ...frame.edgeC }));
-		if (frame.edgeD) setEdgeDState((prev) => ({ ...prev, ...frame.edgeD }));
-		if (frame.edgeE) setEdgeEState((prev) => ({ ...prev, ...frame.edgeE }));
+		if (frame.zones) {
+			setZoneStates((prev) => {
+				const next = { ...prev };
+				for (const [key, patch] of Object.entries(frame.zones ?? {})) {
+					next[key] = { ...next[key], ...patch };
+				}
+				return next;
+			});
+		}
+		if (frame.edges) {
+			setEdgeStates((prev) => {
+				const next = { ...prev };
+				for (const [key, patch] of Object.entries(frame.edges ?? {})) {
+					next[key] = { ...DEFAULT_EDGE, ...next[key], ...patch };
+				}
+				return next;
+			});
+		}
 	}, []);
 
 	const runAnimation = useCallback(
-		(frames: AnimFrame[], onDone?: () => void) => {
+		(frames: AnimFrame[]) => {
 			for (const t of timersRef.current) clearTimeout(t);
 			timersRef.current = [];
 			setVizAnimating(true);
@@ -1452,8 +1324,14 @@ export function Level55ModularMonolith({ onComplete }: LevelComponentProps) {
 					applyFrame(frame);
 					if (i === frames.length - 1) {
 						const cleanup = setTimeout(() => {
+							setEdgeStates((prev) => {
+								const next: Record<string, EdgeVizState> = {};
+								for (const [k, v] of Object.entries(prev)) {
+									next[k] = { ...v, active: false };
+								}
+								return next;
+							});
 							setVizAnimating(false);
-							onDone?.();
 						}, ANIMATION_DURATION_MS);
 						timersRef.current.push(cleanup);
 					}
@@ -1470,98 +1348,35 @@ export function Level55ModularMonolith({ onComplete }: LevelComponentProps) {
 		};
 	}, []);
 
-	// ── Hooks ──
 	const discoveryGating = useDiscoveryGating(DISCOVERY_DEFS, {
 		minRequired: DISCOVERY_DEFS.length,
 	});
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
 	const stressTest = useStressTest(STRESS_SCENARIOS);
 
-	// ── Inspector ──
 	const [inspectorData, setInspectorData] = useState<StageInspectorData | null>(
 		null,
 	);
 
-	// ── Flow nodes/edges ──
-	// 2x2 grid: Billing (top-left), Notifications (top-right),
-	//           Orders (bottom-left), Inventory (bottom-right)
-	const flowNodes: Node[] = useMemo(
-		() => [
-			{
-				id: 'billing',
-				type: 'pkg',
-				position: { x: 80, y: 20 },
-				data: billingState,
-			},
-			{
-				id: 'notifications',
-				type: 'pkg',
-				position: { x: 420, y: 20 },
-				data: notificationsState,
-			},
-			{
-				id: 'orders',
-				type: 'pkg',
-				position: { x: 80, y: 220 },
-				data: ordersState,
-			},
-			{
-				id: 'inventory',
-				type: 'pkg',
-				position: { x: 420, y: 220 },
-				data: inventoryState,
-			},
-		],
-		[billingState, notificationsState, ordersState, inventoryState],
-	);
+	const flowNodes: Node[] = useMemo(() => {
+		return Object.entries(POSITIONS).map(([key, position]) => ({
+			id: key,
+			type: 'pack',
+			position,
+			data: { ...(zoneStates[key] ?? OBSERVE_ZONES[key]), zoneKey: key },
+		}));
+	}, [zoneStates]);
 
-	const flowEdges: Edge[] = useMemo(
-		() => [
-			// edgeA: Billing -> Notifications (top row, horizontal)
-			{
-				id: 'edgeA',
-				source: 'billing',
-				target: 'notifications',
-				type: 'pkg',
-				data: edgeAState,
-			},
-			// edgeB: Orders -> Inventory (bottom row, horizontal)
-			{
-				id: 'edgeB',
-				source: 'orders',
-				target: 'inventory',
-				type: 'pkg',
-				data: edgeBState,
-			},
-			// edgeC: Inventory -> Orders (reverse of B, for circular dep)
-			{
-				id: 'edgeC',
-				source: 'inventory',
-				target: 'orders',
-				type: 'pkg',
-				data: edgeCState,
-			},
-			// edgeD: Billing -> Orders (left column, vertical)
-			{
-				id: 'edgeD',
-				source: 'billing',
-				target: 'orders',
-				type: 'pkg',
-				data: edgeDState,
-			},
-			// edgeE: Notifications -> Inventory (right column, vertical / diagonal)
-			{
-				id: 'edgeE',
-				source: 'notifications',
-				target: 'inventory',
-				type: 'pkg',
-				data: edgeEState,
-			},
-		],
-		[edgeAState, edgeBState, edgeCState, edgeDState, edgeEState],
-	);
+	const flowEdges: Edge[] = useMemo(() => {
+		return EDGE_DEFS.map((def) => ({
+			id: def.id,
+			source: def.source,
+			target: def.target,
+			type: 'pack',
+			data: edgeStates[def.id] ?? DEFAULT_EDGE,
+		}));
+	}, [edgeStates]);
 
-	// ── Handlers ──
 	const handleNodeClick = useCallback(
 		(nodeId: string) => {
 			if (phase !== 'observe') return;
@@ -1588,11 +1403,12 @@ export function Level55ModularMonolith({ onComplete }: LevelComponentProps) {
 
 	const handleFireScenario = useCallback(
 		(scenarioId: string) => {
+			if (vizAnimating) return;
 			stressTest.fireRequest(scenarioId);
 			const frames = REWARD_PROBE_FRAMES[scenarioId];
 			if (frames) runAnimation(frames);
 		},
-		[stressTest, runAnimation],
+		[vizAnimating, stressTest, runAnimation],
 	);
 
 	const handleOptionSelect = useCallback(
@@ -1627,33 +1443,30 @@ export function Level55ModularMonolith({ onComplete }: LevelComponentProps) {
 		return {
 			valid: true,
 			message:
-				'Modular monolith configured with enforced boundaries and domain ownership!',
+				'Boundaries enforced: packages with declared dependencies and public APIs, the check gating every PR in CI, and every pack with a named owner.',
 		};
 	};
 
-	// ── Code preview index ──
 	const codePreviewStep = stepper.isCurrentStepCompleted
 		? stepper.currentStep
 		: stepper.currentStep - 1;
 
-	// ── Render ──
 	const isViewingCompletedStep = stepper.isCurrentStepCompleted;
 	const hasNextStep = stepper.currentStep < STEP_DEFS.length - 1;
 	const currentStepType = STEP_TYPES[stepper.currentStep];
 	const currentOptionConfig = OPTION_STEP_CONFIG[stepper.currentStep];
+	const currentTerminal = SHELL_STEP_MAP[stepper.currentStep];
 
-	// ── Center panel content ──
 	function renderCenter() {
-		// Observe phase
 		if (phase === 'observe') {
 			return (
 				<div className="flex-1 flex flex-col">
 					<div className="flex-1 relative">
 						<FlowDiagram
 							edges={flowEdges}
-							edgeTypes={pkgEdgeTypes}
+							edgeTypes={packEdgeTypes}
 							nodes={flowNodes}
-							nodeTypes={pkgNodeTypes}
+							nodeTypes={packNodeTypes}
 							onNodeClick={handleNodeClick}
 						/>
 						{inspectorData && (
@@ -1668,7 +1481,7 @@ export function Level55ModularMonolith({ onComplete }: LevelComponentProps) {
 							disabled={vizAnimating}
 							onProbe={handleProbe}
 							probes={PROBES}
-							title="Package Boundary Probe"
+							title="Team Probe"
 						/>
 					</div>
 					{discoveryGating.isUnlocked && (
@@ -1687,21 +1500,20 @@ export function Level55ModularMonolith({ onComplete }: LevelComponentProps) {
 			);
 		}
 
-		// Build phase
 		if (phase === 'build') {
 			return (
 				<div className="flex-1 overflow-auto p-6">
 					<div className="max-w-2xl mx-auto space-y-4">
-						{/* Step 0: Terminal - bundle add packwerk */}
-						{currentStepType === 'terminal' && stepper.currentStep === 0 && (
+						{currentStepType === 'terminal' && currentTerminal && (
 							<TerminalChoiceStep
-								commands={installPackwerkCommands}
+								commands={currentTerminal.commands}
 								completed={isViewingCompletedStep}
 								description={
 									<p className="text-sm text-muted-foreground">
-										The monolith has 200+ models with no boundaries. You need a
-										tool to define packages and enforce dependency rules. Add
-										the package boundary enforcement gem.
+										{stepper.currentStep === 0 &&
+											'Bring in the tool that reads every constant reference and checks it against declared boundaries. The whole team and CI need it.'}
+										{stepper.currentStep === 1 &&
+											'Scaffold the configuration so packages can be defined.'}
 									</p>
 								}
 								hasNext={hasNextStep}
@@ -1712,39 +1524,12 @@ export function Level55ModularMonolith({ onComplete }: LevelComponentProps) {
 								onCorrect={() => stepper.completeStep()}
 								onNext={stepper.nextStep}
 								onWrong={(fb) => stepper.recordWrongAttempt(fb)}
-								outputLines={installPackwerkOutput}
+								outputLines={currentTerminal.outputLines}
 								stepKey={stepper.currentStep}
-								title="Install Package Boundary Tool"
+								title={STEP_DEFS[stepper.currentStep].title}
 							/>
 						)}
 
-						{/* Step 1: Terminal - bin/packwerk init */}
-						{currentStepType === 'terminal' && stepper.currentStep === 1 && (
-							<TerminalChoiceStep
-								commands={initPackwerkCommands}
-								completed={isViewingCompletedStep}
-								description={
-									<p className="text-sm text-muted-foreground">
-										Packwerk is installed. Initialize it to create the root
-										configuration file that defines which directories to scan
-										for package boundary violations.
-									</p>
-								}
-								hasNext={hasNextStep}
-								initialHistory={buildTerminalHistory(
-									SHELL_STEP_MAP,
-									stepper.currentStep,
-								)}
-								onCorrect={() => stepper.completeStep()}
-								onNext={stepper.nextStep}
-								onWrong={(fb) => stepper.recordWrongAttempt(fb)}
-								outputLines={initPackwerkOutput}
-								stepKey={stepper.currentStep}
-								title="Initialize Package Configuration"
-							/>
-						)}
-
-						{/* OptionCard steps (2-5) */}
 						{currentStepType === 'option' && currentOptionConfig && (
 							<>
 								<h3 className="text-lg font-semibold text-foreground">
@@ -1754,12 +1539,17 @@ export function Level55ModularMonolith({ onComplete }: LevelComponentProps) {
 									{currentOptionConfig.description}
 								</p>
 
-								{isViewingCompletedStep ? (
-									<div className="space-y-2">
-										{shuffleOptions(
-											currentOptionConfig.options,
-											stepper.currentStep,
-										).map((opt) => (
+								<ErrorFeedback
+									message={stepper.lastFeedback}
+									onDismiss={stepper.clearFeedback}
+								/>
+
+								<div className="space-y-2">
+									{shuffleOptions(
+										currentOptionConfig.options,
+										stepper.currentStep,
+									).map((opt) =>
+										isViewingCompletedStep ? (
 											<OptionCard
 												color="violet"
 												disabled={!opt.correct}
@@ -1769,31 +1559,18 @@ export function Level55ModularMonolith({ onComplete }: LevelComponentProps) {
 												selected={opt.correct}
 												size="lg"
 											/>
-										))}
-									</div>
-								) : (
-									<>
-										<div className="space-y-2">
-											{shuffleOptions(
-												currentOptionConfig.options,
-												stepper.currentStep,
-											).map((opt) => (
-												<OptionCard
-													color="violet"
-													key={opt.id}
-													mono
-													name={opt.name}
-													onClick={() => handleOptionSelect(opt.id)}
-													size="lg"
-												/>
-											))}
-										</div>
-										<ErrorFeedback
-											message={stepper.lastFeedback}
-											onDismiss={stepper.clearFeedback}
-										/>
-									</>
-								)}
+										) : (
+											<OptionCard
+												color="violet"
+												key={opt.id}
+												mono
+												name={opt.name}
+												onClick={() => handleOptionSelect(opt.id)}
+												size="lg"
+											/>
+										),
+									)}
+								</div>
 
 								{isViewingCompletedStep && (
 									<div className="flex justify-end">
@@ -1818,15 +1595,14 @@ export function Level55ModularMonolith({ onComplete }: LevelComponentProps) {
 			);
 		}
 
-		// Reward phase
 		return (
 			<div className="flex-1 flex flex-col">
 				<div className="flex-1 relative">
 					<FlowDiagram
 						edges={flowEdges}
-						edgeTypes={pkgEdgeTypes}
+						edgeTypes={packEdgeTypes}
 						nodes={flowNodes}
-						nodeTypes={pkgNodeTypes}
+						nodeTypes={packNodeTypes}
 					/>
 				</div>
 				<div className="px-6 pb-4">
@@ -1850,24 +1626,23 @@ export function Level55ModularMonolith({ onComplete }: LevelComponentProps) {
 		<LevelLayout>
 			<LeftPanel>
 				<div className="flex flex-col h-full overflow-y-auto">
-					{/* Scenario text */}
 					<div className="p-4 border-b border-border space-y-3">
 						<h3 className="text-sm font-semibold text-foreground mb-2">
 							Scenario
 						</h3>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							Your monolith has 200+ models with no boundaries. A billing change
-							broke notifications because Billing calls Notification internals
-							directly. Orders and Inventory have a circular dependency. No one
-							owns any domain.
+							Twelve engineers, two hundred files, no internal boundaries. A
+							notifications rename broke billing receipts in production, an
+							inventory hotfix is stuck in a circular review, and a 2am incident
+							lost forty minutes to "who owns this file?"
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							Carve the tangle into domain packages with enforced dependencies,
-							privacy boundaries, and clear ownership.
+							a public API surface, a boundary check that gates every pull
+							request in CI, and a named owner for every pack.
 						</p>
 					</div>
 
-					{/* Observe: discovery checklist */}
 					{phase === 'observe' && (
 						<div className="p-4 border-b border-border">
 							<DiscoveryChecklist
@@ -1878,7 +1653,6 @@ export function Level55ModularMonolith({ onComplete }: LevelComponentProps) {
 						</div>
 					)}
 
-					{/* Build: step progress */}
 					{phase === 'build' && (
 						<div className="p-4 border-b border-border">
 							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
@@ -1892,7 +1666,6 @@ export function Level55ModularMonolith({ onComplete }: LevelComponentProps) {
 						</div>
 					)}
 
-					{/* Reward: boundary counters */}
 					{phase === 'reward' && (
 						<>
 							<div className="p-4 border-b border-border">
@@ -1901,15 +1674,15 @@ export function Level55ModularMonolith({ onComplete }: LevelComponentProps) {
 								</div>
 								<div className="space-y-2 text-sm">
 									<div className="flex items-center gap-2">
-										<Shield className="w-4 h-4 text-success" />
+										<GitPullRequest className="w-4 h-4 text-warning" />
 										<span className="text-foreground">
-											Valid: declared dependency + public API
+											Blocked = the PR fails in CI, before merge
 										</span>
 									</div>
 									<div className="flex items-center gap-2">
-										<ShieldAlert className="w-4 h-4 text-destructive" />
+										<Users className="w-4 h-4 text-success" />
 										<span className="text-foreground">
-											Violation: private access or undeclared dep
+											Every pack has a named owning team
 										</span>
 									</div>
 								</div>
@@ -1926,9 +1699,7 @@ export function Level55ModularMonolith({ onComplete }: LevelComponentProps) {
 										<div className="text-2xl font-bold text-destructive">
 											{stressTest.blockedCount}
 										</div>
-										<div className="text-xs text-destructive/70">
-											Violations
-										</div>
+										<div className="text-xs text-destructive/70">Blocked</div>
 									</div>
 								</div>
 							</div>
@@ -1961,7 +1732,7 @@ export function Level55ModularMonolith({ onComplete }: LevelComponentProps) {
 								? STEP_DEFS.length - 1
 								: -1,
 					)}
-					learningGoal="Packwerk enforces package boundaries in a modular monolith. Each domain gets its own package with explicit dependencies, privacy APIs, and code ownership. CI validates boundaries automatically with bin/packwerk check."
+					learningGoal="Boundaries inside one app: each domain becomes a package with a declared dependency list and a small public surface, a static check reads every constant reference and fails the pull request that crosses a line, and ownership becomes a file lookup instead of folklore. The check runs at CI time; production never meets the mistake."
 				/>
 			</RightPanel>
 		</LevelLayout>
