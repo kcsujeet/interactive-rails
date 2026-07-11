@@ -201,6 +201,31 @@ const PROBE_DISCOVERY_MAP: Record<string, string> = {
 	'check-memory': 'memory-spike',
 };
 
+// Per-probe visualization: each probe drives a DISTINCT cascade + readout.
+// get-all-products = the payload facet; get-mobile = the client facet
+// (slow 3G cascade ending in a crash); check-memory = the server facet
+// (fast allocation, heap readout).
+export const PROBE_VIZ_MAP: Record<
+	string,
+	{ speedFactor: number; doneText: string; doneDetail: string }
+> = {
+	'get-all-products': {
+		speedFactor: 1,
+		doneText: '12MB / 50,000 records in one response',
+		doneDetail: 'No pagination. No Link headers. No way to ask for less.',
+	},
+	'get-mobile': {
+		speedFactor: 2.5,
+		doneText: '45s on 3G, then JSON.parse crash',
+		doneDetail: '50,000 objects hydrated in phone memory: app killed.',
+	},
+	'check-memory': {
+		speedFactor: 0.6,
+		doneText: '~180MB heap per request',
+		doneDetail: '2.8M live objects: 50K products + 50K users, every call.',
+	},
+};
+
 // ──────────────────────────────────────────────
 // Zone inspector data (observe phase)
 // ──────────────────────────────────────────────
@@ -801,6 +826,7 @@ export function Level26Pagination({ onComplete }: LevelComponentProps) {
 	);
 	const [inspectedZones, setInspectedZones] = useState<Set<string>>(new Set());
 	const [firedProbeCount, setFiredProbeCount] = useState(0);
+	const [lastProbeId, setLastProbeId] = useState<string | null>(null);
 
 	// ── Visualization state ──
 	const [vizMode, setVizMode] = useState<VizMode>('idle');
@@ -817,16 +843,17 @@ export function Level26Pagination({ onComplete }: LevelComponentProps) {
 
 	/** Run the red cascade animation: 20 bars cascade sequentially top-to-bottom */
 	const runCascade = useCallback(
-		(onDone?: () => void): void => {
+		(speedFactor: number, onDone?: () => void): void => {
 			clearCascadeTimers();
 			setVizMode('cascade');
 			setCascadeProgress(0);
 			setActiveBar(null);
 			setVizAnimating(true);
 
-			// Cascade across 20 bars
+			// Cascade across 20 bars; speedFactor stretches the cascade so the
+			// 3G probe visibly crawls while the server-heap probe races.
 			const startDelay = Math.round(ANIMATION_DURATION_MS * 0.15);
-			const cascadeDuration = ANIMATION_DURATION_MS;
+			const cascadeDuration = Math.round(ANIMATION_DURATION_MS * speedFactor);
 			const perBarDelay = Math.round(cascadeDuration / TOTAL_BARS);
 
 			for (let bar = 1; bar <= TOTAL_BARS; bar++) {
@@ -927,9 +954,11 @@ export function Level26Pagination({ onComplete }: LevelComponentProps) {
 	const handleProbe = useCallback(
 		(probeId: string) => {
 			setFiredProbeCount((c) => c + 1);
+			setLastProbeId(probeId);
 
-			// Run cascade animation, trigger discovery after it completes
-			runCascade(() => {
+			// Each probe runs its OWN cascade shape + readout (PROBE_VIZ_MAP).
+			const viz = PROBE_VIZ_MAP[probeId];
+			runCascade(viz?.speedFactor ?? 1, () => {
 				const discoveryId = PROBE_DISCOVERY_MAP[probeId];
 				if (discoveryId) {
 					discoveryGating.discover(discoveryId);
@@ -1054,9 +1083,10 @@ export function Level26Pagination({ onComplete }: LevelComponentProps) {
 				};
 			}
 			if (isCascadeDone) {
+				const viz = lastProbeId ? PROBE_VIZ_MAP[lastProbeId] : null;
 				return {
-					text: '12MB / 50,000 records',
-					detail: 'No pagination. No Link headers.',
+					text: viz?.doneText ?? '12MB / 50,000 records',
+					detail: viz?.doneDetail ?? 'No pagination. No Link headers.',
 					variant: 'danger',
 				};
 			}

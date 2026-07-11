@@ -51,12 +51,11 @@ AuditLog.where("created_at < ?", 1.year.ago).count
 # => 1,234,567
 
 # Nobody runs cleanup because:
-# 1. There's no automated scheduling
-# 2. Cron jobs are fragile and not tracked
-# 3. No visibility into job success/failure
+# 1. Nothing runs it automatically
+# 2. The one heroic manual cleanup last quarter was never repeated
+# 3. Nobody can tell whether cleanup ever ran, or when
 
-# The schedule should live inside the app, next to the jobs it runs
-# to automate these maintenance operations.`,
+# Expired rows only ever accumulate.`,
 		goal: 'Set up recurring background tasks for automated data maintenance.',
 		thresholds: {},
 	},

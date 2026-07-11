@@ -16,7 +16,7 @@
  *   Step 5: Add cross-shard aggregation service (OptionCard)
  *
  * Phase 3 (ADVANTAGE - reward): Topology changes to 3 tenants -> ShardResolver -> 3 shards.
- *   Stress test fires tenant writes, cross-shard queries, migrations, and wrong-shard lookups.
+ *   Stress test fires tenant writes, cross-shard queries, migrations, and a shard-key-less lookup (refused, not guessed).
  */
 
 import {
@@ -214,7 +214,7 @@ const DISCOVERY_DEFS: DiscoveryDef[] = [
 
 // ─── Probe definitions ────────────────────────────────────────────────
 
-const PROBES: ProbeConfig[] = [
+export const PROBES: ProbeConfig[] = [
 	{
 		id: 'write-latency',
 		label: 'Test INSERT latency',
@@ -236,11 +236,11 @@ const PROBES: ProbeConfig[] = [
 			},
 		],
 		story: [
-			'Acme Corp places an order.',
-			'The INSERT must acquire a lock on the orders table.',
-			'But Globex and Initech are also writing concurrently.',
-			'The shared index spans 2 billion rows across all tenants.',
-			'A simple INSERT now takes 200ms+ instead of 5ms.',
+			'A customer at Acme Corp clicks "Place order".',
+			'The INSERT waits its turn: Globex and Initech customers are writing to the same table at the same moment.',
+			'Every write also updates a shared index spanning 2 billion rows.',
+			'5ms six months ago; 214ms today; climbing every week.',
+			'Checkout is slowing for every tenant simultaneously, and no single tenant is doing anything wrong.',
 		],
 	},
 	{
@@ -264,11 +264,11 @@ const PROBES: ProbeConfig[] = [
 			},
 		],
 		story: [
-			'The orders index is fragmented after months of writes.',
-			'You attempt a concurrent reindex to fix performance.',
-			'With 2.1 billion rows, the rebuild takes over 4 hours.',
-			'The maintenance window is only 2 hours.',
-			'Index maintenance becomes impossible at this scale.',
+			'Order lookups have been getting slower for weeks, and rebuilding the fragmented index is the fix.',
+			'With 2.1 billion rows in one table, the rebuild needs 4+ hours; the nightly quiet window is 2.',
+			'So the fix cannot be applied. Tonight, or any night.',
+			'Checkout and order history stay slow indefinitely, for every tenant at once.',
+			'The table has outgrown the ability to maintain it.',
 		],
 	},
 	{
@@ -292,11 +292,11 @@ const PROBES: ProbeConfig[] = [
 			},
 		],
 		story: [
-			'You run the nightly backup as usual.',
-			'pg_dump starts serializing the 2B-row orders table.',
-			'After 6 hours, the backup file exceeds available disk space.',
-			'The backup fails. No complete backup exists.',
-			'If the primary fails, point-in-time recovery is impossible.',
+			'The nightly backup runs as usual: a full copy of the database, the safety net under every tenant.',
+			'Six hours in, the 2-billion-row orders table no longer fits on the backup disk. The dump dies.',
+			'There is now no complete safety copy of the business.',
+			'If the primary database dies tonight, every tenant loses order history: Acme, Globex, Initech, all of them, at once.',
+			'One giant database means one giant, currently-unprotected point of failure.',
 		],
 	},
 	{
@@ -311,24 +311,24 @@ const PROBES: ProbeConfig[] = [
 			},
 			{ text: '', color: 'muted' },
 			{
-				text: '84M dead tuples accumulating. Autovacuum takes 18 hours.',
+				text: "84M dead rows: leftovers of updates/deletes Postgres' cleanup (vacuum) reclaims.",
 				color: 'red',
 			},
 			{
-				text: 'Table bloat: 340GB actual vs 220GB live data.',
+				text: 'Cleanup needs 18h per pass and cannot keep up: 120GB of wasted space drags every query.',
 				color: 'yellow',
 			},
 			{
-				text: 'Transaction ID wraparound risk in 2 weeks.',
+				text: 'If cleanup falls fully behind, Postgres will refuse writes to protect the data.',
 				color: 'red',
 			},
 		],
 		story: [
-			'You check the vacuum status on the orders table.',
-			'84 million dead tuples have accumulated.',
-			'Autovacuum started 3 days ago but cannot finish in time.',
-			'The table is 55% bloated (340GB vs 220GB live data).',
-			'Transaction ID wraparound will force a full-table freeze soon.',
+			"Every update and delete leaves a dead row behind; PostgreSQL's vacuum process cleans them up. Usually invisibly.",
+			'At 2 billion rows the cleanup pass takes 18 hours and falls further behind every day: 84 million dead rows and 120GB of wasted space so far, dragged through every query.',
+			'PostgreSQL has a hard protection line: if cleanup falls too far behind, it will refuse operations that write, to prevent data loss (reads keep working).',
+			'That line is about two weeks away. Crossing it means no new orders for ANY tenant until an 18-hour cleanup finishes.',
+			'The table is too big to clean. Splitting it is the only way the math works again.',
 		],
 	},
 ];
@@ -868,63 +868,30 @@ const REWARD_MIGRATE_FRAMES: AnimFrame[] = [
 	},
 ];
 
-const REWARD_WRONG_SHARD_FRAMES: AnimFrame[] = [
+const REWARD_MISSING_KEY_FRAMES: AnimFrame[] = [
 	{
-		tenantB: {
-			label: 'Globex Inc',
-			flash: 'amber',
-			sublabel: 'SELECT * FROM orders...',
-		},
 		resolver: {
 			label: 'ShardResolver',
 			flash: 'amber',
-			sublabel: 'company_id=2 -> shard_one?',
-		},
-		edgeB: {
-			active: true,
-			reverse: false,
-			label: 'Globex query',
-			dotColor: '#f59e0b',
+			sublabel: 'lookup by bare order id: no company_id',
+			badge: 'NO KEY',
 		},
 	},
 	{
 		resolver: {
 			label: 'ShardResolver',
 			flash: 'red',
-			sublabel: 'Wrong shard for tenant B!',
-		},
-		shardOne: {
-			label: 'shard_one',
-			flash: 'red',
-			sublabel: '0 rows found',
-			badge: 'MISS',
-		},
-		edgeRA: {
-			active: true,
-			reverse: false,
-			label: 'SELECT -> wrong shard',
-			dotColor: '#ef4444',
+			sublabel: 'cannot route: refusing a blind 3-shard scan',
+			badge: 'REJECTED',
 		},
 	},
 	{
-		tenantB: {
-			label: 'Globex Inc',
-			flash: 'red',
-			sublabel: 'Empty result set',
-		},
 		resolver: {
 			label: 'ShardResolver',
-			flash: 'red',
-			sublabel: 'Shard key mismatch',
+			flash: 'green',
+			sublabel: 'caller fixed: passes company_id, routed to shard_two',
+			badge: 'ROUTED',
 		},
-		shardOne: {
-			label: 'shard_one',
-			flash: 'idle',
-			sublabel: 'Acme Corp data',
-			badge: null,
-		},
-		edgeB: { active: false, label: '' },
-		edgeRA: { active: false, label: '' },
 	},
 ];
 
@@ -1060,14 +1027,14 @@ const REWARD_VACUUM_FRAMES: AnimFrame[] = [
 	},
 ];
 
-const REWARD_PROBE_FRAMES: Record<string, AnimFrame[]> = {
+export const REWARD_PROBE_FRAMES: Record<string, AnimFrame[]> = {
 	'tenant-a-write': REWARD_TENANT_A_FRAMES,
 	'tenant-b-write': REWARD_TENANT_B_FRAMES,
 	'tenant-c-write': REWARD_TENANT_C_FRAMES,
 	'cross-shard-query': REWARD_CROSS_SHARD_FRAMES,
 	'write-latency': REWARD_WRITE_LATENCY_FRAMES,
 	'migrate-all': REWARD_MIGRATE_FRAMES,
-	'wrong-shard': REWARD_WRONG_SHARD_FRAMES,
+	'missing-shard-key': REWARD_MISSING_KEY_FRAMES,
 	'index-rebuild': REWARD_INDEX_REBUILD_FRAMES,
 	'backup-fails': REWARD_BACKUP_FRAMES,
 	'vacuum-behind': REWARD_VACUUM_FRAMES,
@@ -1117,7 +1084,7 @@ const STAGE_DISCOVERY_MAP: Record<string, string> = {
 
 // ─── Stress test scenarios (reward) ───────────────────────────────────
 
-const STRESS_SCENARIOS: StressScenario[] = [
+export const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'tenant-a-write',
 		label: 'Acme writes to shard_one',
@@ -1173,12 +1140,13 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		expectedResult: 'allowed',
 	},
 	{
-		id: 'wrong-shard',
-		label: 'Query wrong shard for tenant B',
-		description: 'Globex data queried on shard_one returns empty',
+		id: 'missing-shard-key',
+		label: 'Query without the shard key',
+		description:
+			'No company_id, no route: the resolver refuses instead of guessing',
 		method: 'GET',
-		path: '/api/v1/orders?shard=shard_one (tenant: Globex)',
-		actor: 'globex',
+		path: '/api/v1/orders/8412 (no tenant context)',
+		actor: 'internal report',
 		expectedResult: 'blocked',
 	},
 	{
@@ -1348,7 +1316,7 @@ const RESOLVER_OPTIONS: StepOption[] = [
 
 // ─── Step 4: Move Order (OptionCard) ──────────────────────────────────
 
-const MOVE_ORDER_OPTIONS: StepOption[] = [
+export const MOVE_ORDER_OPTIONS: StepOption[] = [
 	{
 		id: 'wrong-concern',
 		name: 'class Order < ApplicationRecord\n  include Shardable\nend',
@@ -1366,7 +1334,7 @@ const MOVE_ORDER_OPTIONS: StepOption[] = [
 		name: 'class Order < ApplicationRecord\n  connects_to shards: {\n    shard_one: { writing: :shard_one }\n  }\nend',
 		correct: false,
 		feedback:
-			'Duplicating connects_to on every model is unmaintainable. Inherit from ShardRecord so the shard configuration lives in one place.',
+			'Duplicating connection wiring on every model is unmaintainable, and the two copies will drift. The shard configuration should live in exactly one place that every sharded model shares.',
 	},
 ];
 

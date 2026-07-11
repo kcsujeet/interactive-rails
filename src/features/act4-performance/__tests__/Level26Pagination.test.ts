@@ -789,3 +789,48 @@ describe('Level 28: Pagination', () => {
 		});
 	});
 });
+
+// ──────────────────────────────────────────────
+// Probe visual differentiation (2026-07-11 deep pass)
+// The audit found all three probes ran the identical cascade. Each
+// probe must now drive a distinct visible state. These import the
+// component's exported map (wiring cannot be verified from mirrors).
+// ──────────────────────────────────────────────
+
+import { PROBE_VIZ_MAP } from '../components/level-26-pagination/Level26Pagination';
+
+describe('probe visual differentiation', () => {
+	test('every probe has a viz entry and no orphans exist', () => {
+		for (const probe of PROBES) {
+			expect(
+				PROBE_VIZ_MAP[probe.id],
+				`probe "${probe.id}" has no viz entry`,
+			).toBeDefined();
+		}
+		for (const key of Object.keys(PROBE_VIZ_MAP)) {
+			expect(
+				PROBES.some((p) => p.id === key),
+				`viz entry "${key}" has no probe`,
+			).toBe(true);
+		}
+	});
+
+	test('each probe produces a distinct visible state', () => {
+		const serialized = Object.values(PROBE_VIZ_MAP).map((v) =>
+			JSON.stringify(v),
+		);
+		expect(new Set(serialized).size).toBe(serialized.length);
+	});
+
+	test('each probe teaches its own facet: payload, client crash, server heap', () => {
+		expect(PROBE_VIZ_MAP['get-all-products'].doneText).toContain('12MB');
+		expect(PROBE_VIZ_MAP['get-mobile'].doneText.toLowerCase()).toContain(
+			'crash',
+		);
+		expect(PROBE_VIZ_MAP['check-memory'].doneText).toContain('180MB');
+		// The mobile probe cascades slower (3G) than the server heap check.
+		expect(PROBE_VIZ_MAP['get-mobile'].speedFactor).toBeGreaterThan(
+			PROBE_VIZ_MAP['check-memory'].speedFactor,
+		);
+	});
+});

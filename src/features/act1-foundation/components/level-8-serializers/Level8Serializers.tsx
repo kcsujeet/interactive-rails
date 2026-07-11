@@ -639,7 +639,7 @@ const REWARD_SCENARIO_ACTIVE_EDGES: readonly string[] = [
 // Code preview helper
 // ──────────────────────────────────────────────
 
-function getCodeFiles(
+export function getCodeFiles(
 	phase: Phase,
 	furthestStep: number,
 	selectedAttrs: string[],
@@ -743,7 +743,8 @@ end`,
   def create
     product = Product.new(params[:product].to_unsafe_h)
     if product.save
-      render json: product, status: :created
+      render json: ProductSerializer.new(product).serializable_hash.to_json,
+             status: :created
     else
       render json: { errors: product.errors }, status: :unprocessable_entity
     end
@@ -752,7 +753,7 @@ end`,
   def update
     product = Product.find(params[:id])
     if product.update(params[:product].to_unsafe_h)
-      render json: product
+      render json: ProductSerializer.new(product).serializable_hash.to_json
     else
       render json: { errors: product.errors }, status: :unprocessable_entity
     end
@@ -763,7 +764,7 @@ end`,
     head :no_content
   end
 end`,
-			highlight: [3, 8],
+			highlight: [3, 8, 14, 24],
 		});
 	}
 

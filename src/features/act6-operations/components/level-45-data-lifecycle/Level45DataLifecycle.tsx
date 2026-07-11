@@ -595,7 +595,7 @@ const STEP_DEFS = [
 	{ id: 'archiving-job', title: 'Create Archiving Job' },
 	{ id: 'transparent-reads', title: 'Transparent Archive Reads' },
 	{ id: 'destruction-policy', title: 'Data Destruction Policy' },
-	{ id: 'schedule-job', title: 'Schedule with Solid Queue' },
+	{ id: 'schedule-job', title: 'Set the Cleanup Cadence' },
 ];
 
 const TEMPERATURE_POLICY_OPTIONS = [
@@ -804,34 +804,28 @@ end`,
 	},
 ];
 
+// The MECHANISM (config/recurring.yml, versioned with the app) was settled
+// in the previous level; re-quizzing it here would be concept overlap. The
+// lifecycle decision is CADENCE: how often archiving and destruction run.
 const SCHEDULE_JOB_OPTIONS = [
 	{
-		id: 'wrong-cron-manual',
-		label: 'Add a crontab entry on the server',
-		code: `# crontab -e
-0 2 * * * cd /app && bin/rails runner \\
-  "ArchiveOrdersJob.perform_now"`,
+		id: 'wrong-five-minutes',
+		label: 'Run both jobs every five minutes',
+		code: `# config/recurring.yml
+archive_orders:
+  class: ArchiveOrdersJob
+  schedule: every 5 minutes
+
+destroy_expired_data:
+  class: DestroyExpiredDataJob
+  schedule: every 5 minutes`,
 		correct: false,
 		feedback:
-			'Manual crontab entries live outside the Rails app and are not version-controlled. If the server is replaced, the schedule is silently lost. The schedule belongs inside the app, in code review like everything else.',
-	},
-	{
-		id: 'wrong-sleep-loop',
-		label: 'Run an infinite loop in a background thread',
-		code: `# config/initializers/archiver.rb
-Thread.new do
-  loop do
-    ArchiveOrdersJob.perform_now
-    sleep 24.hours
-  end
-end`,
-		correct: false,
-		feedback:
-			'A background thread with sleep is fragile: it dies on every deploy, has no error handling, and no visibility. You already run reliable job infrastructure; scheduling belongs there.',
+			'Constant churn: archive batches and deletes would compete with peak traffic for locks all day. Batching made a nightly window sufficient, and destructive work should run when the store is quietest.',
 	},
 	{
 		id: 'correct',
-		label: 'Configure Solid Queue recurring task',
+		label: 'Archive nightly at 2am; destroy weekly on Sunday at 3am',
 		code: `# config/recurring.yml
 archive_orders:
   class: ArchiveOrdersJob
@@ -841,6 +835,21 @@ destroy_expired_data:
   class: DestroyExpiredDataJob
   schedule: every sunday at 3am`,
 		correct: true,
+	},
+	{
+		id: 'wrong-destroy-hourly',
+		label: 'Archive nightly at 2am; destroy hourly right behind it',
+		code: `# config/recurring.yml
+archive_orders:
+  class: ArchiveOrdersJob
+  schedule: every day at 2am
+
+destroy_expired_data:
+  class: DestroyExpiredDataJob
+  schedule: every hour`,
+		correct: false,
+		feedback:
+			'Destruction is the irreversible step, so its cadence should be slow and observable. A weekly window means a bad filter deletes at most one batch of mistakes, while backups and audit logs are still fresh enough to catch it.',
 	},
 ];
 
@@ -1859,7 +1868,7 @@ export function Level45DataLifecycle({ onComplete }: LevelComponentProps) {
 								{stepper.currentStep === 4 &&
 									'How should data past the compliance retention period be handled?'}
 								{stepper.currentStep === 5 &&
-									'How should the archiving and destruction jobs run on schedule?'}
+									'The scheduling mechanism was settled last level: config/recurring.yml, versioned with the app. The lifecycle question is cadence: how often should archiving and destruction each run?'}
 							</p>
 						</div>
 						{stepper.lastFeedback && (

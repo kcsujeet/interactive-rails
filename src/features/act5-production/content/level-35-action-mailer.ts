@@ -55,7 +55,7 @@ export const level35ActionMailer: Level = {
 **Action Mailer:**
 - Mailers are like controllers for email (each method = one email template)
 - Templates live in \`app/views/mailer_name/\`
-- Use \`deliver_later\` to send via background job (never \`deliver_now\` in production)
+- Use \`deliver_later\` to enqueue delivery through Active Job (never \`deliver_now\` in production). In development the default in-process adapter sends it immediately; in production the queued job needs a running worker, which is exactly what the next level builds.
 - Preview mailers in the browser at \`/rails/mailers\` during development
 - Test with \`assert_emails\` and \`assert_enqueued_emails\`
 

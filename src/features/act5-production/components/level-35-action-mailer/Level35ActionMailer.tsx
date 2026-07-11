@@ -485,7 +485,7 @@ const OPTION_STEP_CONFIG: Record<
 	4: {
 		title: 'Create the Controller',
 		description:
-			'The PasswordResetsController#create action receives an email address, looks up the user, and sends the reset email. It must not leak whether the email exists and must not block the request during delivery.',
+			'The PasswordResetsController#create action receives an email address, looks up the user, and sends the reset email. It must not leak whether the email exists and must not block the request during delivery. (Deferred delivery goes through Active Job: in development the in-process adapter sends it; running a real job worker in production is the next level.)',
 		options: CONTROLLER_OPTIONS,
 	},
 };
@@ -832,9 +832,9 @@ export function Level35ActionMailer({ onComplete }: LevelComponentProps) {
 			{
 				id: 'mailer',
 				label: 'Mailer',
-				sublabel: wasBlocked ? 'skipped' : 'deliver_later',
+				sublabel: wasBlocked ? 'skipped' : 'deliver_later (enqueued)',
 				variant: wasBlocked ? ('danger' as const) : ('active' as const),
-				badge: wasBlocked ? 'BLOCKED' : 'SENT',
+				badge: wasBlocked ? 'BLOCKED' : 'QUEUED',
 			},
 			{
 				id: 'response',

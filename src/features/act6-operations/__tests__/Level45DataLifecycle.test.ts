@@ -90,7 +90,7 @@ const STEP_DEFS = [
 	{ id: 'archiving-job', title: 'Create Archiving Job' },
 	{ id: 'transparent-reads', title: 'Transparent Archive Reads' },
 	{ id: 'destruction-policy', title: 'Data Destruction Policy' },
-	{ id: 'schedule-job', title: 'Schedule with Solid Queue' },
+	{ id: 'schedule-job', title: 'Set the Cleanup Cadence' },
 ];
 
 const TEMPERATURE_POLICY_OPTIONS = [
@@ -208,25 +208,28 @@ const DESTRUCTION_POLICY_OPTIONS = [
 	},
 ];
 
-const SCHEDULE_JOB_OPTIONS = [
+// Step 5 no longer re-teaches the previous level's crontab-vs-recurring.yml
+// choice (the mechanism is settled there). It is a lifecycle CADENCE
+// decision expressed in recurring.yml.
+const CLEANUP_CADENCE_OPTIONS = [
 	{
-		id: 'wrong-cron-manual',
-		label: 'Add a crontab entry on the server',
+		id: 'wrong-five-minutes',
+		label: 'Run both jobs every five minutes',
 		correct: false,
 		feedback:
-			'Manual crontab entries live outside the Rails app and are not version-controlled. If the server is replaced, the schedule is lost. Use Solid Queue for Rails-managed scheduling.',
-	},
-	{
-		id: 'wrong-sleep-loop',
-		label: 'Run an infinite loop in a background thread',
-		correct: false,
-		feedback:
-			'A background thread with sleep is fragile. It dies on deploy, has no error handling, and no visibility. Use Solid Queue recurring tasks for reliable scheduling.',
+			'Constant churn: archive batches and deletes would compete with peak traffic for locks all day. Batching made a nightly window sufficient, and destructive work should run when the store is quietest.',
 	},
 	{
 		id: 'correct',
-		label: 'Configure Solid Queue recurring task',
+		label: 'Archive nightly at 2am; destroy weekly on Sunday at 3am',
 		correct: true,
+	},
+	{
+		id: 'wrong-destroy-hourly',
+		label: 'Archive nightly at 2am; destroy hourly right behind it',
+		correct: false,
+		feedback:
+			'Destruction is the irreversible step, so its cadence should be slow and observable. A weekly window means a bad filter deletes at most one batch of mistakes, while backups and audit logs are still fresh enough to catch it.',
 	},
 ];
 
@@ -248,7 +251,7 @@ const ALL_OPTION_SETS = [
 		name: 'Destruction Policy',
 		options: DESTRUCTION_POLICY_OPTIONS,
 	},
-	{ step: 5, name: 'Schedule Job', options: SCHEDULE_JOB_OPTIONS },
+	{ step: 5, name: 'Cleanup Cadence', options: CLEANUP_CADENCE_OPTIONS },
 ];
 
 const STRESS_SCENARIOS = [
@@ -444,7 +447,7 @@ describe('Level 46: Data Lifecycle', () => {
 			expect(STEP_DEFS[2].title).toBe('Create Archiving Job');
 			expect(STEP_DEFS[3].title).toBe('Transparent Archive Reads');
 			expect(STEP_DEFS[4].title).toBe('Data Destruction Policy');
-			expect(STEP_DEFS[5].title).toBe('Schedule with Solid Queue');
+			expect(STEP_DEFS[5].title).toBe('Set the Cleanup Cadence');
 		});
 	});
 
@@ -606,5 +609,13 @@ describe('Level 46: Data Lifecycle', () => {
 				}
 			}
 		});
+	});
+});
+
+describe('no concept overlap with the recurring-jobs level', () => {
+	test('step 5 does not re-teach crontab-vs-recurring.yml', () => {
+		const text = JSON.stringify(CLEANUP_CADENCE_OPTIONS).toLowerCase();
+		expect(text.includes('crontab')).toBe(false);
+		expect(text.includes('infinite loop')).toBe(false);
 	});
 });
