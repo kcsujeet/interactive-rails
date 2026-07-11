@@ -121,8 +121,6 @@ const CROSS_REFERENCES: Record<string, string[]> = {
 		['Background Jobs'],
 	'act6-operations/components/level-46-error-monitoring/Level46ErrorMonitoring.tsx':
 		['Middleware & Rack'],
-	'act6-operations/components/level-47-observability/Level47Observability.tsx':
-		['Middleware & Rack'],
 	'act6-operations/components/level-48-api-versioning/Level48APIVersioning.tsx':
 		[
 			'Routes & Request Lifecycle',

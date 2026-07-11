@@ -3,33 +3,50 @@
  *
  * Sequential phase flow: observe -> build -> reward
  *
- * Phase 1 (WHY - observe): Split-view visualization with 4 nodes:
- *   unstructured-log (active, scrolling text), structured-log (grayed),
- *   trace-timeline (grayed), health-endpoint (grayed/missing).
- *   Probes reveal lack of structured search, correlation, tracing, and health checks.
+ * Redesign (2026-07-11). The level's thesis: the error tracker (built at
+ * the error-monitoring level) catches what BREAKS; observability is for
+ * what is silently wrong (slow, stuck, degraded) and raises nothing.
+ * Every probe is an incident where the error tracker stays quiet.
  *
- * Phase 2 (HOW - build): 6 steps (2 terminal + 4 OptionCard)
- *   Step 0: bundle add lograge (terminal)
- *   Step 1: Configure Lograge JSON formatter (OptionCard)
- *   Step 2: Add custom log fields (OptionCard)
- *   Step 3: bundle add opentelemetry-sdk opentelemetry-instrumentation-all (terminal)
- *   Step 4: Configure OpenTelemetry with use_all (OptionCard)
- *   Step 5: Add health check endpoint (OptionCard)
+ * What the old version got wrong (audit findings):
+ *   - Observe was artifact boxes: "Structured Logs (Not configured)",
+ *     "Trace Timeline (Not configured)", "Health Endpoint (Missing
+ *     404)". Three placeholder nodes for tools the build installs
+ *     (show-only-what-exists violation) and zero customer damage.
+ *   - Frames claimed /up returns 404. Rails 8 ships /up
+ *     (Rails::HealthController): 200 if the app booted, and per its API
+ *     docs it "does not reflect the status of all of your application's
+ *     dependencies, such as the database". The docs suggest replacing
+ *     the route for app-specific checks, which is exactly step 5.
+ *   - Kubernetes / microservices / cross-service vocabulary in a
+ *     monolith; "Redis: ok" in a Solid-stack app; tenant_id in the
+ *     custom payload (multi-tenancy is a later level).
+ *   - The correct health answer called HealthCheckService, which was
+ *     never shown anywhere. It is now real, verified code.
  *
- * Phase 3 (ADVANTAGE - reward): Visualization transforms: structured logs (JSON,
- *   highlighted), trace timeline showing spans, health endpoint green.
- *   6 stress scenarios (all allowed). Diagnosed counter (green).
+ * Observe topology (all of it exists): Customers -> Rails App ->
+ * production.log; Solid Queue worker (running since the background-jobs
+ * level); uptime monitor pinging /up. The trace timeline appears only
+ * in reward, because the build creates it.
+ *
+ * Doc sources (fetched 2026-07-10):
+ *   - api.rubyonrails.org Rails::HealthController (/up semantics)
+ *   - lograge README (enabled, Formatters::Json, custom_payload
+ *     receives the controller instance)
+ *   - opentelemetry.io Ruby getting-started (sdk +
+ *     instrumentation-all gems, SDK.configure with service_name and
+ *     use_all(), config/initializers/opentelemetry.rb)
+ *   - solid_queue source: SolidQueue::Process model heartbeats via
+ *     touch(:last_heartbeat_at); README: "Processes send heartbeats,
+ *     and the supervisor checks and prunes processes with expired
+ *     heartbeats" (process_alive_threshold defaults to 5 minutes)
+ *   - rubygems: lograge 0.15.0, opentelemetry-sdk 1.12.1,
+ *     opentelemetry-instrumentation-all 0.94.0
  */
 
-import {
-	BaseEdge,
-	type Edge,
-	EdgeLabelRenderer,
-	type EdgeProps,
-	getStraightPath,
-	type Node,
-} from '@xyflow/react';
-import { Activity, ArrowRight, FileText, Heart } from 'lucide-react';
+import type { Edge, EdgeProps, Node } from '@xyflow/react';
+import { BaseEdge, EdgeLabelRenderer, getStraightPath } from '@xyflow/react';
+import { ArrowRight, Check, X } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
 	buildTerminalHistory,
@@ -86,24 +103,7 @@ type Phase = 'observe' | 'build' | 'reward';
 
 type ZoneFlash = 'idle' | 'red' | 'green' | 'amber';
 
-interface LogNodeData {
-	[key: string]: unknown;
-	label: string;
-	flash: ZoneFlash;
-	sublabel: string | null;
-	badge: string | null;
-	isStructured: boolean;
-}
-
-interface TraceNodeData {
-	[key: string]: unknown;
-	label: string;
-	flash: ZoneFlash;
-	sublabel: string | null;
-	badge: string | null;
-}
-
-interface HealthNodeData {
+interface ZoneVizState {
 	[key: string]: unknown;
 	label: string;
 	flash: ZoneFlash;
@@ -119,47 +119,26 @@ interface EdgeVizState {
 	dotColor: string;
 }
 
-interface AnimFrame {
-	unstructuredLog?: Partial<LogNodeData>;
-	structuredLog?: Partial<LogNodeData>;
-	trace?: Partial<TraceNodeData>;
-	health?: Partial<HealthNodeData>;
-	edgeA?: Partial<EdgeVizState>;
-	edgeB?: Partial<EdgeVizState>;
-	edgeC?: Partial<EdgeVizState>;
-}
+// Zones that exist in the before-world: customers, the app, the log
+// file, the Solid Queue worker (background-jobs level), and the uptime
+// monitor pinging Rails 8's built-in /up. 'traces' exists only in
+// reward: the build creates it.
+type ZoneKey =
+	| 'customers'
+	| 'app'
+	| 'logfile'
+	| 'worker'
+	| 'monitor'
+	| 'traces';
+
+type EdgeKey = 'eCust' | 'eLog' | 'eWork' | 'eMon' | 'eTrace';
+
+export type AnimFrame = {
+	zones?: Partial<Record<ZoneKey, Partial<ZoneVizState>>>;
+	edges?: Partial<Record<EdgeKey, Partial<EdgeVizState>>>;
+};
 
 // ─── Defaults ─────────────────────────────────────────────────────────
-
-const DEFAULT_UNSTRUCTURED: LogNodeData = {
-	label: 'Current Logs',
-	flash: 'red',
-	sublabel: 'Unstructured text output',
-	badge: null,
-	isStructured: false,
-};
-
-const DEFAULT_STRUCTURED: LogNodeData = {
-	label: 'Structured Logs',
-	flash: 'idle',
-	sublabel: 'Not configured',
-	badge: null,
-	isStructured: true,
-};
-
-const DEFAULT_TRACE: TraceNodeData = {
-	label: 'Trace Timeline',
-	flash: 'idle',
-	sublabel: 'Not configured',
-	badge: null,
-};
-
-const DEFAULT_HEALTH: HealthNodeData = {
-	label: 'Health Endpoint',
-	flash: 'idle',
-	sublabel: 'Missing (404)',
-	badge: null,
-};
 
 const DEFAULT_EDGE: EdgeVizState = {
 	active: false,
@@ -168,617 +147,836 @@ const DEFAULT_EDGE: EdgeVizState = {
 	dotColor: '#ef4444',
 };
 
-const DEFAULT_UNSTRUCTURED_REWARD: LogNodeData = {
-	label: 'Lograge (JSON)',
-	flash: 'green',
-	sublabel: 'Structured, searchable',
-	badge: null,
-	isStructured: true,
+const OBSERVE_ZONES: Record<string, ZoneVizState> = {
+	customers: {
+		label: 'Customers',
+		flash: 'idle',
+		sublabel: 'browsing, buying, reviewing',
+		badge: null,
+	},
+	app: {
+		label: 'Rails App',
+		flash: 'idle',
+		sublabel: 'healthy according to the error tracker',
+		badge: null,
+	},
+	logfile: {
+		label: 'production.log',
+		flash: 'idle',
+		sublabel: 'multi-line text, grep only',
+		badge: null,
+	},
+	worker: {
+		label: 'Job Worker',
+		flash: 'idle',
+		sublabel: 'Solid Queue, running',
+		badge: null,
+	},
+	monitor: {
+		label: 'Uptime Monitor',
+		flash: 'idle',
+		sublabel: 'pings /up every minute',
+		badge: null,
+	},
 };
 
-const DEFAULT_STRUCTURED_REWARD: LogNodeData = {
-	label: 'Custom Fields',
-	flash: 'green',
-	sublabel: 'tenant_id, request_id, user_id',
-	badge: null,
-	isStructured: true,
-};
-
-const DEFAULT_TRACE_REWARD: TraceNodeData = {
-	label: 'OpenTelemetry',
-	flash: 'green',
-	sublabel: 'Distributed tracing active',
-	badge: null,
-};
-
-const DEFAULT_HEALTH_REWARD: HealthNodeData = {
-	label: '/up',
-	flash: 'green',
-	sublabel: 'All components healthy',
-	badge: null,
+const REWARD_ZONES: Record<string, ZoneVizState> = {
+	customers: {
+		label: 'Customers',
+		flash: 'green',
+		sublabel: 'incidents end in minutes now',
+		badge: null,
+	},
+	app: {
+		label: 'Rails App',
+		flash: 'green',
+		sublabel: 'every request measured',
+		badge: null,
+	},
+	logfile: {
+		label: 'JSON logs',
+		flash: 'green',
+		sublabel: 'one queryable line per request',
+		badge: null,
+	},
+	worker: {
+		label: 'Job Worker',
+		flash: 'green',
+		sublabel: 'heartbeat watched by /up',
+		badge: null,
+	},
+	monitor: {
+		label: 'Uptime Monitor',
+		flash: 'green',
+		sublabel: '/up now checks DB + worker',
+		badge: null,
+	},
+	traces: {
+		label: 'Trace Timeline',
+		flash: 'green',
+		sublabel: 'per-request span breakdown',
+		badge: null,
+	},
 };
 
 // ─── Discovery definitions ────────────────────────────────────────────
 
-const DISCOVERY_DEFS: DiscoveryDef[] = [
-	{ id: 'no-structured-search', label: 'Cannot search logs by field' },
-	{ id: 'no-correlation', label: 'No request_id to correlate errors' },
-	{ id: 'no-tracing', label: 'No tracing to find bottlenecks' },
-	{ id: 'no-health-check', label: 'No health check endpoint' },
+export const DISCOVERY_DEFS: DiscoveryDef[] = [
+	{
+		id: 'slow-invisible',
+		label: 'Slow requests raise nothing and cannot be filtered from text logs',
+	},
+	{
+		id: 'no-thread',
+		label: "One customer's request cannot be pulled from interleaved logs",
+	},
+	{
+		id: 'no-breakdown',
+		label: 'The 3.2 seconds is a black box with no per-step breakdown',
+	},
+	{
+		id: 'boot-only-up',
+		label: '/up says 200 while the job worker is dead',
+	},
 ];
 
 // ─── Probe definitions ────────────────────────────────────────────────
+// Every probe is an incident where NOTHING raises, so the error tracker
+// from the error-monitoring level stays silent. No fix-tool names here.
 
-const PROBES: ProbeConfig[] = [
+export const PROBES: ProbeConfig[] = [
 	{
-		id: 'find-slow-request',
-		label: 'Search logs for slow requests',
-		command: 'grep "duration" log/production.log | sort -t= -k2 -rn | head -5',
+		id: 'hunt-slow-checkout',
+		label: 'Hunt the lunch-rush checkout slowdown in the logs',
+		command: 'grep "Completed" log/production.log | grep checkout | tail -3',
 		responseLines: [
 			{
-				text: 'Started GET "/api/products" at 2024-03-15 14:22:33',
-				color: 'muted',
+				text: 'Completed 200 OK in 2841ms (Views: 12.1ms ...)',
+				color: 'yellow',
 			},
+			{ text: 'Completed 200 OK in 187ms (Views: 9.8ms ...)', color: 'muted' },
 			{
-				text: 'Processing by ProductsController#index as JSON',
-				color: 'muted',
+				text: 'Completed 200 OK in 3214ms (Views: 11.4ms ...)',
+				color: 'yellow',
 			},
-			{ text: 'Completed 200 OK in 2841ms', color: 'yellow' },
 			{ text: '', color: 'muted' },
 			{
-				text: 'No structured duration field. Cannot sort or filter by latency.',
+				text: 'Durations are trapped inside prose. No sort, no filter, no top-10.',
 				color: 'red',
 			},
 			{
-				text: 'grep only finds text patterns, not queryable metrics.',
+				text: '40 minutes of grep so far. The error tracker: silent (200s raise nothing).',
 				color: 'red',
 			},
 		],
 		story: [
-			'You need to find which requests are slow.',
-			'grep for "duration" returns multi-line unstructured text.',
-			'No JSON fields to sort by. Parsing is brittle and error-prone.',
-			'With structured logs, you could query: duration > 1000ms.',
-			'Currently impossible to build dashboards or alerts on this data.',
+			'Lunch rush: checkout is taking seconds and carts are being abandoned.',
+			'The error tracker shows nothing, because slow is not broken: every request returns 200.',
+			'The only evidence is production.log, where each request is five lines of prose.',
+			'You cannot ask "show me every request over one second." You can only grep and squint.',
+			'Forty minutes in, there is still no list of slow endpoints, and the lunch rush is ending without its sales.',
 		],
 	},
 	{
-		id: 'correlate-error',
-		label: 'Correlate error to originating request',
-		command: 'grep "NoMethodError" log/production.log',
+		id: 'trace-one-customer',
+		label: "Pull one customer's failed order out of the logs",
+		command: 'grep -n "14:22:3" log/production.log | head -8',
 		responseLines: [
-			{
-				text: 'NoMethodError (undefined method `total` for nil:NilClass)',
-				color: 'red',
-			},
-			{ text: '  app/services/checkout_service.rb:42', color: 'muted' },
+			{ text: '84211: Started POST "/checkout" ...', color: 'muted' },
+			{ text: '84212: Started GET "/products/9" ...', color: 'muted' },
+			{ text: '84213:   Order Load (1.2ms) ...', color: 'muted' },
+			{ text: '84214: Started POST "/checkout" ...', color: 'muted' },
 			{ text: '', color: 'muted' },
 			{
-				text: 'Which request caused this? No request_id in the log line.',
+				text: 'Six concurrent requests interleaved. Which lines are HER request?',
 				color: 'red',
 			},
 			{
-				text: 'Cannot link this error to a specific user or request.',
+				text: 'The error report names the exception, not the request around it.',
 				color: 'red',
 			},
 		],
 		story: [
-			'An error appears in production logs: NoMethodError.',
-			'You see the stack trace, but not which request triggered it.',
-			'No request_id, no user_id, no tenant_id in the log output.',
-			'You cannot tell which customer was affected.',
-			'Without correlation IDs, debugging requires guesswork.',
+			"Support ticket: a customer's order failed at 14:22 and she was charged nothing, twice.",
+			'The error tracker captured the exception, but the question is what happened around it: which params, what came before, how long it took.',
+			'Grepping the timestamp returns six concurrent requests braided together.',
+			'No shared id ties the lines of one request into one thread.',
+			'Support cannot answer the customer, and the refund sits unresolved.',
 		],
 	},
 	{
 		id: 'find-bottleneck',
-		label: 'Find where time is spent in a request',
+		label: 'Find where checkout spends its 3.2 seconds',
 		command:
-			'curl -w "\\nTotal: %{time_total}s\\n" localhost:3000/api/checkout',
+			'curl -w "total: %{time_total}s\\n" -o /dev/null -s localhost:3000/checkout',
 		responseLines: [
-			{ text: '{"order_id": 4521, "status": "confirmed"}', color: 'muted' },
-			{ text: 'Total: 3.2s', color: 'red' },
+			{ text: 'total: 3.214s', color: 'red' },
 			{ text: '', color: 'muted' },
 			{
-				text: 'Request took 3.2s but no breakdown available.',
+				text: 'One number. Database? Payment provider? Rendering? Unknown.',
 				color: 'red',
 			},
 			{
-				text: 'Is it the DB query? External API? Serialization? Unknown.',
+				text: 'Next move: add a timing log, restart, wait for lunch. Repeat per guess.',
 				color: 'red',
 			},
 		],
 		story: [
-			'Checkout takes 3.2 seconds. Customers are complaining.',
-			'You know the total time but not where it is spent.',
-			'No spans showing DB queries, external API calls, or serialization.',
-			'Without tracing, you have to add debug logging manually.',
-			'Each deploy to add a timer takes 15 minutes. Multiply by 10 services.',
+			'The slowdown is real: checkout spends 3.2 seconds somewhere.',
+			'The total is the only number that exists. Nothing shows the steps inside.',
+			'Is it the database? The payment provider call? Rendering? Each theory means hand-adding a timing log and restarting.',
+			'Nothing raises, so the error tracker has nothing to say.',
+			'The slow lunch is heading for day 2.',
 		],
 	},
 	{
-		id: 'check-health',
-		label: 'Check application health endpoint',
-		command: 'curl -s -o /dev/null -w "%{http_code}" localhost:3000/up',
+		id: 'check-worker-health',
+		label: 'Check the app is healthy after the 2am restart',
+		command: 'curl -s -o /dev/null -w "%{http_code}\\n" localhost:3000/up',
 		responseLines: [
 			{ text: '200', color: 'yellow' },
 			{ text: '', color: 'muted' },
 			{
-				text: "Rails' built-in /up only proves the app booted.",
+				text: "Rails' built-in /up proves one thing: the app booted.",
 				color: 'yellow',
 			},
 			{
-				text: 'It checks no database, no job queue, no disk.',
+				text: 'The job worker never came back after the restart. No job raises: they just wait.',
 				color: 'red',
 			},
 			{
-				text: 'An instance that cannot reach the DB still reports 200.',
+				text: 'Receipts and confirmations have been silently queued for 4 hours.',
 				color: 'red',
 			},
 		],
 		story: [
-			'You check whether the application is ready to serve traffic.',
-			"Rails' generated /up route returns 200 because the process booted.",
-			'But it checks nothing else: the database could be unreachable and /up still says fine.',
-			'The load balancer keeps sending traffic to an instance that cannot serve it.',
-			'A deeper health check that verifies real dependencies would prevent this.',
+			'The database blipped at 2am and the app restarted cleanly. The uptime monitor stayed green.',
+			"It pings Rails' built-in /up, which returns 200 because the process booted. By design it checks no dependencies.",
+			'The job worker did not survive the restart. Jobs do not fail, they just queue, so nothing raises and the error tracker stays silent.',
+			'Order confirmations and receipts stop arriving. Four hours later, support tickets are the alarm.',
+			'Green monitor, silent tracker, angry customers: the exact gap between "booted" and "working".',
 		],
 	},
 ];
 
-const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
-	'find-slow-request': ['no-structured-search'],
-	'correlate-error': ['no-correlation'],
-	'find-bottleneck': ['no-tracing'],
-	'check-health': ['no-health-check'],
+export const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
+	'hunt-slow-checkout': ['slow-invisible'],
+	'trace-one-customer': ['no-thread'],
+	'find-bottleneck': ['no-breakdown'],
+	'check-worker-health': ['boot-only-up'],
 };
 
 // ─── Observe animation frames ─────────────────────────────────────────
-// Observe: 4 nodes. edgeA = unstructured -> structured, edgeB = structured -> trace
 
-const SLOW_REQUEST_FRAMES: AnimFrame[] = [
-	{
-		unstructuredLog: {
-			label: 'grep "duration"',
-			flash: 'amber',
-			sublabel: 'Searching text...',
-			badge: '2841ms',
+export const OBSERVE_PROBE_FRAMES: Record<string, AnimFrame[]> = {
+	'hunt-slow-checkout': [
+		{
+			zones: {
+				customers: {
+					flash: 'red',
+					sublabel: 'checkout crawling at lunch rush',
+					badge: 'CARTS ABANDONED',
+				},
+				app: {
+					flash: 'amber',
+					sublabel: 'all 200s: nothing raises',
+					badge: '3.2s',
+				},
+			},
+			edges: {
+				eCust: {
+					active: true,
+					reverse: false,
+					label: 'slow checkouts',
+					dotColor: '#ef4444',
+				},
+			},
 		},
-		structuredLog: {
-			flash: 'idle',
-			sublabel: 'Not configured',
+		{
+			zones: {
+				logfile: {
+					flash: 'amber',
+					sublabel: 'grep | sort | squint, 40 minutes in',
+					badge: 'GREP',
+				},
+			},
+			edges: {
+				eCust: { active: false, label: '' },
+				eLog: {
+					active: true,
+					reverse: false,
+					label: 'five lines of prose per request',
+					dotColor: '#ef4444',
+				},
+			},
 		},
-		edgeA: {
-			active: true,
-			reverse: false,
-			label: 'No structured search',
-			dotColor: '#ef4444',
+		{
+			zones: {
+				logfile: {
+					flash: 'red',
+					sublabel: 'durations trapped in text: no sort, no filter',
+					badge: 'UNQUERYABLE',
+				},
+				customers: {
+					flash: 'red',
+					sublabel: 'lunch rush ends, carts still abandoned',
+					badge: 'SALES LOST',
+				},
+			},
+			edges: { eLog: { active: false, label: '' } },
 		},
-	},
-	{
-		unstructuredLog: {
-			label: 'Current Logs',
-			flash: 'red',
-			sublabel: 'Cannot filter by duration',
-			badge: 'grep only',
+	],
+	'trace-one-customer': [
+		{
+			zones: {
+				customers: {
+					flash: 'amber',
+					sublabel: 'ticket: order failed at 14:22, charged twice',
+					badge: 'TICKET',
+				},
+			},
+			edges: {
+				eCust: {
+					active: true,
+					reverse: false,
+					label: 'what happened to HER request?',
+					dotColor: '#f59e0b',
+				},
+			},
 		},
-		edgeA: { active: false, label: '' },
-	},
-];
-
-const CORRELATE_ERROR_FRAMES: AnimFrame[] = [
-	{
-		unstructuredLog: {
-			label: 'grep "NoMethodError"',
-			flash: 'amber',
-			sublabel: 'Found error, but...',
-			badge: 'no request_id',
+		{
+			zones: {
+				app: {
+					flash: 'amber',
+					sublabel: 'error tracker has the exception, not the story',
+				},
+				logfile: {
+					flash: 'amber',
+					sublabel: 'grep 14:22: six requests braided together',
+					badge: 'INTERLEAVED',
+				},
+			},
+			edges: {
+				eCust: { active: false, label: '' },
+				eLog: {
+					active: true,
+					reverse: false,
+					label: 'no id ties one request together',
+					dotColor: '#ef4444',
+				},
+			},
 		},
-		edgeA: {
-			active: true,
-			reverse: false,
-			label: 'No correlation IDs',
-			dotColor: '#ef4444',
+		{
+			zones: {
+				logfile: {
+					flash: 'red',
+					sublabel: 'her lines are in here somewhere',
+					badge: 'NO THREAD',
+				},
+				customers: {
+					flash: 'red',
+					sublabel: 'support cannot answer her; refund unresolved',
+					badge: 'WAITING',
+				},
+			},
+			edges: { eLog: { active: false, label: '' } },
 		},
-	},
-	{
-		unstructuredLog: {
-			label: 'Current Logs',
-			flash: 'red',
-			sublabel: 'Cannot link error to request',
-			badge: 'isolated',
+	],
+	'find-bottleneck': [
+		{
+			zones: {
+				app: {
+					flash: 'amber',
+					sublabel: 'checkout total: 3.2s, breakdown: none',
+					badge: '3.2s',
+				},
+				customers: { flash: 'red', sublabel: 'still waiting at checkout' },
+			},
+			edges: {
+				eCust: {
+					active: true,
+					reverse: false,
+					label: 'POST /checkout',
+					dotColor: '#f59e0b',
+				},
+			},
 		},
-		edgeA: { active: false, label: '' },
-	},
-];
-
-const BOTTLENECK_FRAMES: AnimFrame[] = [
-	{
-		unstructuredLog: {
-			label: 'curl /checkout',
-			flash: 'amber',
-			sublabel: 'Total: 3.2s',
+		{
+			zones: {
+				logfile: {
+					flash: 'red',
+					sublabel: 'Completed 200 OK in 3214ms: one number',
+					badge: 'ONE NUMBER',
+				},
+			},
+			edges: {
+				eCust: { active: false, label: '' },
+				eLog: {
+					active: true,
+					reverse: false,
+					label: 'DB? payment provider? rendering?',
+					dotColor: '#ef4444',
+				},
+			},
 		},
-		trace: {
-			flash: 'idle',
-			sublabel: 'Not configured',
+		{
+			zones: {
+				app: {
+					flash: 'red',
+					sublabel: 'guess, add a timing log, restart, repeat',
+					badge: 'GUESSWORK',
+				},
+				customers: {
+					flash: 'red',
+					sublabel: 'slow lunch heading for day 2',
+					badge: 'DAY 2',
+				},
+			},
+			edges: { eLog: { active: false, label: '' } },
 		},
-		edgeB: {
-			active: true,
-			reverse: false,
-			label: 'No span breakdown',
-			dotColor: '#ef4444',
+	],
+	'check-worker-health': [
+		{
+			zones: {
+				app: {
+					flash: 'amber',
+					sublabel: 'restarted cleanly at 2:07am',
+					badge: 'RESTARTED',
+				},
+				monitor: {
+					flash: 'green',
+					sublabel: '/up says 200: booted',
+					badge: 'GREEN',
+				},
+			},
+			edges: {
+				eMon: {
+					active: true,
+					reverse: false,
+					label: 'ping /up -> 200',
+					dotColor: '#22c55e',
+				},
+			},
 		},
-	},
-	{
-		unstructuredLog: {
-			label: 'Current Logs',
-			flash: 'red',
-			sublabel: 'Only total time visible',
-			badge: '3.2s unknown',
+		{
+			zones: {
+				worker: {
+					flash: 'red',
+					sublabel: 'never came back after the restart',
+					badge: 'DEAD',
+				},
+				app: {
+					flash: 'amber',
+					sublabel: 'jobs queue quietly: nothing raises',
+				},
+			},
+			edges: {
+				eMon: { active: false, label: '' },
+				eWork: {
+					active: true,
+					reverse: false,
+					label: 'receipts piling up unprocessed',
+					dotColor: '#ef4444',
+				},
+			},
 		},
-		trace: {
-			flash: 'idle',
-			sublabel: 'Not configured',
+		{
+			zones: {
+				customers: {
+					flash: 'red',
+					sublabel: 'receipts and confirmations gone for 4 hours',
+					badge: 'NO EMAILS',
+				},
+				monitor: {
+					flash: 'green',
+					sublabel: 'still green: /up only proves boot',
+					badge: '200',
+				},
+			},
+			edges: { eWork: { active: false, label: '' } },
 		},
-		edgeB: { active: false, label: '' },
-	},
-];
-
-const HEALTH_CHECK_FRAMES: AnimFrame[] = [
-	{
-		health: {
-			label: 'curl /up',
-			flash: 'red',
-			sublabel: '404 Not Found',
-			badge: 'missing',
-		},
-		edgeC: {
-			active: true,
-			reverse: true,
-			label: '404 Not Found',
-			dotColor: '#ef4444',
-		},
-	},
-	{
-		health: {
-			label: 'Health Endpoint',
-			flash: 'red',
-			sublabel: 'Load balancer blind',
-			badge: '404',
-		},
-		edgeC: { active: false, label: '' },
-	},
-];
-
-const OBSERVE_PROBE_FRAMES: Record<string, AnimFrame[]> = {
-	'find-slow-request': SLOW_REQUEST_FRAMES,
-	'correlate-error': CORRELATE_ERROR_FRAMES,
-	'find-bottleneck': BOTTLENECK_FRAMES,
-	'check-health': HEALTH_CHECK_FRAMES,
+	],
 };
 
 // ─── Reward animation frames ─────────────────────────────────────────
 
-const REWARD_SLOW_REQUEST_FRAMES: AnimFrame[] = [
-	{
-		unstructuredLog: {
-			label: 'Lograge JSON',
-			flash: 'green',
-			sublabel: 'Querying duration > 1000ms',
-			badge: 'structured',
+export const REWARD_PROBE_FRAMES: Record<string, AnimFrame[]> = {
+	'hunt-slow-checkout': [
+		{
+			zones: {
+				customers: {
+					flash: 'amber',
+					sublabel: 'same lunch rush, same slowdown',
+				},
+				logfile: {
+					flash: 'amber',
+					sublabel: 'jq "select(.duration > 1000)"',
+					badge: 'QUERY',
+				},
+			},
+			edges: {
+				eLog: {
+					active: true,
+					reverse: false,
+					label: 'one JSON line per request',
+					dotColor: '#22c55e',
+				},
+			},
 		},
-		structuredLog: {
-			label: 'Custom Fields',
-			flash: 'green',
-			sublabel: 'request_id, user_id attached',
+		{
+			zones: {
+				logfile: {
+					flash: 'green',
+					sublabel: '3 slow endpoints, sorted, in 8 seconds',
+					badge: '8 SECONDS',
+				},
+			},
+			edges: { eLog: { active: false, label: '' } },
 		},
-		edgeA: {
-			active: true,
-			reverse: false,
-			label: 'jq ".duration > 1000"',
-			dotColor: '#22c55e',
+		{
+			zones: {
+				app: { flash: 'green', sublabel: 'fix targeted at the worst one' },
+				customers: {
+					flash: 'green',
+					sublabel: 'checkout recovers within the same lunch',
+					badge: 'SAME HOUR',
+				},
+			},
 		},
-	},
-	{
-		unstructuredLog: {
-			label: 'Lograge (JSON)',
-			flash: 'green',
-			sublabel: 'Found 3 slow requests',
-			badge: 'filtered',
+	],
+	'trace-one-customer': [
+		{
+			zones: {
+				customers: {
+					flash: 'amber',
+					sublabel: 'same ticket: failed order at 14:22',
+					badge: 'TICKET',
+				},
+				logfile: {
+					flash: 'amber',
+					sublabel: 'jq "select(.request_id == \\"f3a91c\\")"',
+					badge: 'QUERY',
+				},
+			},
+			edges: {
+				eLog: {
+					active: true,
+					reverse: false,
+					label: 'request_id from the error report',
+					dotColor: '#22c55e',
+				},
+			},
 		},
-		edgeA: { active: false, label: '' },
-	},
-];
-
-const REWARD_CORRELATE_FRAMES: AnimFrame[] = [
-	{
-		unstructuredLog: {
-			label: 'Lograge JSON',
-			flash: 'green',
-			sublabel: 'Searching by request_id...',
+		{
+			zones: {
+				logfile: {
+					flash: 'green',
+					sublabel: 'her request, one thread: params, duration, user',
+					badge: 'ONE THREAD',
+				},
+			},
+			edges: { eLog: { active: false, label: '' } },
 		},
-		structuredLog: {
-			label: 'Custom Fields',
-			flash: 'green',
-			sublabel: 'request_id: abc-123',
-			badge: 'correlated',
+		{
+			zones: {
+				customers: {
+					flash: 'green',
+					sublabel: 'support answers with the full story in minutes',
+					badge: 'RESOLVED',
+				},
+			},
 		},
-		edgeA: {
-			active: true,
-			reverse: false,
-			label: 'jq ".request_id == abc-123"',
-			dotColor: '#22c55e',
+	],
+	'find-bottleneck': [
+		{
+			zones: {
+				app: {
+					flash: 'amber',
+					sublabel: 'same 3.2s checkout, now traced',
+					badge: '3.2s',
+				},
+			},
+			edges: {
+				eTrace: {
+					active: true,
+					reverse: false,
+					label: 'spans recorded per request',
+					dotColor: '#22c55e',
+				},
+			},
 		},
-	},
-	{
-		unstructuredLog: {
-			label: 'Lograge (JSON)',
-			flash: 'green',
-			sublabel: 'Error linked to user #42',
-			badge: 'traced',
+		{
+			zones: {
+				traces: {
+					flash: 'green',
+					sublabel: 'DB 180ms | payment provider 2.8s | render 160ms',
+					badge: '3 SPANS',
+				},
+			},
+			edges: { eTrace: { active: false, label: '' } },
 		},
-		edgeA: { active: false, label: '' },
-	},
-];
-
-const REWARD_TRACE_FRAMES: AnimFrame[] = [
-	{
-		trace: {
-			label: 'OpenTelemetry',
-			flash: 'green',
-			sublabel: 'Span breakdown: checkout',
-			badge: '3 spans',
+		{
+			zones: {
+				traces: {
+					flash: 'green',
+					sublabel: 'bottleneck has a name: the payment call',
+					badge: 'NAMED',
+				},
+				customers: {
+					flash: 'green',
+					sublabel: 'timeout + reuse of the payment session shipped',
+					badge: 'FIXED',
+				},
+			},
 		},
-		edgeB: {
-			active: true,
-			reverse: false,
-			label: 'DB: 200ms, API: 2.8s, Render: 200ms',
-			dotColor: '#22c55e',
+	],
+	'check-worker-health': [
+		{
+			zones: {
+				app: {
+					flash: 'amber',
+					sublabel: 'same 2am restart, worker dead again',
+					badge: 'RESTARTED',
+				},
+				worker: {
+					flash: 'red',
+					sublabel: 'no heartbeat for 5 minutes',
+					badge: 'DEAD',
+				},
+			},
+			edges: {
+				eMon: {
+					active: true,
+					reverse: false,
+					label: 'ping /up (deep checks now)',
+					dotColor: '#f59e0b',
+				},
+			},
 		},
-	},
-	{
-		trace: {
-			label: 'OpenTelemetry',
-			flash: 'green',
-			sublabel: 'Bottleneck: external API (2.8s)',
-			badge: 'identified',
+		{
+			zones: {
+				monitor: {
+					flash: 'red',
+					sublabel: 'job_worker: false -> 503',
+					badge: '503',
+				},
+			},
+			edges: {
+				eMon: {
+					active: true,
+					reverse: true,
+					label: '{ database: true, job_worker: false }',
+					dotColor: '#ef4444',
+				},
+			},
 		},
-		edgeB: { active: false, label: '' },
-	},
-];
-
-const REWARD_HEALTH_FRAMES: AnimFrame[] = [
-	{
-		health: {
-			label: '/up',
-			flash: 'green',
-			sublabel: 'Checking components...',
-			badge: null,
+		{
+			zones: {
+				monitor: {
+					flash: 'amber',
+					sublabel: 'pages the on-call at 2:09am',
+					badge: 'PAGED',
+				},
+				customers: {
+					flash: 'green',
+					sublabel: 'worker restarted; receipts flowing by 2:20',
+					badge: '13 MIN',
+				},
+			},
+			edges: { eMon: { active: false, label: '' } },
 		},
-		edgeC: {
-			active: true,
-			reverse: true,
-			label: '200 OK',
-			dotColor: '#22c55e',
+	],
+	'search-by-user': [
+		{
+			zones: {
+				logfile: {
+					flash: 'amber',
+					sublabel: 'jq "select(.user_id == 42)"',
+					badge: 'QUERY',
+				},
+			},
+			edges: {
+				eLog: {
+					active: true,
+					reverse: true,
+					label: 'every request carries user_id now',
+					dotColor: '#22c55e',
+				},
+			},
 		},
-	},
-	{
-		health: {
-			label: '/up',
-			flash: 'green',
-			sublabel: 'DB: ok, Jobs: ok, Disk: ok',
-			badge: '200 OK',
+		{
+			zones: {
+				logfile: {
+					flash: 'green',
+					sublabel: '23 requests: her whole day, in order',
+					badge: '23 REQUESTS',
+				},
+				customers: {
+					flash: 'green',
+					sublabel: 'support sees exactly what she saw',
+					badge: null,
+				},
+			},
+			edges: { eLog: { active: false, label: '' } },
 		},
-		edgeC: { active: false, label: '' },
-	},
-];
-
-const REWARD_CROSS_SERVICE_FRAMES: AnimFrame[] = [
-	{
-		trace: {
-			label: 'OpenTelemetry',
-			flash: 'green',
-			sublabel: 'Cross-service trace',
-			badge: '5 spans',
-		},
-		unstructuredLog: {
-			label: 'Lograge (JSON)',
-			flash: 'green',
-			sublabel: 'trace_id propagated',
-		},
-		edgeB: {
-			active: true,
-			reverse: false,
-			label: 'trace_id: xyz-789',
-			dotColor: '#22c55e',
-		},
-	},
-	{
-		trace: {
-			label: 'OpenTelemetry',
-			flash: 'green',
-			sublabel: 'Full request journey visible',
-			badge: 'distributed',
-		},
-		edgeB: { active: false, label: '' },
-	},
-];
-
-const REWARD_SEARCH_USER_FRAMES: AnimFrame[] = [
-	{
-		structuredLog: {
-			label: 'Custom Fields',
-			flash: 'green',
-			sublabel: 'Filtering by user_id: 42',
-			badge: 'searching',
-		},
-		edgeA: {
-			active: true,
-			reverse: true,
-			label: 'jq ".user_id == 42"',
-			dotColor: '#22c55e',
-		},
-	},
-	{
-		structuredLog: {
-			label: 'Custom Fields',
-			flash: 'green',
-			sublabel: '23 requests from user #42',
-			badge: 'found',
-		},
-		edgeA: { active: false, label: '' },
-	},
-];
-
-const REWARD_PROBE_FRAMES: Record<string, AnimFrame[]> = {
-	'find-slow-request': REWARD_SLOW_REQUEST_FRAMES,
-	'correlate-error': REWARD_CORRELATE_FRAMES,
-	'find-bottleneck': REWARD_TRACE_FRAMES,
-	'check-health': REWARD_HEALTH_FRAMES,
-	'cross-service-trace': REWARD_CROSS_SERVICE_FRAMES,
-	'search-by-user': REWARD_SEARCH_USER_FRAMES,
+	],
 };
 
 // ─── Stage inspector data ─────────────────────────────────────────────
 
 const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
-	'unstructured-log': {
-		stageId: 'unstructured-log',
-		title: 'Current Logs (Unstructured)',
+	app: {
+		stageId: 'app',
+		title: 'Rails App',
 		description:
-			'Rails default logger outputs multi-line human-readable text. Each request generates 5+ log lines with no consistent format. Searching requires grep and regex. Cannot be indexed or queried by field.',
-		code: `# Default Rails log output:
-Started GET "/api/products" for 10.0.0.1 at 2024-03-15
-Processing by ProductsController#index as JSON
-  Product Load (2.1ms)  SELECT "products".*
-  Rendered products/index (1.2ms)
-Completed 200 OK in 45ms (Views: 1.2ms | ActiveRecord: 2.1ms)`,
+			'Healthy according to the error tracker, and that is the trap: the tracker only sees exceptions. Slow requests, stuck queues, and dead workers raise nothing, so today the app can be quietly failing customers while every dashboard stays green.',
 	},
-	'structured-log': {
-		stageId: 'structured-log',
-		title: 'Structured Logs (Not Configured)',
+	logfile: {
+		stageId: 'logfile',
+		title: 'production.log',
 		description:
-			'Structured logging outputs one JSON line per request with queryable fields: method, path, status, duration, controller, action. Tools like jq, Datadog, or Elasticsearch can index and search these fields instantly.',
+			'The only record of what each request did. Every request writes about five lines of human-readable prose, and concurrent requests interleave their lines. grep can find words in it; nobody can ask it questions like "which requests took over a second" or "show me everything request X did".',
+		code: `Started POST "/checkout" for 10.0.0.7 at 14:22:31
+Processing by CheckoutsController#create as JSON
+  Order Load (1.2ms)  SELECT "orders".* ...
+Started GET "/products/9" for 10.0.0.4 at 14:22:31
+Completed 200 OK in 3214ms (Views: 11.4ms | ActiveRecord: 68.2ms)`,
 	},
-	trace: {
-		stageId: 'trace',
-		title: 'Trace Timeline (Not Configured)',
+	worker: {
+		stageId: 'worker',
+		title: 'Job Worker (Solid Queue)',
 		description:
-			'Distributed tracing breaks a request into spans showing exactly where time is spent: DB queries, external API calls, serialization. Without it, you only know the total time, not the breakdown.',
+			'Runs receipts, confirmations, and every other background job since the background-jobs level. If it dies, jobs do not fail: they sit in the queue waiting for a worker that will never come. Nothing raises, so nothing alerts.',
 	},
-	health: {
-		stageId: 'health',
-		title: 'Health Endpoint (Missing)',
+	monitor: {
+		stageId: 'monitor',
+		title: 'Uptime Monitor + /up',
 		description:
-			'A health check endpoint (/up) reports application readiness. Load balancers, Kubernetes probes, and monitoring systems need this to know if an instance can serve traffic. Without it, traffic goes to unhealthy instances.',
+			"Pings Rails 8's built-in /up endpoint every minute. Per the Rails docs, /up returns 200 if the app booted without exceptions, and deliberately checks none of the app's dependencies. Green here means 'the process exists', not 'the system works'.",
+	},
+	customers: {
+		stageId: 'customers',
+		title: 'Customers',
+		description:
+			'The people who feel every one of these gaps first: slow checkouts, unanswered support tickets, missing receipts. Right now they are the alerting system.',
 	},
 };
 
-const STAGE_DISCOVERY_MAP: Record<string, string> = {
-	'unstructured-log': 'no-structured-search',
-	'structured-log': 'no-correlation',
-	trace: 'no-tracing',
-	health: 'no-health-check',
-};
+const STAGE_DISCOVERY_MAP: Record<string, string> = {};
 
 // ─── Stress test scenarios (reward) ───────────────────────────────────
+// The four probes replay with the fix; one extra shows the support
+// superpower structured fields unlock. "Blocked" = the sick state is
+// caught by the deep health check before customers become the alarm.
 
-const STRESS_SCENARIOS: StressScenario[] = [
+export const STRESS_SCENARIOS: StressScenario[] = [
 	{
-		id: 'find-slow-request',
-		label: 'Search logs for slow requests',
-		description: 'Query structured JSON logs by duration field',
-		method: 'GET',
-		path: '/logs?duration_gt=1000',
-		actor: 'operator',
+		id: 'hunt-slow-checkout',
+		label: 'Hunt the lunch-rush checkout slowdown in the logs',
+		description: 'One jq query replaces 40 minutes of grep',
+		method: 'QUERY',
+		path: 'jq: .duration > 1000',
+		actor: 'on-call',
 		expectedResult: 'allowed',
+		story: [
+			'Same lunch rush, same slowdown, same silent error tracker.',
+			'The logs are one JSON line per request now, so the question becomes a query: duration over 1000ms.',
+			'Eight seconds later there is a sorted list of three slow endpoints, worst first.',
+			'The fix ships within the same lunch, not after day two.',
+		],
 	},
 	{
-		id: 'correlate-error',
-		label: 'Correlate error to request',
-		description: 'Search by request_id to find full context',
-		method: 'GET',
-		path: '/logs?request_id=abc-123',
-		actor: 'operator',
+		id: 'trace-one-customer',
+		label: "Pull one customer's failed order out of the logs",
+		description: 'The request_id from the error report pulls one thread',
+		method: 'QUERY',
+		path: 'jq: .request_id == "f3a91c"',
+		actor: 'support',
 		expectedResult: 'allowed',
+		story: [
+			'Same ticket: her order failed at 14:22.',
+			'The error report carries a request_id, and every log line now carries it too.',
+			'One query pulls her request out of the braid: params, duration, user, what happened before.',
+			'Support answers with the full story in minutes, and the refund goes out.',
+		],
 	},
 	{
 		id: 'find-bottleneck',
-		label: 'Find where time is spent in a request',
-		description: 'View span breakdown for slow endpoint',
-		method: 'GET',
-		path: '/traces?endpoint=/checkout',
-		actor: 'operator',
+		label: 'Find where checkout spends its 3.2 seconds',
+		description: 'The trace names the step: payment provider, 2.8s',
+		method: 'TRACE',
+		path: 'span timeline: POST /checkout',
+		actor: 'on-call',
 		expectedResult: 'allowed',
+		story: [
+			'Same 3.2-second checkout, but now every request records spans.',
+			'The timeline reads: database 180ms, payment provider 2.8s, rendering 160ms.',
+			'The bottleneck has a name on the first look, with zero guess-and-restart cycles.',
+			'A timeout plus reusing the payment session ships that afternoon.',
+		],
 	},
 	{
-		id: 'check-health',
-		label: 'Check application health endpoint',
-		description: 'Hit /up endpoint for component status',
+		id: 'check-worker-health',
+		label: 'Check the app is healthy after the 2am restart',
+		description: 'Deep /up returns 503 for the dead worker; the monitor pages',
 		method: 'GET',
-		path: '/up',
-		actor: 'load-balancer',
-		expectedResult: 'allowed',
-	},
-	{
-		id: 'cross-service-trace',
-		label: 'Trace across services',
-		description: 'Follow trace_id across microservices',
-		method: 'GET',
-		path: '/traces?trace_id=xyz-789',
-		actor: 'operator',
-		expectedResult: 'allowed',
+		path: '/up (deep checks)',
+		actor: 'uptime monitor',
+		expectedResult: 'blocked',
+		story: [
+			'Same 2am restart, and the worker dies again.',
+			'/up now runs real checks: the database answers, but no worker heartbeat has landed in five minutes.',
+			'{ database: true, job_worker: false } comes back as a 503, and the monitor pages at 2:09am.',
+			'Receipts are flowing again by 2:20. Customers never notice, because customers are no longer the alarm.',
+		],
 	},
 	{
 		id: 'search-by-user',
-		label: 'Search logs by user_id',
-		description: 'Filter all requests from specific user',
-		method: 'GET',
-		path: '/logs?user_id=42',
-		actor: 'operator',
+		label: 'Pull everything one customer did today',
+		description: 'user_id on every line turns support into a query',
+		method: 'QUERY',
+		path: 'jq: .user_id == 42',
+		actor: 'support',
 		expectedResult: 'allowed',
+		story: [
+			'A seller reports "the site was weird all morning".',
+			'Every log line carries her user_id now.',
+			'One query returns her 23 requests in order: the exact pages, timings, and statuses she saw.',
+			'Vague reports become concrete timelines.',
+		],
 	},
 ];
 
 // ─── Build step definitions ───────────────────────────────────────────
 
-const STEP_DEFS: StepDef[] = [
-	{ id: 'install-lograge', title: 'Install Lograge' },
-	{ id: 'configure-lograge', title: 'Configure JSON Formatter' },
-	{ id: 'custom-fields', title: 'Add Custom Log Fields' },
-	{ id: 'install-otel', title: 'Install OpenTelemetry' },
-	{ id: 'configure-otel', title: 'Configure OpenTelemetry' },
-	{ id: 'health-endpoint', title: 'Add Health Check Endpoint' },
+export const STEP_DEFS: StepDef[] = [
+	{ id: 'install-lograge', title: 'Install Structured Logging' },
+	{ id: 'configure-lograge', title: 'Pick the Log Format' },
+	{ id: 'custom-fields', title: 'Attach Request Context' },
+	{ id: 'install-otel', title: 'Install Tracing' },
+	{ id: 'configure-otel', title: 'Configure the Tracer' },
+	{ id: 'health-endpoint', title: 'Deepen the Health Check' },
 ];
 
 const STEP_TYPES: ('terminal' | 'option')[] = [
-	'terminal', // 0: bundle add lograge
-	'option', // 1: configure lograge
-	'option', // 2: custom fields
-	'terminal', // 3: bundle add otel
-	'option', // 4: configure otel
-	'option', // 5: health check
+	'terminal',
+	'option',
+	'option',
+	'terminal',
+	'option',
+	'option',
 ];
 
-// ─── Step 0: Install Lograge (Terminal) ──────────────────────────────
+// ─── Step 0: install lograge (terminal) ───────────────────────────────
 
-const installLogrageCommands: TerminalCommand[] = [
+export const INSTALL_LOGRAGE_COMMANDS: TerminalCommand[] = [
 	{
-		id: 'wrong-rails-logger',
-		label: 'rails generate logger:install',
-		command: 'rails generate logger:install',
+		id: 'wrong-generator',
+		label: 'bin/rails generate logger:install',
+		command: 'bin/rails generate logger:install',
 		correct: false,
 		feedback:
-			'There is no built-in Rails logger generator. Structured logging requires a gem that replaces the default multi-line format with single-line JSON output.',
-	},
-	{
-		id: 'wrong-json-logger',
-		label: 'bundle add json_logger',
-		command: 'bundle add json_logger',
-		correct: false,
-		feedback:
-			'json_logger is not the standard gem for Rails structured logging. The most widely used gem replaces the default Rails logger with a single-line, structured format.',
+			'No such generator ships with Rails. Reshaping the request log takes a gem that replaces the default multi-line output.',
 	},
 	{
 		id: 'correct',
@@ -786,15 +984,23 @@ const installLogrageCommands: TerminalCommand[] = [
 		command: 'bundle add lograge',
 		correct: true,
 	},
+	{
+		id: 'wrong-json-logger',
+		label: 'bundle add json_logger',
+		command: 'bundle add json_logger',
+		correct: false,
+		feedback:
+			'Not the gem Rails teams standardize on for this. The widely used one condenses each request into a single structured line.',
+	},
 ];
 
-const installLogrageOutput: TerminalOutputLine[] = [
-	{ text: 'Fetching lograge 0.14.0', color: 'cyan' },
-	{ text: 'Installing lograge 0.14.0', color: 'green' },
-	{ text: 'Bundle complete! lograge added to Gemfile.', color: 'green' },
+const INSTALL_LOGRAGE_OUTPUT: TerminalOutputLine[] = [
+	{ text: 'Fetching lograge 0.15.0', color: 'cyan' },
+	{ text: 'Installing lograge 0.15.0', color: 'green' },
+	{ text: 'Bundle complete!', color: 'green' },
 ];
 
-// ─── Step 1: Configure Lograge JSON (OptionCard) ─────────────────────
+// ─── Option step data ─────────────────────────────────────────────────
 
 interface StepOption {
 	id: string;
@@ -803,13 +1009,15 @@ interface StepOption {
 	feedback?: string;
 }
 
+// Step 1: formatter (per the lograge README: KeyValue is the default,
+// Json.new emits JSON, Raw.new emits a Ruby hash).
 const LOGRAGE_CONFIG_OPTIONS: StepOption[] = [
 	{
-		id: 'wrong-text',
+		id: 'wrong-keyvalue',
 		name: 'config.lograge.enabled = true\nconfig.lograge.formatter = Lograge::Formatters::KeyValue.new',
 		correct: false,
 		feedback:
-			'KeyValue format is still text-based and hard to parse. JSON output is needed so log aggregation tools (Datadog, ELK) can index fields automatically.',
+			'One line per request now, but still flat text: fine for eyeballs, brittle for machines. The log pipeline needs a format it can parse field-by-field without regex.',
 	},
 	{
 		id: 'correct',
@@ -821,44 +1029,44 @@ const LOGRAGE_CONFIG_OPTIONS: StepOption[] = [
 		name: 'config.lograge.enabled = true\nconfig.lograge.formatter = Lograge::Formatters::Raw.new',
 		correct: false,
 		feedback:
-			'Raw format outputs a Ruby hash, not JSON. External tools cannot parse Ruby hashes. JSON is the standard interchange format for log aggregation.',
+			'Raw emits a Ruby hash object, and only Ruby can read a Ruby hash. Log pipelines and query tools are not Ruby processes.',
 	},
 ];
 
-// ─── Step 2: Custom log fields (OptionCard) ──────────────────────────
-
+// Step 2: custom fields (per the lograge README: custom_payload
+// receives the controller instance; custom_options receives the event).
 const CUSTOM_FIELDS_OPTIONS: StepOption[] = [
 	{
-		id: 'wrong-before-action',
-		name: 'before_action :log_context\n\ndef log_context\n  Rails.logger.info("user=#{current_user&.id}")\nend',
+		id: 'wrong-extra-line',
+		name: 'before_action :log_context\n\ndef log_context\n  Rails.logger.info("user=#{Current.user&.id}")\nend',
 		correct: false,
 		feedback:
-			'Adding a separate log line does not attach fields to the Lograge output. Lograge has a built-in hook for appending custom fields to every request log line.',
+			'That adds one more unstructured line to grep through. The fields need to land INSIDE the single structured line each request already emits.',
 	},
 	{
-		id: 'wrong-tagged',
-		name: 'config.log_tags = [:request_id, :user_id]',
+		id: 'wrong-log-tags',
+		name: 'config.log_tags = [ :request_id ]',
 		correct: false,
 		feedback:
-			'log_tags is for the default Rails logger, not Lograge. Lograge has its own hook for merging custom fields into its JSON output for each request.',
+			"log_tags prefixes the DEFAULT logger's lines. The single-line request log you just built comes from a different pipeline with its own hook for extra fields.",
 	},
 	{
 		id: 'correct',
-		name: 'config.lograge.custom_payload do |controller|\n  {\n    tenant_id: controller.current_tenant&.id,\n    request_id: controller.request.request_id,\n    user_id: controller.current_user&.id\n  }\nend',
+		name: 'config.lograge.custom_payload do |controller|\n  {\n    request_id: controller.request.request_id,\n    user_id: Current.user&.id\n  }\nend',
 		correct: true,
 	},
 ];
 
-// ─── Step 3: Install OpenTelemetry (Terminal) ────────────────────────
+// ─── Step 3: install OpenTelemetry (terminal) ─────────────────────────
 
-const installOtelCommands: TerminalCommand[] = [
+export const INSTALL_OTEL_COMMANDS: TerminalCommand[] = [
 	{
 		id: 'wrong-newrelic',
 		label: 'bundle add newrelic_rpm',
 		command: 'bundle add newrelic_rpm',
 		correct: false,
 		feedback:
-			'New Relic is a proprietary APM tool, not an open standard. OpenTelemetry is vendor-neutral, so you can send traces to any backend (Jaeger, Zipkin, Datadog).',
+			'That locks the trace data into one proprietary backend. The team wants the vendor-neutral standard, so any backend can receive the same data.',
 	},
 	{
 		id: 'correct',
@@ -867,102 +1075,102 @@ const installOtelCommands: TerminalCommand[] = [
 		correct: true,
 	},
 	{
-		id: 'wrong-partial',
+		id: 'wrong-sdk-only',
 		label: 'bundle add opentelemetry-sdk',
 		command: 'bundle add opentelemetry-sdk',
 		correct: false,
 		feedback:
-			'The SDK alone does not instrument anything. You also need the instrumentation-all meta-gem to automatically trace Rails, ActiveRecord, Faraday, and other libraries.',
+			'The SDK alone is plumbing: it can export spans but instruments nothing by itself. Rails, Active Record, and the HTTP client each need their instrumentation attached.',
 	},
 ];
 
-const installOtelOutput: TerminalOutputLine[] = [
-	{ text: 'Fetching opentelemetry-sdk 1.4.0', color: 'cyan' },
-	{ text: 'Fetching opentelemetry-instrumentation-all 0.60.0', color: 'cyan' },
-	{ text: 'Installing opentelemetry-sdk 1.4.0', color: 'green' },
+const INSTALL_OTEL_OUTPUT: TerminalOutputLine[] = [
+	{ text: 'Fetching opentelemetry-sdk 1.12.1', color: 'cyan' },
+	{ text: 'Fetching opentelemetry-instrumentation-all 0.94.0', color: 'cyan' },
+	{ text: 'Installing opentelemetry-sdk 1.12.1', color: 'green' },
 	{
-		text: 'Installing opentelemetry-instrumentation-all 0.60.0',
+		text: 'Installing opentelemetry-instrumentation-all 0.94.0',
 		color: 'green',
 	},
-	{ text: 'Bundle complete! OpenTelemetry gems added.', color: 'green' },
+	{ text: 'Bundle complete!', color: 'green' },
 ];
 
-// ─── Step 4: Configure OpenTelemetry (OptionCard) ────────────────────
-
+// Step 4: configure the SDK (per opentelemetry.io getting-started:
+// SDK.configure with service_name and use_all() in an initializer).
 const OTEL_CONFIG_OPTIONS: StepOption[] = [
 	{
-		id: 'wrong-manual',
-		name: 'OpenTelemetry::SDK.configure do |c|\n  c.service_name = "ecommerce"\n  c.use "OpenTelemetry::Instrumentation::Rails"\n  c.use "OpenTelemetry::Instrumentation::ActiveRecord"\nend',
+		id: 'wrong-manual-list',
+		name: 'OpenTelemetry::SDK.configure do |c|\n  c.service_name = "myapp"\n  c.use "OpenTelemetry::Instrumentation::Rails"\n  c.use "OpenTelemetry::Instrumentation::ActiveRecord"\nend',
 		correct: false,
 		feedback:
-			'Listing instrumentations manually means you miss new ones when adding gems. The use_all method auto-detects and instruments every supported library in your Gemfile.',
+			'Hand-listing instrumentations means every new gem needs a matching edit here, and the ones you forget stay invisible in traces. The SDK can discover everything in the Gemfile for you.',
 	},
 	{
 		id: 'wrong-no-name',
 		name: 'OpenTelemetry::SDK.configure do |c|\n  c.use_all\nend',
 		correct: false,
 		feedback:
-			'Missing service_name. Without it, traces show "unknown_service" in your tracing backend. Every service must identify itself so you can filter and search by service.',
+			'Without naming this app, every span lands in the backend as "unknown_service" and cannot be told apart from anything else reporting there.',
 	},
 	{
 		id: 'correct',
-		name: 'OpenTelemetry::SDK.configure do |c|\n  c.service_name = "ecommerce"\n  c.use_all\nend',
+		name: 'OpenTelemetry::SDK.configure do |c|\n  c.service_name = "myapp"\n  c.use_all\nend',
 		correct: true,
 	},
 ];
 
-// ─── Step 5: Health check endpoint (OptionCard) ──────────────────────
-
+// Step 5: deepen /up (the Rails docs: "Replace rails/health#show with
+// your own controller action if you have application specific needs").
 const HEALTH_CHECK_OPTIONS: StepOption[] = [
 	{
-		id: 'wrong-simple',
-		name: 'Rails.application.routes.draw do\n  get "/up", to: proc { [200, {}, ["OK"]] }\nend',
+		id: 'wrong-keep-default',
+		name: '# config/routes.rb (keep as generated)\nget "up" => "rails/health#show", as: :rails_health_check',
 		correct: false,
 		feedback:
-			'A static 200 response tells you nothing. The endpoint should verify critical dependencies (database, job queue, disk) so the load balancer knows if the instance can actually serve requests.',
+			'That endpoint returns 200 whenever the process has booted; by design it reflects nothing about dependencies. The dead job worker from the 2am incident sails right through it.',
 	},
 	{
 		id: 'correct',
-		name: 'Rails.application.routes.draw do\n  get "/up", to: "health#show"\nend\n\nclass HealthController < ApplicationController\n  allow_unauthenticated_access\n\n  def show\n    result = HealthCheckService.call\n    status = result.values.all? ? :ok : :service_unavailable\n    render json: result, status: status\n  end\nend',
+		name: '# config/routes.rb\nget "up" => "health#show", as: :rails_health_check\n\n# app/controllers/health_controller.rb\nclass HealthController < ApplicationController\n  allow_unauthenticated_access\n\n  def show\n    checks = HealthCheckService.call\n    status = checks.values.all? ? :ok : :service_unavailable\n    render json: checks, status: status\n  end\nend',
 		correct: true,
 	},
 	{
-		id: 'wrong-private',
-		name: 'Rails.application.routes.draw do\n  get "/up", to: "health#show"\nend\n\nclass HealthController < ApplicationController\n  before_action :authenticate_user!\n  def show\n    render json: { status: "ok" }\n  end\nend',
+		id: 'wrong-authenticated',
+		name: '# config/routes.rb\nget "up" => "health#show", as: :rails_health_check\n\n# app/controllers/health_controller.rb\nclass HealthController < ApplicationController\n  def show\n    render json: { status: "ok" }\n  end\nend',
 		correct: false,
 		feedback:
-			'Health checks must be unauthenticated. Load balancers and Kubernetes probes cannot authenticate. Adding before_action :authenticate_user! blocks all health checks.',
+			'This controller inherits the app-wide login requirement, and the uptime monitor cannot log in: every ping bounces off authentication and the monitor pages you about a perfectly healthy app. It also checks nothing.',
 	},
 ];
 
 // ─── Option step config map ───────────────────────────────────────────
 
-const OPTION_STEP_CONFIG: Record<
+export const OPTION_STEP_CONFIG: Record<
 	number,
 	{ title: string; description: string; options: StepOption[] }
 > = {
 	1: {
-		title: 'Configure Lograge Formatter',
+		title: 'Pick the Log Format',
 		description:
-			'Lograge is installed. Now configure it to output one JSON line per request instead of the default multi-line text. Which formatter produces machine-readable JSON output?',
+			'The gem is installed. Each request will now emit ONE line instead of five, and the question is what shape that line takes so tools can query it. Which formatter?',
 		options: LOGRAGE_CONFIG_OPTIONS,
 	},
 	2: {
-		title: 'Add Custom Log Fields',
+		title: 'Attach Request Context',
 		description:
-			'JSON logs are working, but they only include default fields (method, path, status, duration). You need tenant_id, request_id, and user_id on every log line for debugging. How do you add custom fields to Lograge output?',
+			'One queryable line per request, but the lunch-rush hunt also needs to answer "whose request?" and "which request?". How do the request id and the user land inside every line?',
 		options: CUSTOM_FIELDS_OPTIONS,
 	},
 	4: {
-		title: 'Configure OpenTelemetry',
+		title: 'Configure the Tracer',
 		description:
-			'OpenTelemetry gems are installed. Configure the SDK to instrument all supported libraries automatically and identify this service in trace data.',
+			'The tracing gems are installed. Configure the SDK in its initializer so every library in the app reports spans, attributed to this app.',
 		options: OTEL_CONFIG_OPTIONS,
 	},
 	5: {
-		title: 'Add Health Check Endpoint',
+		title: 'Deepen the Health Check',
 		description:
-			'The application has no health endpoint. Load balancers and Kubernetes need a way to check if this instance is ready to serve traffic. What kind of health check should you add?',
+			"Rails' built-in /up answered 200 all through the dead-worker incident, because it only proves the app booted. The uptime monitor needs an answer that reflects whether the system WORKS. What replaces it?",
 		options: HEALTH_CHECK_OPTIONS,
 	},
 };
@@ -970,19 +1178,35 @@ const OPTION_STEP_CONFIG: Record<
 // ─── Terminal step map for history ────────────────────────────────────
 
 const SHELL_STEP_MAP: (TerminalStepData | null)[] = [
-	{ commands: installLogrageCommands, outputLines: installLogrageOutput },
-	null, // step 1: OptionCard
-	null, // step 2: OptionCard
-	{ commands: installOtelCommands, outputLines: installOtelOutput },
-	null, // step 4: OptionCard
-	null, // step 5: OptionCard
+	{ commands: INSTALL_LOGRAGE_COMMANDS, outputLines: INSTALL_LOGRAGE_OUTPUT },
+	null,
+	null,
+	{ commands: INSTALL_OTEL_COMMANDS, outputLines: INSTALL_OTEL_OUTPUT },
+	null,
+	null,
 ];
 
 // ─── Code preview per phase/step ──────────────────────────────────────
 
-function getCodeFiles(phase: Phase, completedStep: number) {
-	if (phase === 'observe') {
+export function getCodeFiles(phase: Phase, completedStep: number) {
+	if (phase === 'observe' || completedStep < 0) {
 		return [
+			{
+				filename: 'log/production.log',
+				language: 'text',
+				code: `Started POST "/checkout" for 10.0.0.7 at 14:22:31
+Processing by CheckoutsController#create as JSON
+Started GET "/products/9" for 10.0.0.4 at 14:22:31
+  Order Load (1.2ms)  SELECT "orders".* FROM ...
+Processing by ProductsController#show as JSON
+Completed 200 OK in 3214ms (Views: 11.4ms | ActiveRecord: 68.2ms)
+Completed 200 OK in 187ms (Views: 9.8ms | ActiveRecord: 3.1ms)
+
+# Five lines of prose per request, interleaved across
+# concurrent requests. Which "Completed" belongs to which
+# "Started"? Whose checkout took 3214ms? grep cannot say.`,
+				highlight: [6],
+			},
 			{
 				filename: 'app/middleware/request_logger.rb',
 				language: 'ruby',
@@ -1006,89 +1230,75 @@ function getCodeFiles(phase: Phase, completedStep: number) {
   end
 end
 
-# L40's middleware logs basics, but:
-# - No JSON format (cannot index or search by field)
-# - No request_id or user_id correlation
-# - No distributed tracing across services
-# - No health endpoint for load balancers`,
-				highlight: [24, 25, 26, 27],
+# The middleware from the middleware level adds one summary
+# line, but it is one more text line in the same braid:
+# nothing ties it to the other lines of its request, and
+# slowness still raises nothing for the error tracker.`,
+				highlight: [11, 12, 13, 14, 15],
 			},
 		];
 	}
 
 	const files = [];
 
-	// Step 0 complete: lograge installed
-	if (completedStep >= 0) {
-		files.push({
-			filename: 'config/environments/production.rb',
-			language: 'ruby',
-			code:
-				completedStep >= 1
-					? completedStep >= 2
-						? `# config/environments/production.rb
+	files.push({
+		filename: 'config/environments/production.rb',
+		language: 'ruby',
+		code:
+			completedStep >= 2
+				? `# Structured request logging
 config.lograge.enabled = true
 config.lograge.formatter = Lograge::Formatters::Json.new
 
 config.lograge.custom_payload do |controller|
   {
-    tenant_id: controller.current_tenant&.id,
     request_id: controller.request.request_id,
-    user_id: controller.current_user&.id
+    user_id: Current.user&.id
   }
 end`
-						: `# config/environments/production.rb
+				: completedStep >= 1
+					? `# Structured request logging
 config.lograge.enabled = true
 config.lograge.formatter = Lograge::Formatters::Json.new
 
-# TODO: add custom log fields`
-					: `# config/environments/production.rb
-# Lograge gem installed
-# TODO: configure formatter`,
-			highlight:
-				completedStep >= 2
-					? [5, 6, 7, 8, 9, 10, 11]
-					: completedStep >= 1
-						? [2, 3]
-						: [3],
-		});
-	} else {
-		files.push({
-			filename: 'config/environments/production.rb',
-			language: 'ruby',
-			code: `# config/environments/production.rb
-# Default Rails logger (multi-line, unstructured)
-# TODO: install structured logging gem`,
-			highlight: [3],
-		});
-	}
+# Each line still answers "what happened" but not
+# "whose request" or "which request".`
+					: `# lograge installed (Gemfile).
+# Each request still logs five lines of prose;
+# the formatter decides what replaces them.`,
+		highlight:
+			completedStep >= 2 ? [5, 6, 7, 8, 9] : completedStep >= 1 ? [2, 3] : [3],
+	});
 
-	// Step 3+ complete: OpenTelemetry installed
 	if (completedStep >= 3) {
 		files.push({
 			filename: 'config/initializers/opentelemetry.rb',
 			language: 'ruby',
 			code:
 				completedStep >= 4
-					? `# config/initializers/opentelemetry.rb
-require "opentelemetry/sdk"
+					? `require "opentelemetry/sdk"
 require "opentelemetry/instrumentation/all"
 
 OpenTelemetry::SDK.configure do |c|
-  c.service_name = "ecommerce"
+  c.service_name = "myapp"
   c.use_all
 end`
-					: `# config/initializers/opentelemetry.rb
-require "opentelemetry/sdk"
+					: `require "opentelemetry/sdk"
 require "opentelemetry/instrumentation/all"
 
-# TODO: configure SDK`,
-			highlight: completedStep >= 4 ? [5, 6, 7] : [5],
+# The SDK is loaded but configured to do nothing yet.`,
+			highlight: completedStep >= 4 ? [4, 5, 6] : [4],
 		});
 	}
 
-	// Step 5 complete: health endpoint
 	if (completedStep >= 5) {
+		files.push({
+			filename: 'config/routes.rb',
+			language: 'ruby',
+			code: `# was: get "up" => "rails/health#show" (boot check only)
+get "up" => "health#show", as: :rails_health_check`,
+			highlight: [2],
+		});
 		files.push({
 			filename: 'app/controllers/health_controller.rb',
 			language: 'ruby',
@@ -1096,19 +1306,48 @@ require "opentelemetry/instrumentation/all"
   allow_unauthenticated_access
 
   def show
-    result = HealthCheckService.call
-    status = result.values.all? ? :ok : :service_unavailable
-    render json: result, status: status
+    checks = HealthCheckService.call
+    status = checks.values.all? ? :ok : :service_unavailable
+    render json: checks, status: status
   end
 end`,
-			highlight: [3, 4, 5],
+			highlight: [2, 5, 6],
+		});
+		files.push({
+			filename: 'app/services/health_check_service.rb',
+			language: 'ruby',
+			code: `class HealthCheckService < ApplicationService
+  def call
+    {
+      database: database_alive?,
+      job_worker: worker_alive?
+    }
+  end
+
+  private
+
+  def database_alive?
+    ActiveRecord::Base.connection.execute("SELECT 1")
+    true
+  rescue ActiveRecord::ConnectionNotEstablished, ActiveRecord::StatementInvalid
+    false
+  end
+
+  def worker_alive?
+    # Solid Queue processes touch last_heartbeat_at every 60s;
+    # a worker with no heartbeat for 5 minutes is gone (the
+    # supervisor prunes it at the same threshold).
+    SolidQueue::Process.where("last_heartbeat_at > ?", 5.minutes.ago).exists?
+  end
+end`,
+			highlight: [4, 5, 12, 22],
 		});
 	}
 
 	return files;
 }
 
-// ─── Flash to FlowNode status mapping ────────────────────────────────
+// ─── Node/edge rendering ──────────────────────────────────────────────
 
 function flashToStatus(flash: ZoneFlash): FlowNodeData['status'] {
 	switch (flash) {
@@ -1123,13 +1362,24 @@ function flashToStatus(flash: ZoneFlash): FlowNodeData['status'] {
 	}
 }
 
-// ─── Custom React Flow nodes ──────────────────────────────────────────
+const ZONE_ICONS: Record<ZoneKey, string> = {
+	customers: 'CU',
+	app: 'AP',
+	logfile: 'LG',
+	worker: 'JW',
+	monitor: 'UM',
+	traces: 'TR',
+};
 
-const LogNode = memo(function LogNode({ data }: { data: LogNodeData }) {
+const ObsZoneNode = memo(function ObsZoneNode({
+	data,
+}: {
+	data: ZoneVizState & { zoneKey: ZoneKey };
+}) {
 	const flowData: FlowNodeData = {
 		label: data.label,
-		icon: 'LG',
-		color: '#71717a',
+		icon: ZONE_ICONS[data.zoneKey],
+		color: '#6366f1',
 		description: data.sublabel ?? undefined,
 		status: flashToStatus(data.flash),
 		showTarget: false,
@@ -1154,62 +1404,6 @@ const LogNode = memo(function LogNode({ data }: { data: LogNodeData }) {
 		</FlowNode>
 	);
 });
-
-const TraceNode = memo(function TraceNode({ data }: { data: TraceNodeData }) {
-	const flowData: FlowNodeData = {
-		label: data.label,
-		icon: 'TR',
-		color: '#6366f1',
-		description: data.sublabel ?? undefined,
-		status: flashToStatus(data.flash),
-		showTarget: false,
-		showSource: false,
-	};
-	return (
-		<FlowNode data={flowData}>
-			<FlowHandles />
-			{data.badge && (
-				<div className="mt-1 inline-block px-2 py-0.5 rounded-full bg-success/20 text-success text-xs font-mono">
-					{data.badge}
-				</div>
-			)}
-		</FlowNode>
-	);
-});
-
-const HealthNode = memo(function HealthNode({
-	data,
-}: {
-	data: HealthNodeData;
-}) {
-	const flowData: FlowNodeData = {
-		label: data.label,
-		icon: 'HC',
-		color: '#ef4444',
-		description: data.sublabel ?? undefined,
-		status: flashToStatus(data.flash),
-		showTarget: false,
-		showSource: false,
-	};
-	return (
-		<FlowNode data={flowData}>
-			<FlowHandles />
-			{data.badge && (
-				<div
-					className={`mt-1 inline-block px-2 py-0.5 rounded-full text-xs font-mono ${
-						data.flash === 'green'
-							? 'bg-success/20 text-success'
-							: 'bg-destructive/20 text-destructive'
-					}`}
-				>
-					{data.badge}
-				</div>
-			)}
-		</FlowNode>
-	);
-});
-
-// ─── Custom edge ──────────────────────────────────────────────────────
 
 const ObsEdge = memo(function ObsEdge(props: EdgeProps) {
 	const { id, sourceX, sourceY, targetX, targetY, data } = props;
@@ -1250,9 +1444,9 @@ const ObsEdge = memo(function ObsEdge(props: EdgeProps) {
 			{d.label && (
 				<EdgeLabelRenderer>
 					<div
-						className="nodrag nopan pointer-events-none absolute text-[10px] font-mono text-foreground bg-background/90 px-1.5 py-0.5 rounded border border-border max-w-64 text-center whitespace-nowrap"
+						className="nodrag nopan pointer-events-none absolute text-xs font-mono text-foreground bg-background/90 px-1.5 py-0.5 rounded border border-border max-w-64 text-center whitespace-nowrap"
 						style={{
-							transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY + 20}px)`,
+							transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY + 18}px)`,
 						}}
 					>
 						{d.label}
@@ -1263,13 +1457,30 @@ const ObsEdge = memo(function ObsEdge(props: EdgeProps) {
 	);
 });
 
-const obsNodeTypes = {
-	'unstructured-log': LogNode,
-	'structured-log': LogNode,
-	trace: TraceNode,
-	health: HealthNode,
-};
+const obsNodeTypes = { obs: ObsZoneNode };
 const obsEdgeTypes = { obs: ObsEdge };
+
+const POSITIONS: Record<ZoneKey, { x: number; y: number }> = {
+	customers: { x: 40, y: 170 },
+	app: { x: 300, y: 170 },
+	monitor: { x: 300, y: 20 },
+	logfile: { x: 560, y: 90 },
+	worker: { x: 560, y: 260 },
+	traces: { x: 560, y: 400 },
+};
+
+const EDGE_DEFS: {
+	id: EdgeKey;
+	source: ZoneKey;
+	target: ZoneKey;
+	rewardOnly?: boolean;
+}[] = [
+	{ id: 'eCust', source: 'customers', target: 'app' },
+	{ id: 'eMon', source: 'monitor', target: 'app' },
+	{ id: 'eLog', source: 'app', target: 'logfile' },
+	{ id: 'eWork', source: 'app', target: 'worker' },
+	{ id: 'eTrace', source: 'app', target: 'traces', rewardOnly: true },
+];
 
 // ─── Main component ───────────────────────────────────────────────────
 
@@ -1277,48 +1488,46 @@ export function Level47Observability({ onComplete }: LevelComponentProps) {
 	const [phase, setPhase] = useState<Phase>('observe');
 	const isReward = phase === 'reward';
 
-	// ── Viz state ──
-	const [unstructuredState, setUnstructuredState] =
-		useState<LogNodeData>(DEFAULT_UNSTRUCTURED);
-	const [structuredState, setStructuredState] =
-		useState<LogNodeData>(DEFAULT_STRUCTURED);
-	const [traceState, setTraceState] = useState<TraceNodeData>(DEFAULT_TRACE);
-	const [healthState, setHealthState] =
-		useState<HealthNodeData>(DEFAULT_HEALTH);
-	const [edgeAState, setEdgeAState] = useState<EdgeVizState>(DEFAULT_EDGE);
-	const [edgeBState, setEdgeBState] = useState<EdgeVizState>(DEFAULT_EDGE);
-	const [edgeCState, setEdgeCState] = useState<EdgeVizState>(DEFAULT_EDGE);
+	const [zoneStates, setZoneStates] =
+		useState<Record<string, ZoneVizState>>(OBSERVE_ZONES);
+	const [edgeStates, setEdgeStates] = useState<Record<string, EdgeVizState>>(
+		{},
+	);
 	const [vizAnimating, setVizAnimating] = useState(false);
 	const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
 	const resetViz = useCallback(() => {
-		setUnstructuredState(
-			isReward ? DEFAULT_UNSTRUCTURED_REWARD : DEFAULT_UNSTRUCTURED,
-		);
-		setStructuredState(
-			isReward ? DEFAULT_STRUCTURED_REWARD : DEFAULT_STRUCTURED,
-		);
-		setTraceState(isReward ? DEFAULT_TRACE_REWARD : DEFAULT_TRACE);
-		setHealthState(isReward ? DEFAULT_HEALTH_REWARD : DEFAULT_HEALTH);
-		setEdgeAState(DEFAULT_EDGE);
-		setEdgeBState(DEFAULT_EDGE);
-		setEdgeCState(DEFAULT_EDGE);
+		setZoneStates(structuredClone(isReward ? REWARD_ZONES : OBSERVE_ZONES));
+		setEdgeStates({});
 	}, [isReward]);
 
+	useEffect(() => {
+		resetViz();
+	}, [resetViz]);
+
 	const applyFrame = useCallback((frame: AnimFrame) => {
-		if (frame.unstructuredLog)
-			setUnstructuredState((prev) => ({ ...prev, ...frame.unstructuredLog }));
-		if (frame.structuredLog)
-			setStructuredState((prev) => ({ ...prev, ...frame.structuredLog }));
-		if (frame.trace) setTraceState((prev) => ({ ...prev, ...frame.trace }));
-		if (frame.health) setHealthState((prev) => ({ ...prev, ...frame.health }));
-		if (frame.edgeA) setEdgeAState((prev) => ({ ...prev, ...frame.edgeA }));
-		if (frame.edgeB) setEdgeBState((prev) => ({ ...prev, ...frame.edgeB }));
-		if (frame.edgeC) setEdgeCState((prev) => ({ ...prev, ...frame.edgeC }));
+		if (frame.zones) {
+			setZoneStates((prev) => {
+				const next = { ...prev };
+				for (const [key, patch] of Object.entries(frame.zones ?? {})) {
+					next[key] = { ...next[key], ...patch };
+				}
+				return next;
+			});
+		}
+		if (frame.edges) {
+			setEdgeStates((prev) => {
+				const next = { ...prev };
+				for (const [key, patch] of Object.entries(frame.edges ?? {})) {
+					next[key] = { ...DEFAULT_EDGE, ...next[key], ...patch };
+				}
+				return next;
+			});
+		}
 	}, []);
 
 	const runAnimation = useCallback(
-		(frames: AnimFrame[], onDone?: () => void) => {
+		(frames: AnimFrame[]) => {
 			for (const t of timersRef.current) clearTimeout(t);
 			timersRef.current = [];
 			setVizAnimating(true);
@@ -1329,8 +1538,14 @@ export function Level47Observability({ onComplete }: LevelComponentProps) {
 					applyFrame(frame);
 					if (i === frames.length - 1) {
 						const cleanup = setTimeout(() => {
+							setEdgeStates((prev) => {
+								const next: Record<string, EdgeVizState> = {};
+								for (const [k, v] of Object.entries(prev)) {
+									next[k] = { ...v, active: false };
+								}
+								return next;
+							});
 							setVizAnimating(false);
-							onDone?.();
 						}, ANIMATION_DURATION_MS);
 						timersRef.current.push(cleanup);
 					}
@@ -1347,75 +1562,42 @@ export function Level47Observability({ onComplete }: LevelComponentProps) {
 		};
 	}, []);
 
-	// ── Hooks ──
 	const discoveryGating = useDiscoveryGating(DISCOVERY_DEFS, {
 		minRequired: DISCOVERY_DEFS.length,
 	});
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
 	const stressTest = useStressTest(STRESS_SCENARIOS);
 
-	// ── Inspector ──
 	const [inspectorData, setInspectorData] = useState<StageInspectorData | null>(
 		null,
 	);
 
-	// ── Flow nodes/edges ──
 	const flowNodes: Node[] = useMemo(() => {
-		return [
-			{
-				id: 'unstructured-log',
-				type: 'unstructured-log',
-				position: { x: 30, y: 20 },
-				data: unstructuredState,
-			},
-			{
-				id: 'structured-log',
-				type: 'structured-log',
-				position: { x: 350, y: 20 },
-				data: structuredState,
-			},
-			{
-				id: 'trace',
-				type: 'trace',
-				position: { x: 30, y: 220 },
-				data: traceState,
-			},
-			{
-				id: 'health',
-				type: 'health',
-				position: { x: 350, y: 220 },
-				data: healthState,
-			},
-		];
-	}, [unstructuredState, structuredState, traceState, healthState]);
+		return (Object.keys(POSITIONS) as ZoneKey[])
+			.filter((key) => key !== 'traces' || isReward)
+			.map((key) => ({
+				id: key,
+				type: 'obs',
+				position: POSITIONS[key],
+				data: {
+					...(zoneStates[key] ?? OBSERVE_ZONES[key] ?? REWARD_ZONES[key]),
+					zoneKey: key,
+				},
+			}));
+	}, [zoneStates, isReward]);
 
 	const flowEdges: Edge[] = useMemo(() => {
-		return [
-			{
-				id: 'edgeA',
-				source: 'unstructured-log',
-				target: 'structured-log',
+		return EDGE_DEFS.filter((def) => !def.rewardOnly || isReward).map(
+			(def) => ({
+				id: def.id,
+				source: def.source,
+				target: def.target,
 				type: 'obs',
-				data: edgeAState,
-			},
-			{
-				id: 'edgeB',
-				source: 'unstructured-log',
-				target: 'trace',
-				type: 'obs',
-				data: edgeBState,
-			},
-			{
-				id: 'edgeC',
-				source: 'structured-log',
-				target: 'health',
-				type: 'obs',
-				data: edgeCState,
-			},
-		];
-	}, [edgeAState, edgeBState, edgeCState]);
+				data: edgeStates[def.id] ?? DEFAULT_EDGE,
+			}),
+		);
+	}, [edgeStates, isReward]);
 
-	// ── Handlers ──
 	const handleNodeClick = useCallback(
 		(nodeId: string) => {
 			if (phase !== 'observe') return;
@@ -1442,11 +1624,12 @@ export function Level47Observability({ onComplete }: LevelComponentProps) {
 
 	const handleFireScenario = useCallback(
 		(scenarioId: string) => {
+			if (vizAnimating) return;
 			stressTest.fireRequest(scenarioId);
 			const frames = REWARD_PROBE_FRAMES[scenarioId];
 			if (frames) runAnimation(frames);
 		},
-		[stressTest, runAnimation],
+		[vizAnimating, stressTest, runAnimation],
 	);
 
 	const handleOptionSelect = useCallback(
@@ -1481,24 +1664,28 @@ export function Level47Observability({ onComplete }: LevelComponentProps) {
 		return {
 			valid: true,
 			message:
-				'Observability configured! Structured logs, tracing, and health checks active.',
+				'Observability wired: one queryable JSON line per request with request and user context, spans naming where time goes, and a health check that reflects whether the system works, not just whether it booted.',
 		};
 	};
 
-	// ── Code preview index ──
 	const codePreviewStep = stepper.isCurrentStepCompleted
 		? stepper.currentStep
 		: stepper.currentStep - 1;
 
-	// ── Render ──
 	const isViewingCompletedStep = stepper.isCurrentStepCompleted;
 	const hasNextStep = stepper.currentStep < STEP_DEFS.length - 1;
 	const currentStepType = STEP_TYPES[stepper.currentStep];
 	const currentOptionConfig = OPTION_STEP_CONFIG[stepper.currentStep];
+	const currentTerminal = SHELL_STEP_MAP[stepper.currentStep];
+	const shuffledOptions = useMemo(
+		() =>
+			currentOptionConfig
+				? shuffleOptions(currentOptionConfig.options, stepper.currentStep)
+				: [],
+		[currentOptionConfig, stepper.currentStep],
+	);
 
-	// ── Center panel content ──
 	function renderCenter() {
-		// Observe phase
 		if (phase === 'observe') {
 			return (
 				<div className="flex-1 flex flex-col">
@@ -1522,7 +1709,7 @@ export function Level47Observability({ onComplete }: LevelComponentProps) {
 							disabled={vizAnimating}
 							onProbe={handleProbe}
 							probes={PROBES}
-							title="Observability Probe"
+							title="Incident Probe"
 						/>
 					</div>
 					{discoveryGating.isUnlocked && (
@@ -1541,22 +1728,20 @@ export function Level47Observability({ onComplete }: LevelComponentProps) {
 			);
 		}
 
-		// Build phase
 		if (phase === 'build') {
 			return (
 				<div className="flex-1 overflow-auto p-6">
 					<div className="max-w-2xl mx-auto space-y-4">
-						{/* Step 0: Install Lograge (Terminal) */}
-						{currentStepType === 'terminal' && stepper.currentStep === 0 && (
+						{currentStepType === 'terminal' && currentTerminal && (
 							<TerminalChoiceStep
-								commands={installLogrageCommands}
+								commands={currentTerminal.commands}
 								completed={isViewingCompletedStep}
 								description={
 									<p className="text-sm text-muted-foreground">
-										Rails default logger outputs multi-line unstructured text.
-										Install a gem that replaces this with single-line structured
-										output so log aggregation tools can index and search your
-										logs.
+										{stepper.currentStep === 0 &&
+											'First: turn five lines of prose per request into one line a machine can query. Install the gem that does that.'}
+										{stepper.currentStep === 3 &&
+											'Logs say WHAT happened; a trace says WHERE the time went inside one request. Install the vendor-neutral tracing stack.'}
 									</p>
 								}
 								hasNext={hasNextStep}
@@ -1567,40 +1752,12 @@ export function Level47Observability({ onComplete }: LevelComponentProps) {
 								onCorrect={() => stepper.completeStep()}
 								onNext={stepper.nextStep}
 								onWrong={(fb) => stepper.recordWrongAttempt(fb)}
-								outputLines={installLogrageOutput}
+								outputLines={currentTerminal.outputLines}
 								stepKey={stepper.currentStep}
-								title="Install Structured Logging"
+								title={STEP_DEFS[stepper.currentStep].title}
 							/>
 						)}
 
-						{/* Step 3: Install OpenTelemetry (Terminal) */}
-						{currentStepType === 'terminal' && stepper.currentStep === 3 && (
-							<TerminalChoiceStep
-								commands={installOtelCommands}
-								completed={isViewingCompletedStep}
-								description={
-									<p className="text-sm text-muted-foreground">
-										Structured logs tell you what happened. Now you need
-										distributed tracing to see where time is spent within each
-										request. Install the tracing SDK and auto-instrumentation
-										gems.
-									</p>
-								}
-								hasNext={hasNextStep}
-								initialHistory={buildTerminalHistory(
-									SHELL_STEP_MAP,
-									stepper.currentStep,
-								)}
-								onCorrect={() => stepper.completeStep()}
-								onNext={stepper.nextStep}
-								onWrong={(fb) => stepper.recordWrongAttempt(fb)}
-								outputLines={installOtelOutput}
-								stepKey={stepper.currentStep}
-								title="Install Distributed Tracing"
-							/>
-						)}
-
-						{/* OptionCard steps (1, 2, 4, 5) */}
 						{currentStepType === 'option' && currentOptionConfig && (
 							<>
 								<h3 className="text-lg font-semibold text-foreground">
@@ -1610,12 +1767,14 @@ export function Level47Observability({ onComplete }: LevelComponentProps) {
 									{currentOptionConfig.description}
 								</p>
 
-								{isViewingCompletedStep ? (
-									<div className="space-y-2">
-										{shuffleOptions(
-											currentOptionConfig.options,
-											stepper.currentStep,
-										).map((opt) => (
+								<ErrorFeedback
+									message={stepper.lastFeedback}
+									onDismiss={stepper.clearFeedback}
+								/>
+
+								<div className="space-y-2">
+									{shuffledOptions.map((opt) =>
+										isViewingCompletedStep ? (
 											<OptionCard
 												color="violet"
 												disabled={!opt.correct}
@@ -1625,31 +1784,18 @@ export function Level47Observability({ onComplete }: LevelComponentProps) {
 												selected={opt.correct}
 												size="lg"
 											/>
-										))}
-									</div>
-								) : (
-									<>
-										<div className="space-y-2">
-											{shuffleOptions(
-												currentOptionConfig.options,
-												stepper.currentStep,
-											).map((opt) => (
-												<OptionCard
-													color="violet"
-													key={opt.id}
-													mono
-													name={opt.name}
-													onClick={() => handleOptionSelect(opt.id)}
-													size="lg"
-												/>
-											))}
-										</div>
-										<ErrorFeedback
-											message={stepper.lastFeedback}
-											onDismiss={stepper.clearFeedback}
-										/>
-									</>
-								)}
+										) : (
+											<OptionCard
+												color="violet"
+												key={opt.id}
+												mono
+												name={opt.name}
+												onClick={() => handleOptionSelect(opt.id)}
+												size="lg"
+											/>
+										),
+									)}
+								</div>
 
 								{isViewingCompletedStep && (
 									<div className="flex justify-end">
@@ -1658,7 +1804,10 @@ export function Level47Observability({ onComplete }: LevelComponentProps) {
 											onClick={
 												hasNextStep
 													? stepper.nextStep
-													: () => setPhase('reward')
+													: () => {
+															stressTest.reset();
+															setPhase('reward');
+														}
 											}
 											size="sm"
 										>
@@ -1674,7 +1823,6 @@ export function Level47Observability({ onComplete }: LevelComponentProps) {
 			);
 		}
 
-		// Reward phase
 		return (
 			<div className="flex-1 flex flex-col">
 				<div className="flex-1 relative">
@@ -1690,6 +1838,7 @@ export function Level47Observability({ onComplete }: LevelComponentProps) {
 						allowedCount={stressTest.allowedCount}
 						blockedCount={stressTest.blockedCount}
 						canAutoFire={stressTest.canAutoFire}
+						disabled={vizAnimating}
 						isAutoFiring={stressTest.isAutoFiring}
 						onFire={handleFireScenario}
 						onToggleAutoFire={stressTest.toggleAutoFire}
@@ -1705,25 +1854,25 @@ export function Level47Observability({ onComplete }: LevelComponentProps) {
 		<LevelLayout>
 			<LeftPanel>
 				<div className="flex flex-col h-full overflow-y-auto">
-					{/* Scenario text */}
 					<div className="p-4 border-b border-border space-y-3">
 						<h3 className="text-sm font-semibold text-foreground mb-2">
 							Scenario
 						</h3>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							Your RequestLogger middleware from L40 logs basic request/response
-							data, but it is not enough. Exceptions lack context, there is no
-							per-field search, no distributed tracing across services, and no
-							health endpoint for load balancers.
+							The error tracker you wired up two levels ago catches everything
+							that breaks. This week proved that plenty can go wrong without
+							anything breaking: checkout crawled through the lunch rush, a
+							customer's failed order could not be found in the logs, and a dead
+							job worker went unnoticed for four hours while /up stayed green.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							When PagerDuty fires at 3 AM, the team cannot diagnose the root
-							cause. You need structured, searchable logs, request tracing, and
-							a way for infrastructure to know if an instance is healthy.
+							None of it raised an exception, so none of it alerted anyone. Make
+							the app observable: every request queryable, every second
+							accounted for, and a health answer that means "working", not
+							"booted".
 						</p>
 					</div>
 
-					{/* Observe: discovery checklist */}
 					{phase === 'observe' && (
 						<div className="p-4 border-b border-border">
 							<DiscoveryChecklist
@@ -1734,7 +1883,6 @@ export function Level47Observability({ onComplete }: LevelComponentProps) {
 						</div>
 					)}
 
-					{/* Build: step progress */}
 					{phase === 'build' && (
 						<div className="p-4 border-b border-border">
 							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
@@ -1748,30 +1896,23 @@ export function Level47Observability({ onComplete }: LevelComponentProps) {
 						</div>
 					)}
 
-					{/* Reward: diagnosed counter */}
 					{phase === 'reward' && (
 						<>
 							<div className="p-4 border-b border-border">
 								<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-									Observability Stack
+									Legend
 								</div>
 								<div className="space-y-2 text-sm">
 									<div className="flex items-center gap-2">
-										<FileText className="w-4 h-4 text-success" />
+										<Check className="w-4 h-4 text-success shrink-0" />
 										<span className="text-foreground">
-											Lograge: structured JSON logs
+											Answered: the question took a query, not an afternoon
 										</span>
 									</div>
 									<div className="flex items-center gap-2">
-										<Activity className="w-4 h-4 text-success" />
+										<X className="w-4 h-4 text-destructive shrink-0" />
 										<span className="text-foreground">
-											OpenTelemetry: distributed tracing
-										</span>
-									</div>
-									<div className="flex items-center gap-2">
-										<Heart className="w-4 h-4 text-success" />
-										<span className="text-foreground">
-											/up: health check endpoint
+											Caught: deep /up returned 503 and the monitor paged
 										</span>
 									</div>
 								</div>
@@ -1782,15 +1923,13 @@ export function Level47Observability({ onComplete }: LevelComponentProps) {
 										<div className="text-2xl font-bold text-success">
 											{stressTest.allowedCount}
 										</div>
-										<div className="text-xs text-success/70">Diagnosed</div>
+										<div className="text-xs text-success/70">Answered</div>
 									</div>
-									<div className="bg-muted rounded-lg p-3 text-center">
-										<div className="text-2xl font-bold text-foreground">
-											{stressTest.results.length}
+									<div className="bg-destructive/20 rounded-lg p-3 text-center">
+										<div className="text-2xl font-bold text-destructive">
+											{stressTest.blockedCount}
 										</div>
-										<div className="text-xs text-muted-foreground">
-											Total Fired
-										</div>
+										<div className="text-xs text-destructive/70">Caught</div>
 									</div>
 								</div>
 							</div>
@@ -1820,10 +1959,10 @@ export function Level47Observability({ onComplete }: LevelComponentProps) {
 						phase === 'build'
 							? codePreviewStep
 							: phase === 'reward'
-								? STEP_DEFS.length - 1
+								? STEP_DEFS.length
 								: -1,
 					)}
-					learningGoal="Observability combines structured logging (Lograge), distributed tracing (OpenTelemetry), and health checks to make production debugging fast and systematic. One JSON line per request, spans showing time breakdown, and an endpoint for load balancers."
+					learningGoal="The error tracker catches what raises; observability covers what does not: slow requests, stuck queues, dead workers. Structured logs turn questions into queries (one JSON line per request, carrying request_id and user_id), traces name where the time goes inside a request, and a deepened /up answers 'is the system working' instead of 'did the process boot'."
 				/>
 			</RightPanel>
 		</LevelLayout>

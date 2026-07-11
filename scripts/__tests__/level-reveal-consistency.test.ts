@@ -307,7 +307,6 @@ const KNOWN_OBSERVE_PHASE_PLACEHOLDERS = new Set<string>([
 	'src/features/act4-performance/components/level-28-caching/Level28Caching.tsx',
 	'src/features/act4-performance/components/level-29-http-caching/Level29HTTPCaching.tsx',
 	'src/features/act5-production/components/level-35-action-mailer/Level35ActionMailer.tsx',
-	'src/features/act6-operations/components/level-47-observability/Level47Observability.tsx',
 ]);
 
 export function findPlaceholderViolations(src: string): string[] {
