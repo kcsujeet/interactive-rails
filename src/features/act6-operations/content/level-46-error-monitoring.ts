@@ -302,6 +302,27 @@ end`,
 				url: 'https://pragprog.com/titles/cpscaling/rails-scales/',
 			},
 		],
+		homework: [
+			{
+				task: 'Wire the Rails 8 error reporter: create an ErrorSubscriber class whose report method logs one structured JSON line (error class, message, severity, context), and subscribe it in an initializer.',
+				commands: [
+					'bin/rails runner \'Rails.error.handle(fallback: nil) { raise "subscriber smoke test" }\'',
+				],
+				verify:
+					'One structured JSON log line appears carrying RuntimeError, the message, and handled true, and the runner exits cleanly because handle swallowed the error.',
+			},
+			{
+				task: 'Stop expected failures from becoming 500s: rescue_from ActiveRecord::RecordNotFound in your API base controller and render a JSON 404.',
+				commands: ['curl -i http://localhost:3000/api/products/999999'],
+				verify:
+					'The response is 404 with a JSON error body instead of a 500, and no error report is emitted for it.',
+			},
+			{
+				task: 'Attach request context to every report: add a before_action that calls Rails.error.set_context with user_id, request_id, and path, then temporarily raise inside one action to see it flow through.',
+				verify:
+					'The structured line your subscriber logs for that request includes the request_id and path of the request that crashed.',
+			},
+		],
 	},
 	hint: {
 		delay: 20,

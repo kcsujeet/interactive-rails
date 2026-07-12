@@ -314,6 +314,25 @@ end`,
 				url: 'https://dry-rb.org/gems/dry-schema/',
 			},
 		],
+		homework: [
+			{
+				task: 'Add dry-validation to your store_api app through the bundle CLI.',
+				commands: ['bundle add dry-validation'],
+				verify:
+					'The Gemfile lists dry-validation and the bundle resolves without conflicts.',
+			},
+			{
+				task: 'Create a reusable UserSchema in app/schemas (email_address format and password minimum length) and a RegistrationContract in app/contracts that takes the schema via params and adds one cross-field rule block. Exercise it from the console.',
+				commands: ['bin/rails console'],
+				verify:
+					'RegistrationContract.new.call(email_address: "", password: "short") returns a failure whose errors include entries for BOTH fields at once, not just the first one.',
+			},
+			{
+				task: 'Replace the scattered early-return checks in your UserRegistration service with a single contract.call at the top, so every validation failure comes back in one response.',
+				verify:
+					'A signup request with several bad fields returns 422 listing all the errors together instead of one error per round trip.',
+			},
+		],
 	},
 	hint: {
 		delay: 25,

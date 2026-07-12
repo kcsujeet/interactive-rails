@@ -195,6 +195,28 @@ end`,
 				url: 'https://guides.rubyonrails.org/active_record_validations.html#custom-validators',
 			},
 		],
+		homework: [
+			{
+				task: 'Add validations to Product in your store_api app: name present with a sensible length range, description present, price present and numerically greater than zero. Then try to save garbage from the console.',
+				commands: ['bin/rails console', 'Product.create(name: "", price: nil)'],
+				verify:
+					'The create returns an unsaved record, and errors.full_messages lists one readable message per broken rule.',
+			},
+			{
+				task: 'Protect User the same way: email_address present, unique (case insensitive), and matching URI::MailTo::EMAIL_REGEXP. Try to create a duplicate account in the console.',
+				commands: ['bin/rails console'],
+				verify:
+					'The second user with the same email_address fails validation with "has already been taken" instead of raising RecordNotUnique from the database.',
+			},
+			{
+				task: 'Return validation failures to API clients as structured JSON instead of a 500. Curl a bad create with your Bearer token.',
+				commands: [
+					'curl -X POST http://localhost:3000/api/v1/products -H "Authorization: Bearer <token>" -H "Content-Type: application/json" -d \'{"product":{"name":""}}\'',
+				],
+				verify:
+					'The response status is 422 Unprocessable Entity and the body contains an errors array of readable messages.',
+			},
+		],
 	},
 	hint: {
 		delay: 20,

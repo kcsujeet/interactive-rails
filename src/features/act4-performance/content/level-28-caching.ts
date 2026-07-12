@@ -253,6 +253,37 @@ end
 				url: 'https://pragprog.com/titles/cpscaling/rails-scales/',
 			},
 		],
+		homework: [
+			{
+				task: 'Install Solid Cache in your store_api app and create its database.',
+				commands: ['bin/rails solid_cache:install', 'bin/rails db:prepare'],
+				verify:
+					'config/cache.yml and db/cache_schema.rb exist, and db:prepare created the cache database with its entries table.',
+			},
+			{
+				task: 'Enable caching in development, then time a cached fetch against a cold one.',
+				commands: [
+					'bin/rails dev:cache',
+					'bin/rails console',
+					'Benchmark.measure { Rails.cache.fetch("trending", expires_in: 5.minutes) { Product.order(:price).limit(20).to_a } }.real',
+					'Benchmark.measure { Rails.cache.fetch("trending", expires_in: 5.minutes) { Product.order(:price).limit(20).to_a } }.real',
+				],
+				verify:
+					'The first fetch runs the SQL and pays the query time; the second returns from the cache with no SQL in the log and near-zero real time.',
+			},
+			{
+				task: 'Wire automatic invalidation: add touch: true to the belongs_to :product in Review and switch to a versioned cache key.',
+				commands: [
+					'bin/rails console',
+					'key = [Product.maximum(:updated_at).to_i, "trending"]',
+					'Rails.cache.fetch(key) { Product.order(:price).limit(20).to_a }',
+					'Review.create!(product: Product.first, rating: 5, body: "New!")',
+					'key == [Product.maximum(:updated_at).to_i, "trending"]',
+				],
+				verify:
+					'Creating the review touches its product, updated_at moves forward, the comparison prints false, and the next fetch recomputes instead of serving stale rankings.',
+			},
+		],
 	},
 	hint: {
 		delay: 25,

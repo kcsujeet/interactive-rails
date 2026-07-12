@@ -564,7 +564,7 @@ const CACHE_FETCH_OPTIONS: StepOption[] = [
 		label: 'Rails.cache.fetch("trending_products") { compute_trending.to_a }',
 		correct: false,
 		feedback:
-			'Missing an expiration. Without expires_in, the cache never refreshes and serves stale data forever.',
+			'Missing an expiration. Without one, the cache never refreshes and serves stale data forever.',
 	},
 	{
 		id: 'wrong-static-key',
@@ -596,7 +596,7 @@ const TOUCH_OPTIONS: StepOption[] = [
 		label: 'after_save { Rails.cache.delete("trending_products") }',
 		correct: false,
 		feedback:
-			'Manual callbacks are fragile and must be added to every model that affects the cache. touch cascades automatically through associations.',
+			'Manual callbacks are fragile and must be added to every model that affects the cache. Rails can bump the parent timestamp automatically whenever a child record changes.',
 	},
 	{
 		id: 'correct',

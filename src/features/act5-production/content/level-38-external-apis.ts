@@ -253,6 +253,42 @@ end`,
 				url: 'https://learn.microsoft.com/en-us/azure/architecture/patterns/bulkhead',
 			},
 		],
+		homework: [
+			{
+				task: 'Feel what a timeout buys you: call a deliberately slow endpoint with a 2 second budget.',
+				commands: [
+					'bundle add faraday',
+					'bin/rails console',
+					"conn = Faraday.new(url: 'https://httpbin.org') { |f| f.options.timeout = 2; f.options.open_timeout = 2 }",
+					"conn.get('/delay/10')",
+				],
+				verify:
+					'The call raises Faraday::TimeoutError after about 2 seconds instead of hanging for 10. Your timeout, not the slow dependency, decides how long the thread is blocked.',
+			},
+			{
+				task: 'Add retry with exponential backoff (Faraday 2 ships the middleware in its own gem) and fire at an endpoint that always returns 503.',
+				commands: [
+					'bundle add faraday-retry',
+					'bin/rails console',
+					"conn = Faraday.new(url: 'https://httpbin.org') { |f| f.request :retry, max: 3, interval: 0.5, backoff_factor: 2, retry_statuses: [503]; f.options.timeout = 5 }",
+					"conn.get('/status/503')",
+				],
+				verify:
+					'The request takes several seconds because the middleware re-attempts with growing delays (0.5s, 1s, 2s) before surrendering the final 503.',
+			},
+			{
+				task: 'Trip a circuit breaker in the console: three failures turn the light red, and further calls fail fast without running the block.',
+				commands: [
+					'bundle add stoplight',
+					'bin/rails console',
+					"light = Stoplight('stripe-demo').with_threshold(3)",
+					'3.times { begin; light.run { raise "Stripe is down" }; rescue => e; puts e.class; end }',
+					'begin; light.run { puts "never runs" }; rescue => e; puts e.class; end',
+				],
+				verify:
+					'The first three calls print RuntimeError; once the threshold trips, the fourth prints Stoplight::Error::RedLight immediately and the block never executes.',
+			},
+		],
 	},
 	hint: {
 		delay: 25,

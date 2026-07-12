@@ -792,7 +792,7 @@ StrongMigrations.checks = []
 StrongMigrations.lock_timeout = 10.seconds`,
 		correct: false,
 		feedback:
-			'Lock timeout alone only fails migrations that take too long to acquire a lock. It does not detect unsafe operations before they run. You need target_version and start_after.',
+			'Lock timeout alone only fails migrations that take too long to acquire a lock. It does not detect unsafe operations before they run, which is the whole reason the gem is installed.',
 	},
 	{
 		id: 'correct',

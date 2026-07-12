@@ -207,6 +207,20 @@ end`,
 				url: 'https://pragprog.com/titles/cpscaling/rails-scales/',
 			},
 		],
+		homework: [
+			{
+				task: 'Install Pagy, set a default page size of 25 in config/initializers/pagy.rb (Pagy::OPTIONS[:limit] = 25), and include Pagy::Method in ApplicationController.',
+				commands: ['bundle add pagy'],
+				verify:
+					'The app boots cleanly and the pagy helper is available in controllers (no NameError when the index action runs).',
+			},
+			{
+				task: 'Paginate the products index with pagy(:offset, ...) and merge @pagy.headers_hash into the response headers, then request a deep page against your 50K seeded rows.',
+				commands: ['curl -i "http://localhost:3000/api/v1/products?page=2"'],
+				verify:
+					'The body holds at most 25 records and the response carries a Link header with rel="next" and rel="last" plus current-page and total-count headers from headers_hash.',
+			},
+		],
 	},
 	hint: {
 		delay: 20,

@@ -236,6 +236,30 @@ end
 				url: 'https://api.rubyonrails.org/classes/ActionController/HttpAuthentication/Token.html',
 			},
 		],
+		homework: [
+			{
+				task: 'Run the Rails 8 authentication generator in your store_api app and read every file it creates before changing anything.',
+				commands: ['bin/rails generate authentication'],
+				verify:
+					'app/models/user.rb (with has_secure_password), app/models/session.rb, app/controllers/concerns/authentication.rb, and app/controllers/sessions_controller.rb all exist.',
+			},
+			{
+				task: 'Adapt the scaffolding for your API: add a token:string column to the generated sessions migration, then migrate. Update the Authentication concern to look up the session from the Authorization header (Bearer token) instead of a signed cookie, and make SessionsController render JSON with the token instead of redirecting.',
+				commands: ['bin/rails db:migrate'],
+				verify:
+					'db/schema.rb shows a token column on sessions, and the concern reads request.headers["Authorization"] instead of cookies.',
+			},
+			{
+				task: 'Prove the lock works end to end. Create a user in the console, log in over HTTP to get a token, then hit your products endpoint with and without the Authorization header.',
+				commands: [
+					'bin/rails console',
+					'curl -X POST http://localhost:3000/session -d "email_address=you@example.com&password=secret123"',
+					'curl http://localhost:3000/api/v1/products -H "Authorization: Bearer <token>"',
+				],
+				verify:
+					'The request without a header returns 401 Unauthorized; the same request with the Bearer token returns 200 and the product list.',
+			},
+		],
 	},
 	hint: {
 		delay: 25,

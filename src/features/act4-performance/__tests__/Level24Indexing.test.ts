@@ -367,7 +367,7 @@ const OPTION_STEP_CONFIG: Record<
 				label: 'add_index :products, [:created_at, :published]',
 				correct: false,
 				feedback:
-					'Column order matters. The WHERE clause filters by published first.',
+					'Column order matters. Here the leftmost column matches the ORDER BY instead of the WHERE clause, so the filter cannot use the index prefix.',
 			},
 			{
 				id: 'correct',

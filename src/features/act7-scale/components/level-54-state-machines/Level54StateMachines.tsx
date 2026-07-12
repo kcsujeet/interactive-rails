@@ -137,7 +137,7 @@ const DISCOVERY_DEFS = [
 
 // ─── Probe definitions ────────────────────────────────────────────────
 
-const PROBES: ProbeConfig[] = [
+export const PROBES: ProbeConfig[] = [
 	{
 		id: 'ship-to-pending',
 		label: 'Revert shipped to pending',
@@ -219,18 +219,21 @@ const PROBES: ProbeConfig[] = [
 				color: 'red',
 			},
 			{ text: '', color: 'muted' },
-			{ text: 'No audit trail configured.', color: 'yellow' },
+			{ text: 'Order has no audit trail wired.', color: 'yellow' },
 			{
 				text: 'Cannot determine who changed the status or when.',
 				color: 'red',
 			},
-			{ text: 'No PaperTrail, no versioning, no change log.', color: 'red' },
+			{
+				text: 'Products have been versioned since the audit-trail work; Order never opted in.',
+				color: 'red',
+			},
 		],
 		story: [
 			'Support needs to know who changed Order #1047 status.',
-			'They try Order.find(1047).versions to check history.',
-			'NoMethodError: no versioning gem installed.',
-			'The database has no record of previous values.',
+			'They try Order.find(1047).versions to check history, the same call that works on products.',
+			'NoMethodError: the versions table exists and products use it, but the Order model was never wired in.',
+			'The database has no record of previous status values for orders.',
 			'When? Who? Why? All unknown. The change is untraceable.',
 		],
 	},
@@ -667,12 +670,11 @@ const STRESS_SCENARIOS: StressScenario[] = [
 
 // ─── Build step definitions ───────────────────────────────────────────
 
-const STEP_DEFS: StepDef[] = [
+export const STEP_DEFS: StepDef[] = [
 	{ id: 'add-aasm', title: 'Add AASM Gem' },
 	{ id: 'define-states', title: 'Define States' },
 	{ id: 'define-transitions', title: 'Define Transition Events' },
 	{ id: 'add-guards', title: 'Add Transition Guards' },
-	{ id: 'setup-paper-trail', title: 'Set Up PaperTrail' },
 	{ id: 'wire-audit', title: 'Wire Audit Trail' },
 ];
 
@@ -681,8 +683,7 @@ const STEP_TYPES: ('terminal' | 'option')[] = [
 	'option', // 1: define states
 	'option', // 2: define transitions
 	'option', // 3: add guards
-	'terminal', // 4: rails generate paper_trail:install
-	'option', // 5: wire audit
+	'option', // 4: wire audit (PaperTrail installed since the audit-trail work)
 ];
 
 // ─── Step 0: Add AASM (Terminal) ──────────────────────────────────────
@@ -718,46 +719,6 @@ const addAasmOutput: TerminalOutputLine[] = [
 	{ text: 'Bundle complete! 14 Gemfile dependencies.', color: 'green' },
 ];
 
-// ─── Step 4: Set Up PaperTrail (Terminal) ─────────────────────────────
-
-const setupPaperTrailCommands: TerminalCommand[] = [
-	{
-		id: 'wrong-create-versions',
-		label: 'rails generate migration CreateVersions',
-		command: 'rails generate migration CreateVersions',
-		correct: false,
-		feedback:
-			'A manual migration would miss the required columns and indexes. The gem provides a generator that creates the correct versions table schema.',
-	},
-	{
-		id: 'correct',
-		label: 'rails generate paper_trail:install && rails db:migrate',
-		command: 'rails generate paper_trail:install && rails db:migrate',
-		correct: true,
-	},
-	{
-		id: 'wrong-model',
-		label: 'rails generate model Version',
-		command: 'rails generate model Version',
-		correct: false,
-		feedback:
-			'The versioning gem manages the Version model internally. Use its dedicated generator to create the versions table with the correct schema.',
-	},
-];
-
-const setupPaperTrailOutput: TerminalOutputLine[] = [
-	{
-		text: 'create  db/migrate/20260330000000_create_versions.rb',
-		color: 'cyan',
-	},
-	{ text: '== CreateVersions: migrating ==========', color: 'muted' },
-	{
-		text: '-- create_table(:versions)',
-		color: 'muted',
-	},
-	{ text: '== CreateVersions: migrated ============', color: 'green' },
-];
-
 // ─── OptionCard step options ──────────────────────────────────────────
 
 interface StepOption {
@@ -770,7 +731,7 @@ interface StepOption {
 const DEFINE_STATES_OPTIONS: StepOption[] = [
 	{
 		id: 'enum',
-		name: 'enum :status, {\n  pending: 0, confirmed: 1,\n  shipped: 2, delivered: 3\n}',
+		name: 'enum :status, {\n  pending: "pending", confirmed: "confirmed",\n  shipped: "shipped", delivered: "delivered"\n}',
 		correct: false,
 		feedback:
 			'Enums define values but do not enforce transition rules. You need a state machine to control which transitions are valid.',
@@ -855,7 +816,7 @@ const WIRE_AUDIT_OPTIONS: StepOption[] = [
 	},
 ];
 
-const OPTION_STEP_CONFIG: Record<
+export const OPTION_STEP_CONFIG: Record<
 	number,
 	{ title: string; description: string; options: StepOption[] }
 > = {
@@ -877,10 +838,10 @@ const OPTION_STEP_CONFIG: Record<
 			'Transitions are defined but some need business rule checks. A shipped order must have a tracking number. How do you enforce this condition on the transition itself?',
 		options: ADD_GUARDS_OPTIONS,
 	},
-	5: {
+	4: {
 		title: 'Wire Audit Trail',
 		description:
-			'The versioning gem is installed. Now configure the Order model to track status changes so every transition is recorded with who, when, and what changed.',
+			'PaperTrail has been recording product changes since the audit-trail work; the versions table already exists. Order never opted in. Configure the model so every status transition is recorded with who, when, and what changed.',
 		options: WIRE_AUDIT_OPTIONS,
 	},
 };
@@ -892,7 +853,6 @@ const SHELL_STEP_MAP: (TerminalStepData | null)[] = [
 	null, // step 1: OptionCard
 	null, // step 2: OptionCard
 	null, // step 3: OptionCard
-	{ commands: setupPaperTrailCommands, outputLines: setupPaperTrailOutput },
 	null, // step 5: OptionCard
 ];
 
@@ -1008,7 +968,7 @@ gem "paper_trail"  # installed in L31`,
   end`;
 		}
 
-		if (completedStep >= 5) {
+		if (completedStep >= 4) {
 			orderCode += '\n\n  has_paper_trail on: [:update], only: [:status]';
 		}
 
@@ -1018,7 +978,7 @@ gem "paper_trail"  # installed in L31`,
 			filename: 'app/models/order.rb',
 			language: 'ruby',
 			code: orderCode,
-			highlight: completedStep >= 5 ? [2] : [],
+			highlight: completedStep >= 4 ? [2] : [],
 		});
 
 		// Service object uses state machine events from step 2 onward
@@ -1452,31 +1412,6 @@ export function Level54StateMachines({ onComplete }: LevelComponentProps) {
 								title="Add State Machine Gem"
 							/>
 						)}
-						{currentStepType === 'terminal' && stepper.currentStep === 4 && (
-							<TerminalChoiceStep
-								commands={setupPaperTrailCommands}
-								completed={isViewingCompletedStep}
-								description={
-									<p className="text-sm text-muted-foreground">
-										PaperTrail is already in your Gemfile from a previous level.
-										Now run its generator to create the versions table, then
-										migrate the database so it can start recording changes.
-									</p>
-								}
-								hasNext={hasNextStep}
-								initialHistory={buildTerminalHistory(
-									SHELL_STEP_MAP,
-									stepper.currentStep,
-								)}
-								onCorrect={() => stepper.completeStep()}
-								onNext={stepper.nextStep}
-								onWrong={(fb) => stepper.recordWrongAttempt(fb)}
-								outputLines={setupPaperTrailOutput}
-								stepKey={stepper.currentStep}
-								title="Set Up PaperTrail Versions Table"
-							/>
-						)}
-
 						{/* OptionCard steps */}
 						{currentStepType === 'option' && currentOptionConfig && (
 							<>

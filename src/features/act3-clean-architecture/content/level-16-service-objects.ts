@@ -207,6 +207,28 @@ end`,
 				url: 'https://dry-rb.org/gems/dry-monads/',
 			},
 		],
+		homework: [
+			{
+				task: 'Create app/services/application_service.rb in your store_api app so every service gets a one-line entry point: a class-level call that delegates to new(...).call.',
+				verify:
+					'Any subclass can be invoked as ServiceName.call(...) without instantiating it first.',
+			},
+			{
+				task: 'Extract a UserRegistration service from your UsersController#create: move the workflow (create the user, send the welcome email, apply default preferences) into the service and return Result = Data.define(:success?, :user, :errors). Keep session and token creation in the controller, it needs the request.',
+				verify:
+					'Signing up over HTTP still returns 201 with the token, and an invalid signup still returns 422 carrying the same model error messages as before.',
+			},
+			{
+				task: 'Prove the workflow is reusable outside HTTP: call the service straight from the Rails console with a fresh email address, the way a CSV import rake task would.',
+				commands: [
+					'bin/rails console',
+					'result = UserRegistration.call(email_address: "import@example.com", password: SecureRandom.base58(20))',
+					'result.success?',
+				],
+				verify:
+					'result.success? returns true, the user row exists in the database, and no session was created for it.',
+			},
+		],
 	},
 	hint: {
 		delay: 25,

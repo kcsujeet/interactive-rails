@@ -277,6 +277,25 @@ end`,
 				url: 'https://stripe.com/blog/online-migrations',
 			},
 		],
+		homework: [
+			{
+				task: 'Add row-level tenancy to a practice model: install acts_as_tenant, generate a Company model, add a nullable company reference to products (so existing rows migrate cleanly), and declare acts_as_tenant :company on Product.',
+				commands: [
+					'bundle add acts_as_tenant',
+					'bin/rails generate model Company name:string',
+					'bin/rails generate migration AddCompanyToProducts company:references',
+					'bin/rails db:migrate',
+				],
+				verify:
+					'In the console, Product.all.to_sql inside an ActsAsTenant.with_tenant(company) block includes a WHERE company_id filter, so every query is scoped automatically.',
+			},
+			{
+				task: 'Prove isolation with a test: create a product under Company A, then assert Product.count is zero under Company B, both inside ActsAsTenant.with_tenant blocks.',
+				commands: ['bin/rails test test/models/tenant_isolation_test.rb'],
+				verify:
+					'The test passes: tenant B cannot see tenant A records, and commenting out acts_as_tenant on the model makes the same test fail.',
+			},
+		],
 	},
 	hint: {
 		delay: 20,

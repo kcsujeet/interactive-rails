@@ -236,6 +236,32 @@ end`,
 				url: 'https://api.rubyonrails.org/classes/ActiveRecord/TokenFor/ClassMethods.html',
 			},
 		],
+		homework: [
+			{
+				task: 'Generate the mailer, then add generates_token_for :password_reset, expires_in: 15.minutes to User and build the reset URL from the token inside the mailer method.',
+				commands: ['bin/rails generate mailer User password_reset'],
+				verify:
+					'app/mailers/user_mailer.rb, the view templates under app/views/user_mailer/, and a preview stub under test/mailers/previews/ all exist.',
+			},
+			{
+				task: 'Use the mailer preview to see the email without sending anything: start the server and open /rails/mailers/user_mailer/password_reset in the browser.',
+				commands: ['bin/rails server'],
+				verify:
+					'The preview renders the subject and body, and the reset link contains a long signed token that changes every time you reload.',
+			},
+			{
+				task: 'Round-trip the token and deliver the email from the console.',
+				commands: [
+					'bin/rails console',
+					'user = User.first',
+					'token = user.generate_token_for(:password_reset)',
+					'User.find_by_token_for(:password_reset, token)',
+					'UserMailer.password_reset(user).deliver_later',
+				],
+				verify:
+					'find_by_token_for returns the same user while the token is fresh (and nil after the password changes). deliver_later logs "Enqueued ActionMailer::MailDeliveryJob": in development the in-process async adapter runs it moments later, but in production that queued job needs a worker, which is exactly what the next level builds.',
+			},
+		],
 	},
 	hint: {
 		delay: 25,

@@ -187,6 +187,20 @@ Product.find_by(name: "  Ceramic Mug  ")
 				url: 'https://guides.rubyonrails.org/active_record_callbacks.html',
 			},
 		],
+		homework: [
+			{
+				task: 'Add normalizes to the Product name in your store_api app (strip the whitespace), then prove it applies on both writes and finder queries: create a product with a padded name from the console, then look it up with the padded value.',
+				commands: ['bin/rails console'],
+				verify:
+					'The stored name is "Ceramic Mug" with no surrounding whitespace, and Product.find_by(name: "  Ceramic Mug  ") still returns the row because the query value is normalized too.',
+			},
+			{
+				task: 'Audit your models for side effects hiding in lifecycle callbacks: after_create or after_commit hooks that send mail, call external services, or create related records. Move each one into the controller action, next to the save that triggered it.',
+				commands: ['grep -RE "after_(create|commit|save)" app/models'],
+				verify:
+					'Any callbacks that remain are pure normalization; creating a record from the console fires no emails and no external calls.',
+			},
+		],
 	},
 	hint: {
 		delay: 20,

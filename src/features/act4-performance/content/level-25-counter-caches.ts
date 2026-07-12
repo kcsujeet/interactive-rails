@@ -158,6 +158,41 @@ end`,
 				url: 'https://pragprog.com/titles/cpscaling/rails-scales/',
 			},
 		],
+		homework: [
+			{
+				task: 'Watch the COUNT storm in your own log: count reviews for 100 products the naive way.',
+				commands: [
+					'bin/rails console',
+					'Product.limit(100).each { |p| p.reviews.count }',
+				],
+				verify:
+					'The log shows a separate SELECT COUNT(*) FROM reviews query per product: 100 products, 100 extra queries.',
+			},
+			{
+				task: 'Add the counter column (edit the migration to set default: 0, null: false), add counter_cache: true to the belongs_to in Review, then backfill existing counts.',
+				commands: [
+					'bin/rails generate migration AddReviewsCountToProducts reviews_count:integer',
+					'bin/rails db:migrate',
+					'bin/rails console',
+					'Product.find_each { |p| Product.reset_counters(p.id, :reviews) }',
+				],
+				verify:
+					'products.reviews_count matches Review.group(:product_id).count for every product that has reviews.',
+			},
+			{
+				task: 'Feel the difference between .size, .count, and automatic maintenance.',
+				commands: [
+					'bin/rails console',
+					'p = Review.first.product',
+					'p.reviews.size',
+					'p.reviews.count',
+					'p.reviews.create!(rating: 4, body: "Another one")',
+					'p.reload.reviews_count',
+				],
+				verify:
+					'.size logs no SQL (it reads the cached column) while .count still fires SELECT COUNT(*). Creating a review bumps reviews_count automatically.',
+			},
+		],
 	},
 	hint: {
 		delay: 20,

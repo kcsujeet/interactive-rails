@@ -259,6 +259,27 @@ end`,
 				url: 'https://pragprog.com/titles/cpscale/rails-scales/',
 			},
 		],
+		homework: [
+			{
+				task: 'Stand up two local shards: add primary_shard_one and primary_shard_two entries to config/database.yml as two new local PostgreSQL databases, create them, and add a ShardRecord abstract class with connects_to shards pointing at both.',
+				commands: ['bin/rails db:create'],
+				verify:
+					'db:create reports both shard databases created, and the console loads ShardRecord without connection errors.',
+			},
+			{
+				task: 'Observe shard isolation: load your schema into each shard (the per-database rake tasks appear once database.yml lists them), move a practice model onto ShardRecord, then create a record inside connected_to(shard: :shard_one) and count from the other shard.',
+				commands: [
+					"bin/rails runner 'ActiveRecord::Base.connected_to(shard: :shard_two) { puts Order.count }'",
+				],
+				verify:
+					'The record created on shard_one is invisible from shard_two: two shards are two fully separate databases.',
+			},
+			{
+				task: 'Write the router: a shard_for(tenant_id) helper that picks a shard with modulo over the shard list.',
+				verify:
+					'In the console, shard_for(0) returns :shard_one and shard_for(1) returns :shard_two, and the same tenant id always maps to the same shard.',
+			},
+		],
 	},
 	hint: {
 		delay: 30,

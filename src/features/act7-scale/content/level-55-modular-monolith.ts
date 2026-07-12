@@ -147,6 +147,29 @@ packs/inventory/      @myapp/inventory-team`,
 				url: 'https://pragprog.com/titles/cpscaling/rails-scales/',
 			},
 		],
+		homework: [
+			{
+				task: 'Install boundary checking: add Packwerk with its binstub and initialize it.',
+				commands: [
+					'bundle add packwerk && bundle binstub packwerk',
+					'bin/packwerk init',
+				],
+				verify:
+					'packwerk.yml exists and bin/packwerk check passes with the whole app as one implicit root package.',
+			},
+			{
+				task: 'Carve out one package: create packs/catalog with a package.yml (enforce_dependencies: true, empty dependencies list) and move one catalog service or model into it.',
+				commands: ['bin/packwerk check'],
+				verify:
+					'The check still passes, the moved code lives under packs/catalog, and the app boots normally.',
+			},
+			{
+				task: 'Trip the boundary on purpose: have code inside packs/catalog reference a class that still lives in the main app (a mailer works well), run the check, then fix it by declaring the root package (".") in the dependencies list of packs/catalog/package.yml.',
+				commands: ['bin/packwerk check'],
+				verify:
+					'The check first fails, naming the violating file and the referenced constant, then passes once the dependency is declared.',
+			},
+		],
 	},
 	hint: {
 		delay: 25,

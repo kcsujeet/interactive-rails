@@ -217,6 +217,26 @@ end
 				url: 'https://blog.codeship.com/zero-downtime-database-migrations/',
 			},
 		],
+		homework: [
+			{
+				task: 'Install the migration safety net in your companion project and confirm it hooks into every future migration.',
+				commands: [
+					'bundle add strong_migrations',
+					'bin/rails generate strong_migrations:install',
+				],
+				verify:
+					'config/initializers/strong_migrations.rb exists with a start_after timestamp, so old migrations are grandfathered and every new one gets checked.',
+			},
+			{
+				task: 'Trip the net on purpose: generate a migration that renames a column on your products table and try to run it.',
+				commands: [
+					'bin/rails generate migration RenameProductsNameToTitle',
+					'bin/rails db:migrate',
+				],
+				verify:
+					'db:migrate refuses with a dangerous-migration error explaining that renaming breaks running app code and showing the multi-deploy safe alternative. Delete the migration file afterwards.',
+			},
+		],
 	},
 	hint: {
 		delay: 25,

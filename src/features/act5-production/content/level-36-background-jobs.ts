@@ -337,6 +337,34 @@ end
 				url: 'https://github.com/rails/solid_queue#concurrency-controls',
 			},
 		],
+		homework: [
+			{
+				task: 'Install Solid Queue, point development at it (config.active_job.queue_adapter = :solid_queue), and create the queue tables.',
+				commands: [
+					'bin/rails generate solid_queue:install',
+					'bin/rails db:prepare',
+				],
+				verify:
+					'config/queue.yml and db/queue_schema.rb exist, and the solid_queue_* tables were created by db:prepare.',
+			},
+			{
+				task: 'Generate a job and enqueue it while NO worker is running to see that the queue is just database rows.',
+				commands: [
+					'bin/rails generate job WelcomeEmail',
+					'bin/rails console',
+					'WelcomeEmailJob.perform_later("hello")',
+					'SolidQueue::Job.count',
+				],
+				verify:
+					'perform_later returns instantly, SolidQueue::Job.count went up, and nothing executes. The job sits in the table forever until a worker picks it up.',
+			},
+			{
+				task: 'Start the worker in a second terminal and watch the queue drain, then switch your L35 mailer call to run through it.',
+				commands: ['bin/jobs'],
+				verify:
+					'The worker log shows the queued jobs performing within a second of startup, and a deliver_later email now flows through Solid Queue instead of the in-process async adapter.',
+			},
+		],
 	},
 	hint: {
 		delay: 25,

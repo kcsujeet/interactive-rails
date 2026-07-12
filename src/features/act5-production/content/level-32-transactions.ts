@@ -251,6 +251,41 @@ end`,
 				url: 'https://api.rubyonrails.org/classes/ActiveJob/EnqueueAfterTransactionCommit.html',
 			},
 		],
+		homework: [
+			{
+				task: 'Prove all-or-nothing in your console: create a product inside a transaction, then abort with ActiveRecord::Rollback.',
+				commands: [
+					'bin/rails console',
+					'before = Product.count',
+					'ActiveRecord::Base.transaction { Product.create!(name: "Tx test", price: 5); raise ActiveRecord::Rollback }',
+					'Product.count == before',
+				],
+				verify:
+					'The count is unchanged and the SQL log shows BEGIN ... ROLLBACK instead of COMMIT. Note that ActiveRecord::Rollback did not propagate: the block returned nil silently.',
+			},
+			{
+				task: 'Contrast with a regular exception: it rolls back AND propagates to the caller.',
+				commands: [
+					'bin/rails console',
+					'before = Product.count',
+					'begin; ActiveRecord::Base.transaction { Product.create!(name: "Tx boom", price: 5); raise "boom" }; rescue => e; puts e.message; end',
+					'Product.count == before',
+				],
+				verify:
+					'"boom" reaches your rescue block and the product was still rolled back: any exception aborts the transaction, but only ActiveRecord::Rollback is swallowed.',
+			},
+			{
+				task: 'Demonstrate savepoints: without requires_new: true an inner Rollback is swallowed by the outer transaction.',
+				commands: [
+					'bin/rails console',
+					'before = Product.count',
+					'ActiveRecord::Base.transaction { Product.create!(name: "Outer", price: 1); ActiveRecord::Base.transaction(requires_new: true) { Product.create!(name: "Inner", price: 1); raise ActiveRecord::Rollback } }',
+					'Product.count - before',
+				],
+				verify:
+					'The count went up by exactly 1: the savepoint rolled back only the inner create while the outer transaction still committed "Outer".',
+			},
+		],
 	},
 	hint: {
 		delay: 25,

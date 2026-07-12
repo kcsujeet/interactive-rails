@@ -262,6 +262,29 @@ end
 				url: 'https://github.com/roidrage/lograge',
 			},
 		],
+		homework: [
+			{
+				task: 'Print the middleware stack of your companion project and locate where Rails already assigns request ids.',
+				commands: ['bin/rails middleware'],
+				verify:
+					'You can point at ActionDispatch::RequestId in the printed stack and name the middleware directly above and below it.',
+			},
+			{
+				task: 'Write a RequestTimer middleware in lib/middleware that logs one JSON line per request (method, path, status, duration_ms), then insert it at the top of the stack in config/application.rb.',
+				commands: [
+					'bin/rails middleware',
+					'curl -i http://localhost:3000/api/products',
+				],
+				verify:
+					'bin/rails middleware shows RequestTimer at the top of the stack, and every curl request writes exactly one JSON log line containing all four fields.',
+			},
+			{
+				task: 'Exempt the health-check path so load-balancer pings do not flood the log: return early from your middleware when PATH_INFO is /up.',
+				commands: ['curl -s http://localhost:3000/up'],
+				verify:
+					'Hitting /up repeatedly writes no RequestTimer log lines, while /api/products still logs one line per request.',
+			},
+		],
 	},
 	hint: {
 		delay: 25,

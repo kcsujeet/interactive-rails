@@ -152,6 +152,37 @@ User.pluck(:id, :name)`,
 				url: 'https://pragprog.com/titles/cpscaling/rails-scales/',
 			},
 		],
+		homework: [
+			{
+				task: 'Seed 50,000 products so data volume is real, then time wide fetching against pluck.',
+				commands: [
+					'bin/rails console',
+					'Product.insert_all(50_000.times.map { |i| { name: "Seed #{i}", price: rand(100.0).round(2), created_at: Time.current, updated_at: Time.current } })',
+					'Benchmark.measure { Product.all.map { |p| [p.id, p.name] } }.real',
+					'Benchmark.measure { Product.pluck(:id, :name) }.real',
+				],
+				verify:
+					'pluck issues SELECT id, name (visible in the log) and comes back several times faster than materializing 50,000 full ActiveRecord objects.',
+			},
+			{
+				task: 'See what select really returns: lightweight objects that only carry the columns you asked for.',
+				commands: [
+					'bin/rails console',
+					'Product.select(:id, :name).first.description',
+				],
+				verify:
+					'Accessing description raises ActiveModel::MissingAttributeError because that column was never fetched.',
+			},
+			{
+				task: 'Process the seeded table in batches instead of loading it all at once.',
+				commands: [
+					'bin/rails console',
+					'Product.find_in_batches(batch_size: 1000) { |batch| puts batch.size }',
+				],
+				verify:
+					'The log shows a series of SELECTs with LIMIT 1000 walking the id cursor. Only 1,000 records sit in memory at a time instead of 50,000.',
+			},
+		],
 	},
 	hint: {
 		delay: 20,

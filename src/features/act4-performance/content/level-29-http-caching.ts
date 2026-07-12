@@ -218,6 +218,23 @@ config.public_file_server.headers = {
 				url: 'https://pragprog.com/titles/cpscaling/rails-scales/',
 			},
 		],
+		homework: [
+			{
+				task: 'Wrap your products show action in stale?(product), then replay the request with the ETag the first response gave you.',
+				commands: [
+					'curl -i http://localhost:3000/api/v1/products/1',
+					`curl -i http://localhost:3000/api/v1/products/1 -H 'If-None-Match: "<etag from first response>"'`,
+				],
+				verify:
+					'The first response is 200 with an ETag header; the replay returns 304 Not Modified with an empty body and no serialization work.',
+			},
+			{
+				task: 'Add expires_in 1.hour, public: true to the products index action and inspect the headers.',
+				commands: ['curl -i http://localhost:3000/api/v1/products'],
+				verify:
+					'The index response carries Cache-Control: public, max-age=3600, telling browsers and CDNs they may reuse it for an hour without hitting Rails.',
+			},
+		],
 	},
 	hint: {
 		delay: 20,

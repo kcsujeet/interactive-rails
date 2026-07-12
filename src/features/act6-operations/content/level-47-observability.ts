@@ -173,6 +173,32 @@ end`,
 				url: 'https://pragprog.com/titles/cpscaling/rails-scales/',
 			},
 		],
+		homework: [
+			{
+				task: 'Collapse request logging to one queryable line: install lograge, enable it with the JSON formatter, and use custom_payload to attach request_id to every line. Turn it on in development for testing.',
+				commands: [
+					'bundle add lograge',
+					'curl -s http://localhost:3000/api/products > /dev/null',
+				],
+				verify:
+					'The development log shows exactly one JSON line for the request, containing method, path, status, duration, and request_id.',
+			},
+			{
+				task: 'Make /up mean "working", not "booted": route it to your own health controller that checks the database with SELECT 1 and requires a SolidQueue::Process heartbeat within the last 5 minutes.',
+				commands: ['curl -i http://localhost:3000/up'],
+				verify:
+					'With bin/jobs stopped, /up returns 503 with job_worker false; start bin/jobs and within a minute it returns 200 with both checks true.',
+			},
+			{
+				task: 'Add tracing: install the OpenTelemetry SDK and all-instrumentations gems, configure service_name plus use_all in an initializer, and print spans with the console exporter.',
+				commands: [
+					'bundle add opentelemetry-sdk opentelemetry-instrumentation-all',
+					'OTEL_TRACES_EXPORTER=console bin/rails server',
+				],
+				verify:
+					'Each request prints spans to the server console, including nested spans for the SQL queries inside the request.',
+			},
+		],
 	},
 	hint: {
 		delay: 25,

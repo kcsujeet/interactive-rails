@@ -345,6 +345,23 @@ end`,
 				url: 'https://www.mnot.net/blog/2012/12/04/api-evolution',
 			},
 		],
+		homework: [
+			{
+				task: 'Freeze v1 and ship v2 side by side: namespace your orders routes under api/v1 and api/v2, give each version its own controller and serializer, and change the shape of the total field only in v2.',
+				commands: [
+					'curl -s http://localhost:3000/api/v1/orders/1',
+					'curl -s http://localhost:3000/api/v2/orders/1',
+				],
+				verify:
+					'v1 returns total as integer cents and v2 returns total as an object with amount and currency, both from the same database row.',
+			},
+			{
+				task: 'Give v1 a machine-readable retirement plan: a before_action that adds an RFC 9745 Deprecation header, an RFC 8594 Sunset header, and a successor-version Link header to every v1 response.',
+				commands: ['curl -i http://localhost:3000/api/v1/orders/1'],
+				verify:
+					'The v1 response carries all three headers with HTTP-date values, and v2 responses carry none of them.',
+			},
+		],
 	},
 	hint: {
 		delay: 25,

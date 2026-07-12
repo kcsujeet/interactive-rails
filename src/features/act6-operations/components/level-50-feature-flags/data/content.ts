@@ -179,6 +179,28 @@ end`,
 				url: 'https://github.blog/engineering/scaling-the-github-api-with-a-sharded-replicated-rate-limiter-in-redis/',
 			},
 		],
+		homework: [
+			{
+				task: 'Install the flag system: add the Flipper gems, run the setup generator, and migrate.',
+				commands: [
+					'bundle add flipper flipper-active_record flipper-ui',
+					'bin/rails generate flipper:setup',
+					'bin/rails db:migrate',
+				],
+				verify:
+					'Flipper.enabled?(:anything) returns false in the console, proving the adapter is wired to the database.',
+			},
+			{
+				task: 'Decouple deploy from release: wrap one code path in your app behind Flipper.enabled?(:new_feature) so the same deployed code can serve both branches.',
+				verify:
+					'With the server running, flipping Flipper.enable and Flipper.disable in the console changes the endpoint behavior between two curl calls, with no restart in between.',
+			},
+			{
+				task: 'Mount the operational UI behind admin auth in routes.rb so the on-call can flip flags during an incident.',
+				verify:
+					'/flipper renders the dashboard when signed in as an admin and is unreachable for everyone else.',
+			},
+		],
 	},
 	hint: {
 		delay: 25,

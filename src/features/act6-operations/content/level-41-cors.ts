@@ -101,6 +101,30 @@ end
 				url: 'https://guides.rubyonrails.org/security.html',
 			},
 		],
+		homework: [
+			{
+				task: 'Grant a second local origin permission to read your API: install the CORS middleware gem and fill in config/initializers/cors.rb allowing http://localhost:3001 to reach /api/* with the standard methods.',
+				commands: ['bundle add rack-cors', 'bin/rails restart'],
+				verify:
+					'The server boots cleanly and bin/rails middleware shows Rack::Cors at the top of the stack.',
+			},
+			{
+				task: 'Simulate a browser preflight from the allowed origin with curl and read the permission headers the middleware answers with.',
+				commands: [
+					'curl -i -X OPTIONS http://localhost:3000/api/products -H "Origin: http://localhost:3001" -H "Access-Control-Request-Method: DELETE"',
+				],
+				verify:
+					'The OPTIONS response includes Access-Control-Allow-Origin: http://localhost:3001 and lists DELETE among the allowed methods.',
+			},
+			{
+				task: 'Prove the request still runs for a stranger origin and only the permission header is withheld: request the same endpoint with an origin you did not allow.',
+				commands: [
+					'curl -i http://localhost:3000/api/products -H "Origin: http://evil.example"',
+				],
+				verify:
+					'The response is still 200 with full JSON (the server did the work), but no Access-Control-Allow-Origin header is present, so a browser would withhold it from the page.',
+			},
+		],
 	},
 	hint: {
 		delay: 20,

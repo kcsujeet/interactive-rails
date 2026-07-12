@@ -170,6 +170,30 @@ end`,
 				url: 'https://guides.rubyonrails.org/security.html',
 			},
 		],
+		homework: [
+			{
+				task: 'Hunt down every to_unsafe_h in your store_api controllers and replace it with a private product_params method built on params.expect, listing only name, description, and price.',
+				commands: ['grep -R "to_unsafe_h" app/controllers'],
+				verify:
+					'The grep returns nothing, and both create and update call product_params instead of touching params[:product] directly.',
+			},
+			{
+				task: 'Replay the attack against your own API: send a create request that smuggles user_id alongside the legitimate fields.',
+				commands: [
+					'curl -X POST http://localhost:3000/api/v1/products -H "Authorization: Bearer <token>" -H "Content-Type: application/json" -d \'{"product":{"name":"Mug","description":"Handmade ceramic mug","price":12.5,"user_id":999}}\'',
+				],
+				verify:
+					'The product is created for the logged-in user: the smuggled user_id is silently dropped and the stored user_id is your own.',
+			},
+			{
+				task: 'Send a malformed shape (product as a string instead of an object) and confirm the shape check rejects it cleanly.',
+				commands: [
+					'curl -X POST http://localhost:3000/api/v1/products -H "Authorization: Bearer <token>" -H "Content-Type: application/json" -d \'{"product":"hacked"}\'',
+				],
+				verify:
+					'The response is 400 Bad Request from ActionController::ParameterMissing, not a 500 with a stack trace.',
+			},
+		],
 	},
 	hint: {
 		delay: 20,

@@ -346,6 +346,29 @@ end`,
 				url: 'https://api.rubyonrails.org/classes/ActiveSupport/Testing/TimeHelpers.html',
 			},
 		],
+		homework: [
+			{
+				task: 'Install RSpec and FactoryBot in your store_api app and scaffold the RSpec configuration.',
+				commands: [
+					'bundle add rspec-rails --group "development, test"',
+					'bin/rails generate rspec:install',
+					'bundle add factory_bot_rails --group "development, test"',
+				],
+				verify:
+					'.rspec, spec/spec_helper.rb, and spec/rails_helper.rb exist, and bundle exec rspec runs with 0 examples, 0 failures.',
+			},
+			{
+				task: 'Write user and product factories, then wire FactoryBot helpers into RSpec through a spec/support file that rails_helper autoloads (uncomment the spec/support glob line).',
+				verify:
+					'A spec calling create(:product) builds a valid product owned by a factory-created user without any manual setup.',
+			},
+			{
+				task: 'Write a request spec for your products endpoint that pins down the protections from earlier levels: 401 without a token, 422 for invalid params, and 403 when a non-owner updates. Run the suite.',
+				commands: ['bundle exec rspec'],
+				verify:
+					'All examples pass green, and temporarily deleting the authorize call in the controller turns the 403 example red.',
+			},
+		],
 	},
 	hint: {
 		delay: 25,

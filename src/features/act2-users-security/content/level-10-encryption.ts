@@ -221,6 +221,32 @@ Rails.application.config.active_record.encryption.previous = [
 				url: 'https://cloud.google.com/kms/docs/key-management-service',
 			},
 		],
+		homework: [
+			{
+				task: 'Generate the Active Record encryption keys for your store_api app and store them in the encrypted credentials file.',
+				commands: [
+					'bin/rails db:encryption:init',
+					'bin/rails credentials:edit',
+				],
+				verify:
+					'credentials.yml.enc now contains an active_record_encryption block with primary_key, deterministic_key, and key_derivation_salt.',
+			},
+			{
+				task: 'Declare encryption on the User model: deterministic for email_address (login lookups must keep working), and the non-deterministic default for any PII column you never query by value.',
+				commands: ['bin/rails console'],
+				verify:
+					'User.find_by(email_address: ...) still returns the user, while reading the raw column with ActiveRecord::Base.connection.select_value("SELECT email_address FROM users LIMIT 1") shows ciphertext, not the address.',
+			},
+			{
+				task: 'Backfill the rows that existed before encryption: turn on config.active_record.encryption.support_unencrypted_data in an initializer, re-encrypt every row from the console, then turn the flag back off.',
+				commands: [
+					'bin/rails console',
+					'User.find_each(batch_size: 1000, &:encrypt)',
+				],
+				verify:
+					'With support_unencrypted_data back to false, every pre-existing user still loads and logs in without an ActiveRecord::Encryption Decryption error.',
+			},
+		],
 	},
 	hint: {
 		delay: 25,

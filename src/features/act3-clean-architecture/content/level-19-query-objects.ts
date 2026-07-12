@@ -407,6 +407,31 @@ end`,
 				url: 'https://www.postgresql.org/docs/current/sql-explain.html',
 			},
 		],
+		homework: [
+			{
+				task: 'Create app/queries/application_query.rb in your store_api app (initialize with a scope, results returns it) plus a ProductQuery with chainable filters: by_seller (filtering on your products.user_id column), since (listed on or after a date), and an allowlisted sorted. Every filter guards blank params with return self.',
+				commands: ['bin/rails console'],
+				verify:
+					'ProductQuery.new.by_seller(user.id).since(1.week.ago).sorted.results returns an ActiveRecord::Relation, and passing blank arguments leaves the scope untouched.',
+			},
+			{
+				task: 'Move the index filtering onto the query object so the controller shrinks back to HTTP work: parse params, compose the query, render.',
+				commands: [
+					'curl "http://localhost:3000/api/v1/products?seller_id=1" -H "Authorization: Bearer <token>"',
+				],
+				verify:
+					'Filtered requests return only matching products, and the index action no longer contains inline where chains.',
+			},
+			{
+				task: 'Read the query plan before you trust the query: run explain on a composed query from the console.',
+				commands: [
+					'bin/rails console',
+					'ProductQuery.new.by_seller(1).sorted.results.explain',
+				],
+				verify:
+					'A query plan prints; a Seq Scan on products tells you an index is missing before production traffic tells you instead.',
+			},
+		],
 	},
 	hint: {
 		delay: 25,

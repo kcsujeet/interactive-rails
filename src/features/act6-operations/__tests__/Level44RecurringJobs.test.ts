@@ -197,7 +197,7 @@ const ERROR_HANDLING_OPTIONS = [
 		label: 'Rescue all exceptions and silently continue',
 		correct: false,
 		feedback:
-			'Silently swallowing exceptions hides real bugs. Use explicit retry for transient errors and discard for expected ones. Let unexpected errors surface.',
+			'Silently swallowing exceptions hides real bugs. The job reports success while sessions pile up unpurged, and nothing ever alerts. Let unexpected errors surface.',
 	},
 ];
 
@@ -207,14 +207,14 @@ const MONITORING_OPTIONS = [
 		label: 'Just log "done" with no details',
 		correct: false,
 		feedback:
-			'"Done" tells you nothing. How many records were cleaned? How long did it take? Monitoring needs counts, timing, and structured data for alerting.',
+			'"Done" tells you nothing. How many records were cleaned? How long did it take? When the job quietly degrades, this log line looks exactly the same.',
 	},
 	{
 		id: 'wrong-puts',
 		label: 'Use puts for output',
 		correct: false,
 		feedback:
-			'puts writes to stdout, which is not captured by log aggregators in production. Use structured logging for monitoring and alerting.',
+			'puts writes to stdout, which is not captured by log aggregators in production. The count it prints vanishes exactly where monitoring needs it.',
 	},
 	{
 		id: 'correct',

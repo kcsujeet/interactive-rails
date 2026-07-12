@@ -590,7 +590,7 @@ const RAILS_RATE_LIMIT_COMMANDS = [
 			'echo "rate_limit to: 5" >> app/controllers/api/sessions_controller.rb',
 		correct: false,
 		feedback:
-			'rate_limit requires a within: parameter to define the time window. Without it, Rails does not know when to reset the counter.',
+			'This declares a count with no time window. Five per second, per minute, or per day are wildly different policies, and Rails does not know when to reset the counter.',
 	},
 ];
 
@@ -701,7 +701,7 @@ const SAFELIST_OPTIONS = [
 end`,
 		correct: false,
 		feedback:
-			'Safelisting all authenticated users defeats the purpose. A compromised account could flood the API. Safelist by trusted IP ranges instead.',
+			'Safelisting all authenticated users defeats the purpose. A single compromised account could flood the API without ever being throttled; trust cannot hinge on something an attacker gets by logging in.',
 	},
 	{
 		id: 'correct',
@@ -725,7 +725,7 @@ const RESPONSE_429_OPTIONS = [
 end`,
 		correct: false,
 		feedback:
-			'Without a Retry-After header, the client does not know when to try again. Well-behaved clients use Retry-After to back off automatically.',
+			'This tells the client it is being throttled but not when to try again. Well-behaved clients back off automatically only when the response says how long to wait.',
 	},
 	{
 		id: 'wrong-503',

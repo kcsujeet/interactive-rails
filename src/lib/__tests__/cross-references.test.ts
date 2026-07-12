@@ -84,6 +84,7 @@ const CROSS_REFERENCES: Record<string, string[]> = {
 	],
 	'act3-clean-architecture/components/level-18-validation-contracts/Level18ValidationContracts.tsx':
 		['Service Objects'],
+	'act4-performance/content/level-22-eager-loading.ts': ['The N+1 Problem'],
 	'act4-performance/components/level-22-eager-loading/Level22EagerLoading.tsx':
 		['The N+1 Problem'],
 	'act4-performance/components/level-27-search/Level27Search.tsx': [
@@ -93,6 +94,7 @@ const CROSS_REFERENCES: Record<string, string[]> = {
 		'HTTP Caching & CDNs',
 	],
 	'act5-production/content/level-31-soft-deletes.ts': ['Service Objects'],
+	'act5-production/content/level-36-background-jobs.ts': ['Action Mailer'],
 	'act5-production/components/level-32-transactions/Level32Transactions.tsx': [
 		'Validation Contracts',
 	],

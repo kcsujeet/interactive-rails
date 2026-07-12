@@ -129,6 +129,20 @@ end`,
 				url: 'https://samnewman.io/patterns/architectural/bff/',
 			},
 		],
+		homework: [
+			{
+				task: 'Build a screen endpoint: a GatewayController#dashboard that serves one screen in one round trip, calling two or three in-process readers (orders summary, product count, unread notifications) and shaping the payload to exactly what the screen shows.',
+				commands: ['curl -s http://localhost:3000/api/v1/dashboard'],
+				verify:
+					'One request returns one JSON object with every section present, replacing what previously took a separate call per section.',
+			},
+			{
+				task: 'Degrade per section: rescue each section individually, report the error through Rails.error, and render a status unavailable marker for just that section. Test it by making one reader raise.',
+				commands: ['curl -s http://localhost:3000/api/v1/dashboard'],
+				verify:
+					'With one section deliberately raising, the response is still 200: the broken section shows status unavailable while every other section renders its real data.',
+			},
+		],
 	},
 	hint: {
 		delay: 25,

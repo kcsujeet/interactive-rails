@@ -183,14 +183,14 @@ const IDENTIFY_OPTIONS = [
 		label: 'The input parameters are not validated before processing',
 		correct: false,
 		feedback:
-			'Validation is important but not the root cause here. The issue is that each database write commits independently, so a failure midway leaves partial data.',
+			'Validation is important but not the root cause here. The failed boosts all carried valid input and still left the books inconsistent.',
 	},
 	{
 		id: 'wrong-ordering',
 		label: 'The operations are executed in the wrong order',
 		correct: false,
 		feedback:
-			'Reordering the steps does not solve the problem. Any step can fail, and without atomicity, earlier committed writes cannot be undone.',
+			'Reordering the steps only changes which record goes missing when a step fails midway. The seller still ends up with spent credits or an unlogged boost.',
 	},
 	{
 		id: 'correct-no-atomicity',
@@ -252,7 +252,7 @@ const ROLLBACK_OPTIONS = [
 end`,
 		correct: false,
 		feedback:
-			'Returning false inside a transaction does NOT trigger a rollback. The transaction commits normally with the credits already deducted. You need to raise to abort.',
+			'Returning false inside a transaction does NOT trigger a rollback. The block simply exits early and everything already written commits, credits deducted and all.',
 	},
 	{
 		id: 'wrong-throw',
@@ -264,7 +264,7 @@ end`,
 end`,
 		correct: false,
 		feedback:
-			'In Ruby, throw/catch is for flow control, not exception handling. ActiveRecord transactions respond to raise, not throw. Use the built-in rollback exception.',
+			'In Ruby, throw/catch is generic flow control, not error signaling. A transaction block does not watch for :abort; that symbol is for halting callback chains.',
 	},
 	{
 		id: 'correct-rollback-raise',

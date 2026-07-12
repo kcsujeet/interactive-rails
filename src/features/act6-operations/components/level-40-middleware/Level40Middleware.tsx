@@ -603,7 +603,7 @@ const INSERT_MIDDLEWARE_COMMANDS = [
 		command: 'ruby -e \'require "lib/middleware/request_id_tracker"\'',
 		correct: false,
 		feedback:
-			'Requiring the file loads it, but does not insert it into the Rack stack. You need config.middleware.use in application.rb.',
+			'Requiring the file loads the class into memory, but the Rack stack is a configured list. A class that is never registered in it will never see a request.',
 	},
 	{
 		id: 'wrong-after',
@@ -612,7 +612,7 @@ const INSERT_MIDDLEWARE_COMMANDS = [
 			'echo "config.middleware.insert_after(0, RequestIdTracker)" >> config/application.rb',
 		correct: false,
 		feedback:
-			'insert_after(0, ...) inserts after the first middleware. For request tracking, use config.middleware.use to append, or insert_before for specific ordering.',
+			'insert_after(0, ...) pins the tracker to a numeric position, which silently breaks when the default stack changes between Rails versions. Nothing here needs a positional insert.',
 	},
 	{
 		id: 'correct',
@@ -702,7 +702,7 @@ const LOGGER_OPTIONS = [
 end`,
 		correct: false,
 		feedback:
-			'puts writes to stdout with no structure. Production logging needs structured data (JSON) with timing, request ID, and status for log aggregation tools.',
+			'puts writes plain text to stdout with no structure. Log aggregation tools cannot parse or filter it, and nothing correlates a line to the request that produced it.',
 	},
 	{
 		id: 'wrong-no-timing',
@@ -770,7 +770,7 @@ const BOT_OPTIONS = [
 end`,
 		correct: false,
 		feedback:
-			'A controller check runs after routing and middleware. The bot request still consumes a Puma thread and triggers all middleware. Reject bots early in the Rack stack.',
+			'A controller check runs after routing and the full middleware stack. By the time it fires, the bot request has already consumed a Puma thread and the work of every layer.',
 	},
 	{
 		id: 'correct',
@@ -811,7 +811,7 @@ end`,
 end`,
 		correct: false,
 		feedback:
-			'Logging without blocking still lets the bot consume resources. The middleware should return a 403 immediately, never calling @app.call for known bots.',
+			'Logging without blocking still lets the bot consume resources. Every scraper request continues through the entire stack, which is exactly the load you were asked to shed.',
 	},
 ];
 

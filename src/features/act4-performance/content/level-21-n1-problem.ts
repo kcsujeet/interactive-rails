@@ -212,6 +212,31 @@ Product.strict_loading.includes(:user).each { |p| p.user }
 				url: 'https://pragprog.com/titles/cpscaling/rails-scales/',
 			},
 		],
+		homework: [
+			{
+				task: "Reproduce the N+1 in your store_api console: seed 100 products with a review each, then loop over reviews touching each review's product while watching the SQL log.",
+				commands: [
+					'bin/rails console',
+					'ActiveRecord::Base.logger = Logger.new(STDOUT)',
+					'100.times { |i| Product.create!(name: "N1 #{i}", price: 10).reviews.create!(rating: 5, body: "ok") }',
+					'Review.all.each { |r| r.product.name }',
+				],
+				verify:
+					'The log prints one Review Load followed by a separate Product Load line per review: the N+1 signature, 1 + 100 queries.',
+			},
+			{
+				task: 'Install Prosopite with pg_query, configure it to raise in config/environments/development.rb, then re-run the same loop.',
+				commands: ['bundle add prosopite pg_query'],
+				verify:
+					'With Prosopite.raise = true set, the loop now raises Prosopite::NPlusOneQueriesError instead of silently running 101 queries.',
+			},
+			{
+				task: 'Use strict_loading to catch lazy loads at the query level.',
+				commands: ['bin/rails console', 'Review.strict_loading.first.product'],
+				verify:
+					'Rails raises ActiveRecord::StrictLoadingViolationError because the product association was accessed without being eager loaded.',
+			},
+		],
 	},
 	hint: {
 		delay: 25,

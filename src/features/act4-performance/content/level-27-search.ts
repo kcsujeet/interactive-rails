@@ -236,6 +236,23 @@ Product.where(id: Product.connection.select_values(
 				url: 'https://railsscales.com',
 			},
 		],
+		homework: [
+			{
+				task: 'Measure the LIKE baseline against your 50K seeded products: EXPLAIN a leading-wildcard search.',
+				commands: [
+					'bin/rails console',
+					'Product.where("name LIKE :q OR description LIKE :q", q: "%seed%").explain',
+				],
+				verify:
+					'The plan is a Seq Scan: a leading % wildcard cannot use a B-tree index, so every row is read and there is no relevance ranking.',
+			},
+			{
+				task: "Install pg_search and add a search scope on Product weighting name ('A') above description ('B'), using tsearch with prefix: true and the english dictionary.",
+				commands: ['bundle add pg_search'],
+				verify:
+					'Product.search("seed") returns matches with name hits ranked above description hits, and a stemmed query like "chairs" still finds products named "chair".',
+			},
+		],
 	},
 	hint: {
 		delay: 25,

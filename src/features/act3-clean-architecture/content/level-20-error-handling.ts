@@ -351,6 +351,23 @@ end`,
 				url: 'https://api.rubyonrails.org/classes/ActiveModel/Errors.html#method-i-details',
 			},
 		],
+		homework: [
+			{
+				task: 'Centralize error handling in your store_api ApplicationController: rescue_from handlers mapping RecordNotFound to 404, RecordInvalid to 422, ParameterMissing to 400, Pundit::NotAuthorizedError to 403, and StandardError to a safe 500, all rendering the same { error: { code, message } } JSON shape. Delete every per-action rescue block.',
+				commands: ['grep -Rn "rescue" app/controllers'],
+				verify:
+					'The only rescue lines left are the rescue_from declarations in ApplicationController; individual actions are rescue-free.',
+			},
+			{
+				task: 'Curl your API into each failure mode and read the shapes side by side: a missing record, then a request body without the product key.',
+				commands: [
+					'curl http://localhost:3000/api/v1/products/999999 -H "Authorization: Bearer <token>"',
+					'curl -X POST http://localhost:3000/api/v1/products -H "Authorization: Bearer <token>" -H "Content-Type: application/json" -d "{}"',
+				],
+				verify:
+					'The missing record returns 404 and the missing key returns 400, both in the same JSON error shape with a code field, and never an HTML stack trace.',
+			},
+		],
 	},
 	hint: {
 		delay: 25,

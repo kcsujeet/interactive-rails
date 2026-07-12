@@ -247,6 +247,44 @@ end`,
 				url: 'https://github.com/paper-trail-gem/paper_trail',
 			},
 		],
+		homework: [
+			{
+				task: 'Add discard and paper_trail to your store_api app: soft-delete column on products, versions table for the audit trail.',
+				commands: [
+					'bundle add discard paper_trail',
+					'bin/rails generate migration AddDiscardedAtToProducts discarded_at:datetime:index',
+					'bin/rails generate paper_trail:install',
+					'bin/rails db:migrate',
+				],
+				verify:
+					'db/schema.rb shows products.discarded_at with an index and a new versions table.',
+			},
+			{
+				task: 'Include Discard::Model in Product, then discard and recover a listing from the console.',
+				commands: [
+					'bin/rails console',
+					'product = Product.first',
+					'product.discard',
+					'Product.kept.exists?(product.id)',
+					'Product.with_discarded.exists?(product.id)',
+					'product.undiscard',
+				],
+				verify:
+					'After discard, kept returns false while with_discarded returns true; after undiscard the product is back in Product.kept. Nothing was ever destroyed.',
+			},
+			{
+				task: 'Add has_paper_trail to Product and prove the audit trail answers "who changed this?".',
+				commands: [
+					'bin/rails console',
+					'PaperTrail.request.whodunnit = "admin_1"',
+					'Product.first.update!(name: "Renamed by admin")',
+					'Product.first.versions.last.whodunnit',
+					'Product.first.versions.last.changeset',
+				],
+				verify:
+					'The latest version records whodunnit "admin_1" and a changeset showing the old and new name.',
+			},
+		],
 	},
 	hint: {
 		delay: 20,

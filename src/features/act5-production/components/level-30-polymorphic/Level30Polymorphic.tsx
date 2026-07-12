@@ -140,7 +140,7 @@ const MIGRATION_COMMANDS = [
 			'rails generate model Review body:text reviewable_type:string reviewable_id:integer',
 		correct: false,
 		feedback:
-			'Adding columns manually works but misses the index. The {polymorphic} flag generates both columns AND the composite index automatically.',
+			'Adding columns manually works but misses the composite index, so every lookup by parent scans the whole table. The generator shorthand creates the columns and the index together.',
 	},
 ];
 
@@ -236,7 +236,7 @@ end`,
 end`,
 		correct: false,
 		feedback:
-			'Without `polymorphic: true`, Rails expects a `reviewables` table to exist. The polymorphic flag tells Rails to use the type/id column pair instead.',
+			'Declared this way, Rails expects a literal `reviewables` table to exist and joins against it. Nothing tells the association to resolve through the type/id column pair.',
 	},
 ];
 
@@ -249,7 +249,7 @@ const PARENT_MODEL_OPTIONS = [
 end`,
 		correct: false,
 		feedback:
-			'has_one limits each product to a single review. Products can have many reviews, so has_many is the correct association.',
+			'has_one limits each product to a single review. The second customer review on a product would have nowhere to go.',
 	},
 	{
 		id: 'wrong-no-as',
@@ -258,7 +258,7 @@ end`,
 end`,
 		correct: false,
 		feedback:
-			'Without `as: :reviewable`, Rails looks for a `product_id` column on reviews. The `as:` option tells Rails to use the polymorphic reviewable_type/reviewable_id pair.',
+			'Declared this way, Rails looks for a `product_id` column on reviews, and the table does not have one. Nothing routes the association through the shared type/id pair.',
 	},
 	{
 		id: 'correct-as-reviewable',
@@ -368,7 +368,7 @@ const CONTROLLER_OPTIONS = [
 end`,
 		correct: false,
 		feedback:
-			'Business logic belongs in service objects, not controllers. The controller should delegate to CreateReview.call and handle the result.',
+			'Business logic belongs in service objects, not controllers. You built a service for exactly this in the previous step; inlining the logic here leaves it unused.',
 	},
 	{
 		id: 'correct-service',

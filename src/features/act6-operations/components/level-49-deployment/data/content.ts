@@ -218,6 +218,26 @@ DATABASE_URL=$(op read "op://prod/app/DATABASE_URL")
 				url: 'https://kamal-deploy.org/docs/configuration/proxy/',
 			},
 		],
+		homework: [
+			{
+				task: 'Scaffold the deploy config: add Kamal to your project, generate the two config files, and read through what each section of deploy.yml controls.',
+				commands: ['bundle add kamal', 'kamal init'],
+				verify:
+					'config/deploy.yml and .kamal/secrets exist, and .kamal/secrets contains only references (env vars, command substitutions), no literal secret values.',
+			},
+			{
+				task: 'Fill in deploy.yml for a hypothetical server: service name, image, one web server IP, registry, and a proxy block with an /up healthcheck, referencing RAILS_MASTER_KEY through .kamal/secrets.',
+				commands: ['kamal config'],
+				verify:
+					'kamal config prints the resolved configuration without errors, showing your service name, image, and healthcheck path.',
+			},
+			{
+				task: 'Prove the image is reproducible without any server: build the Rails-generated Dockerfile locally.',
+				commands: ['docker build -t store_api .', 'docker image ls store_api'],
+				verify:
+					'The build completes (assets precompiled inside the image) and the image appears in docker image ls.',
+			},
+		],
 	},
 	hint: {
 		delay: 30,

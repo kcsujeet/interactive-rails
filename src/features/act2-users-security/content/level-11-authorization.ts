@@ -107,6 +107,29 @@ The library keeps the rules as plain Ruby objects, which makes each one trivial 
 				url: 'https://api.rubyonrails.org/classes/ActiveSupport/CurrentAttributes.html',
 			},
 		],
+		homework: [
+			{
+				task: 'Install Pundit in your store_api app, run its install generator, and mix Pundit::Authorization into ApplicationController.',
+				commands: ['bundle add pundit', 'rails generate pundit:install'],
+				verify:
+					'app/policies/application_policy.rb exists and ApplicationController includes Pundit::Authorization.',
+			},
+			{
+				task: 'Give products an owner if they do not have one yet, then write ProductPolicy with update? and destroy? that return true only when record.user == user. Call authorize product in the update and destroy actions.',
+				commands: [
+					'bin/rails generate migration AddUserToProducts user:references',
+					'bin/rails db:migrate',
+					'bin/rails console',
+				],
+				verify:
+					'In the console, ProductPolicy.new(owner, product).destroy? returns true and ProductPolicy.new(other_user, product).destroy? returns false, and a non-owner request to destroy raises Pundit::NotAuthorizedError instead of deleting the record.',
+			},
+			{
+				task: 'Filter the list endpoint through the policy scope so users only see records they are allowed to access.',
+				verify:
+					'Api::V1::ProductsController#index resolves its collection through policy_scope(Product) instead of Product.all.',
+			},
+		],
 	},
 	hint: {
 		delay: 25,

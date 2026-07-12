@@ -207,6 +207,22 @@ Order.where(status: "shipped").order(created_at: :desc).limit(25)
 				url: 'https://pragprog.com/titles/cpscaling/rails-scales/',
 			},
 		],
+		homework: [
+			{
+				task: 'Classify a table by temperature: add hot (last 30 days), warm (30 days to 1 year), and cold (older than 1 year) scopes to your orders model through a DataLifecycle concern.',
+				commands: [
+					"bin/rails runner 'puts({ hot: Order.hot.count, warm: Order.warm.count, cold: Order.cold.count }.inspect)'",
+				],
+				verify:
+					'The three counts print and sum to Order.count, proving every row lands in exactly one tier.',
+			},
+			{
+				task: 'Automate the cadence: write an ArchiveOldOrdersJob that copies cold rows into an archived_orders table and deletes them in batches, then register it in config/recurring.yml on a weekly schedule.',
+				commands: ['bin/rails db:migrate'],
+				verify:
+					'After seeding a few orders with created_at older than 1 year and running the job with perform_now, the old rows are gone from orders and present in archived_orders.',
+			},
+		],
 	},
 	hint: {
 		delay: 25,

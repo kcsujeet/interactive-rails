@@ -166,6 +166,37 @@ end
 				url: 'https://pragprog.com/titles/cpscaling/rails-scales/',
 			},
 		],
+		homework: [
+			{
+				task: 'Fix the L21 N+1 with includes and watch the query count collapse in the SQL log.',
+				commands: [
+					'bin/rails console',
+					'Review.all.each { |r| r.product.name }',
+					'Review.includes(:product).each { |r| r.product.name }',
+				],
+				verify:
+					'The first loop logs one Product Load per review; the includes version logs exactly two queries: reviews, then products WHERE id IN (...).',
+			},
+			{
+				task: 'Prove the joins trap in your own app: joins filters rows but does not load the association.',
+				commands: [
+					'bin/rails console',
+					'Review.joins(:product).each { |r| r.product.name }',
+				],
+				verify:
+					'Despite the INNER JOIN, the log still shows a Product Load per review. joins never loads association records into memory, so the N+1 is still there.',
+			},
+			{
+				task: 'Compare the SQL shapes of preload and eager_load for the same association.',
+				commands: [
+					'bin/rails console',
+					'Review.eager_load(:product).to_sql',
+					'Review.preload(:product).each { |r| r.product }',
+				],
+				verify:
+					'eager_load produces a single LEFT OUTER JOIN statement, while preload logs two separate simple queries. Same data, different query shape and memory profile.',
+			},
+		],
 	},
 	hint: {
 		delay: 20,

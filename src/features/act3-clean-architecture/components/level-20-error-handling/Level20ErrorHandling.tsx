@@ -391,14 +391,14 @@ const SHAPE_OPTIONS: StepOption[] = [
 		label: '{ message: "Not found", status: 404 }',
 		correct: false,
 		feedback:
-			'A flat hash with no machine-readable code forces clients to parse the message string. Nest errors under an error key with structured fields.',
+			'A flat hash gives clients nothing machine-readable to branch on. Every consumer ends up parsing the prose message, which breaks the moment the wording changes.',
 	},
 	{
 		id: 'array',
 		label: '{ errors: ["Not found"] }',
 		correct: false,
 		feedback:
-			'An array of strings has no structure. Clients need a code to switch on, a message to display, and details for validation errors.',
+			'An array of strings has no structure. Clients cannot tell one failure type from another without string-matching, and there is nowhere to attach per-field information for validation failures.',
 	},
 	{
 		id: 'structured',

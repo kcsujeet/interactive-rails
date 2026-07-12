@@ -161,6 +161,37 @@ add_index :users, :email, algorithm: :concurrently`,
 				url: 'https://pragprog.com/titles/cpscaling/rails-scales/',
 			},
 		],
+		homework: [
+			{
+				task: 'Capture the before picture: EXPLAIN a filtered query against your 50K seeded products.',
+				commands: [
+					'bin/rails console',
+					'Product.where("price < ?", 10).explain',
+				],
+				verify:
+					'The plan shows Seq Scan on products with a Filter line: the database reads every row to answer the query.',
+			},
+			{
+				task: 'Add an index on products.price: generate an empty migration, add `add_index :products, :price` inside change, then migrate.',
+				commands: [
+					'bin/rails generate migration AddIndexToProductsPrice',
+					'bin/rails db:migrate',
+				],
+				verify:
+					'db/schema.rb now lists index_products_on_price on the products table.',
+			},
+			{
+				task: 'Capture the after picture and measure the difference with EXPLAIN ANALYZE in the database console.',
+				commands: [
+					'bin/rails console',
+					'Product.where("price < ?", 10).explain',
+					'bin/rails dbconsole',
+					'EXPLAIN ANALYZE SELECT * FROM products WHERE price < 10;',
+				],
+				verify:
+					'The plan flips from Seq Scan to an Index Scan or Bitmap Index Scan using index_products_on_price, and EXPLAIN ANALYZE execution time drops by an order of magnitude.',
+			},
+		],
 	},
 	hint: {
 		delay: 20,

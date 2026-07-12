@@ -267,6 +267,39 @@ end`,
 				url: 'https://www.postgresql.org/docs/current/ddl-constraints.html#DDL-CONSTRAINTS-CHECK-CONSTRAINTS',
 			},
 		],
+		homework: [
+			{
+				task: 'Feel a pessimistic lock with two consoles: run the command below in console A, and while it sleeps run Product.lock.first in console B.',
+				commands: [
+					'bin/rails console',
+					'Product.transaction { p = Product.lock.first; sleep 15; p.update!(price: p.price + 1) }',
+				],
+				verify:
+					'Console B blocks on Product.lock.first until console A commits, then returns the row with the already-updated price. SELECT FOR UPDATE serialized the writers.',
+			},
+			{
+				task: 'Add optimistic locking: create a lock_version integer column on products (edit the migration to set default: 0, null: false), then make two stale copies collide.',
+				commands: [
+					'bin/rails generate migration AddLockVersionToProducts lock_version:integer',
+					'bin/rails db:migrate',
+					'bin/rails console',
+					'a = Product.first; b = Product.first',
+					'a.update!(price: 20)',
+					'b.update!(price: 30)',
+				],
+				verify:
+					'The second update raises ActiveRecord::StaleObjectError: b was loaded before a saved, so its lock_version no longer matches the row.',
+			},
+			{
+				task: 'Use the lock-free alternative for counter-style fields: a single atomic conditional UPDATE.',
+				commands: [
+					'bin/rails console',
+					"Product.where(id: Product.first.id).where('price >= ?', 10).update_all('price = price - 10')",
+				],
+				verify:
+					'update_all returns 1 when the condition holds and 0 when it does not. The check and the decrement run in one SQL statement, so no concurrent request can slip between them.',
+			},
+		],
 	},
 	hint: {
 		delay: 25,

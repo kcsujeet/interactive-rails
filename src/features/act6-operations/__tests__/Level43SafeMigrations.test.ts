@@ -215,7 +215,7 @@ const CONFIGURE_CHECKS_OPTIONS = [
 		label: 'Only set lock_timeout',
 		correct: false,
 		feedback:
-			'Lock timeout alone only fails migrations that take too long to acquire a lock. It does not detect unsafe operations before they run. You need target_version and start_after.',
+			'Lock timeout alone only fails migrations that take too long to acquire a lock. It does not detect unsafe operations before they run, which is the whole reason the gem is installed.',
 	},
 	{
 		id: 'correct',

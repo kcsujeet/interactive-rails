@@ -188,6 +188,28 @@ end`,
 				url: 'https://api.rubyonrails.org/classes/ActiveRecord/DelegatedType.html',
 			},
 		],
+		homework: [
+			{
+				task: 'Generate a polymorphic Comment model in your store_api app so both products and reviews can be commented on.',
+				commands: [
+					'bin/rails generate model Comment body:text commentable:references{polymorphic}',
+					'bin/rails db:migrate',
+				],
+				verify:
+					'db/schema.rb shows a comments table with commentable_type and commentable_id plus a composite index on both columns.',
+			},
+			{
+				task: 'Wire has_many :comments, as: :commentable into both Product and Review, then attach a comment to each parent type from the console.',
+				commands: [
+					'bin/rails console',
+					'Product.first.comments.create!(body: "Question about sizing")',
+					'Review.first.comments.create!(body: "Agreed, great product")',
+					'Comment.pluck(:commentable_type)',
+				],
+				verify:
+					'One comments table serves both parents: the two rows carry commentable_type "Product" and "Review", and comment.commentable returns the right record class for each.',
+			},
+		],
 	},
 	hint: {
 		delay: 25,

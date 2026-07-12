@@ -926,7 +926,7 @@ end`,
 end`,
 		correct: false,
 		feedback:
-			'find_by + create has a race condition. Two concurrent requests can both pass the find_by check before either inserts. You need an atomic operation backed by a database constraint.',
+			'find_by + create has a race condition. Two concurrent requests can both pass the find_by check before either inserts, and the event gets processed twice.',
 	},
 	{
 		id: 'correct',
@@ -990,7 +990,7 @@ end
 head :ok`,
 		correct: false,
 		feedback:
-			'Raw threads have no retry logic, no error tracking, no persistence. If the thread crashes, the event is lost. Background jobs (Solid Queue) handle all of this.',
+			'Raw threads have no retry logic, no error tracking, no persistence. If the thread crashes mid-processing, the event is lost with no record it ever ran.',
 	},
 ];
 

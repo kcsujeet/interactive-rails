@@ -898,7 +898,7 @@ const FREEZE_V1_OPTIONS = [
 end`,
 		correct: false,
 		feedback:
-			'Inline JSON in the controller bypasses the service object pattern (L16+). The controller should delegate to a service and use a dedicated v1 serializer.',
+			'Inline JSON in the controller bypasses the service object pattern (L16+). It also hand-writes a response shape that nothing guarantees stays stable as the model changes.',
 	},
 	{
 		id: 'wrong-shared-serializer',

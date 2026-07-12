@@ -99,7 +99,7 @@ const TEMPERATURE_POLICY_OPTIONS = [
 		label: 'Hot < 30 days, everything else is cold (delete after 1 year)',
 		correct: false,
 		feedback:
-			'Skipping the warm tier means 30-day-old data is immediately treated as cold. Reports and analytics teams need SQL access to data between 90 days and 1 year.',
+			'Skipping the warm tier means month-old data is immediately on the deletion track. Reports and analytics teams still need SQL access to orders from last quarter.',
 	},
 	{
 		id: 'wrong-no-cold',
@@ -169,14 +169,14 @@ const TRANSPARENT_READS_OPTIONS = [
 		label: 'Require callers to check both tables manually',
 		correct: false,
 		feedback:
-			'Duplicating fallback logic in every controller is error-prone. If any controller forgets, archived orders appear missing. Encapsulate the lookup in the model layer.',
+			'Duplicating fallback logic in every controller is error-prone. The first controller that forgets makes archived orders appear missing to customers.',
 	},
 	{
 		id: 'wrong-union-query',
 		label: 'Always query both tables with UNION',
 		correct: false,
 		feedback:
-			'A UNION query scans both tables on every request, defeating the purpose of splitting data. Hot queries should only hit the small table. Fall back to archive only when needed.',
+			'A UNION query scans both tables on every request, defeating the purpose of splitting data. The 50M archived rows are right back in every query plan.',
 	},
 	{
 		id: 'correct',
@@ -191,7 +191,7 @@ const DESTRUCTION_POLICY_OPTIONS = [
 		label: 'Delete all archived data older than 90 days',
 		correct: false,
 		feedback:
-			'90 days is far too aggressive for archived data. Legal and compliance requirements typically mandate multi-year retention. Destruction should only apply to data past the retention period.',
+			'90 days is far too aggressive for archived data. Legal and compliance requirements typically mandate multi-year retention; deleting early is a violation, not a cleanup.',
 	},
 	{
 		id: 'correct',
@@ -204,7 +204,7 @@ const DESTRUCTION_POLICY_OPTIONS = [
 		label: 'Destroy silently without audit trail',
 		correct: false,
 		feedback:
-			'Destroying data without logging creates compliance risk. Auditors need proof of what was deleted, when, and how much. Always log destruction events.',
+			'Destroying data without logging creates compliance risk. When auditors ask what was deleted, when, and how much, there is no answer.',
 	},
 ];
 
@@ -217,7 +217,7 @@ const CLEANUP_CADENCE_OPTIONS = [
 		label: 'Run both jobs every five minutes',
 		correct: false,
 		feedback:
-			'Constant churn: archive batches and deletes would compete with peak traffic for locks all day. Batching made a nightly window sufficient, and destructive work should run when the store is quietest.',
+			'Constant churn: archive batches and deletes would compete with peak traffic for locks all day. Neither job is urgent; both belong in the quietest hours of the day.',
 	},
 	{
 		id: 'correct',
@@ -229,7 +229,7 @@ const CLEANUP_CADENCE_OPTIONS = [
 		label: 'Archive nightly at 2am; destroy hourly right behind it',
 		correct: false,
 		feedback:
-			'Destruction is the irreversible step, so its cadence should be slow and observable. A weekly window means a bad filter deletes at most one batch of mistakes, while backups and audit logs are still fresh enough to catch it.',
+			'Destruction is the irreversible step, so its cadence should be slow and observable. Hourly runs mean a bad filter deletes 24 batches of mistakes before anyone reads a log.',
 	},
 ];
 

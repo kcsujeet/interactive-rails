@@ -139,6 +139,27 @@ direction.`,
 				url: 'https://microservices.io/patterns/apigateway.html',
 			},
 		],
+		homework: [
+			{
+				task: 'Write the judgment call: a one-page extraction memo in docs/ of your project that names the structural evidence for extracting billing (deploy cadence, workload isolation, blast radius), the evidence against, and your decision.',
+				verify:
+					'You can read the memo aloud and state the decision plus its strongest counterargument in under a minute.',
+			},
+			{
+				task: 'Design the migration in docs/: the strangler-fig stages (empty service behind the gateway, backfill, dual-write, parity checks, flag-gated 5/25/50/100 percent cutover), and for each stage write its exit criterion and its rollback step.',
+				verify:
+					'Every stage in the plan has both an exit criterion and a rollback, and you can explain the rollback path from any stage aloud in under a minute.',
+			},
+			{
+				task: 'Prove two deployables can coexist on your laptop: scaffold the skeleton service and run it next to your main app on a different port.',
+				commands: [
+					'rails new billing_service --api --database=postgresql',
+					'cd billing_service && bin/rails server -p 3001',
+				],
+				verify:
+					'curl http://localhost:3001/up returns 200 while your main app still answers on port 3000.',
+			},
+		],
 	},
 	hint: {
 		delay: 30,

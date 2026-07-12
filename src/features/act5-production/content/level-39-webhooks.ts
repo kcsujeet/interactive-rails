@@ -367,6 +367,38 @@ end`,
 				url: 'https://api.rubyonrails.org/classes/ActionDispatch/Request.html#method-i-raw_post',
 			},
 		],
+		homework: [
+			{
+				task: 'Create the webhook_events table, then edit the migration so the [provider, event_id] index is unique before migrating.',
+				commands: [
+					'bin/rails generate model WebhookEvent provider:string event_id:string event_type:string payload:jsonb status:string processed_at:datetime',
+					'bin/rails db:migrate',
+				],
+				verify:
+					'db/schema.rb shows the webhook_events table with a unique composite index on provider and event_id.',
+			},
+			{
+				task: 'Prove deduplication in the console: the same event id can only ever produce one row.',
+				commands: [
+					'bin/rails console',
+					'2.times { WebhookEvent.find_or_create_by!(provider: "stripe", event_id: "evt_123") { |e| e.event_type = "payment_intent.succeeded"; e.status = "pending" } }',
+					'WebhookEvent.where(event_id: "evt_123").count',
+					'WebhookEvent.create!(provider: "stripe", event_id: "evt_123", event_type: "payment_intent.succeeded", status: "pending")',
+				],
+				verify:
+					'find_or_create_by! returns the same row both times (count stays 1), and the raw create! raises ActiveRecord::RecordNotUnique: the unique index backstops any race.',
+			},
+			{
+				task: 'Build POST /webhooks/stripe: dedupe on the event id, enqueue a job to do the work, return 200 immediately. Then deliver the same event twice.',
+				commands: [
+					'bin/rails server',
+					`curl -X POST http://localhost:3000/webhooks/stripe -H "Content-Type: application/json" -d '{"id": "evt_456", "type": "payment_intent.succeeded"}'`,
+					`curl -X POST http://localhost:3000/webhooks/stripe -H "Content-Type: application/json" -d '{"id": "evt_456", "type": "payment_intent.succeeded"}'`,
+				],
+				verify:
+					'Both requests return 200 in milliseconds, but only one webhook_events row exists and the processing job ran once: the duplicate delivery was absorbed, exactly what Stripe retries require.',
+			},
+		],
 	},
 	hint: {
 		delay: 25,

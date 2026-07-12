@@ -77,11 +77,19 @@ order.update!(status: "pending")  # Oops, no error raised!
 		goal: `In this level, you'll:\n- learn how to model complex workflows using a state machine library.\n- define valid states and transitions so records can only move through allowed paths.\n- add guards to enforce business rules.\n- trigger side effects on transitions.`,
 		conceptExplanation: `State machines formalize which transitions are valid and enforce them at the model level.
 
-**Why not just a string column?**
-- No enforcement: any code can set any value
-- No callbacks: no hooks for side effects on transition
+**The ladder: string -> enum -> state machine.** Order.status today is a bare string: any code can write any value, and nothing records the change. The middle rung is Active Record's \`enum\`, which the app has used on Product.status since the modeling work:
+
+\`enum :status, { pending: "pending", confirmed: "confirmed", shipped: "shipped" }\`
+
+An enum names the legal VALUES and gives you a lot for free: predicate methods (\`order.pending?\`), bang setters (\`order.confirmed!\`), and scopes (\`Order.shipped\`). Always use string-encoded values (as above), never integers: \`status: 1\` in a database dump means nothing, and reordering integer values corrupts production data.
+
+**What an enum still cannot do** (and why this level exists):
+- No transition rules: \`order.pending!\` happily un-ships a delivered order
+- No guards: nothing requires a tracking number before shipping
+- No transition callbacks: no hook that fires exactly when confirmed becomes shipped
 - No audit: no record of who changed what, when
-- No scopes: no easy way to query by state
+
+An enum protects the SET of values; a state machine protects the PATHS between them.
 
 **AASM provides:**
 - Declarative state/event/transition DSL
@@ -170,6 +178,24 @@ Order.pending.count     # SELECT COUNT(*) FROM orders WHERE status = 'pending'`,
 			{
 				title: 'Statesman Gem',
 				url: 'https://github.com/gocardless/statesman',
+			},
+		],
+		homework: [
+			{
+				task: 'Replace the bare status writes on Order with a state machine: install AASM, declare pending, confirmed, shipped, delivered, and cancelled states on the status column, and only allow cancel from pending or confirmed.',
+				commands: ['bundle add aasm'],
+				verify:
+					'In the console, order.ship! on a confirmed order works, but order.cancel! on a shipped order raises AASM::InvalidTransition.',
+			},
+			{
+				task: 'Add the audit trail: wire has_paper_trail only: [:status] onto Order. PaperTrail is already in your Gemfile from the earlier audit work; do not reinstall it.',
+				verify:
+					'After confirm! and ship!, order.versions shows one entry per status change with timestamps, answering who changed what and when.',
+			},
+			{
+				task: 'Add a guard: the confirm event may only fire when payment_received? is true.',
+				verify:
+					'confirm! on an unpaid order raises AASM::InvalidTransition, and succeeds once a completed payment exists for it.',
 			},
 		],
 	},

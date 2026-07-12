@@ -108,6 +108,22 @@ end
 				url: 'https://guides.rubyonrails.org/active_record_multiple_databases.html',
 			},
 		],
+		homework: [
+			{
+				task: 'Simulate a replica on your laptop: add a primary_replica entry to config/database.yml pointing at the same development database with replica: true, and declare connects_to writing and reading roles on ApplicationRecord.',
+				commands: [
+					"bin/rails runner 'ActiveRecord::Base.connected_to(role: :reading) { puts Product.count }'",
+				],
+				verify:
+					'The count prints through the reading role, and attempting Product.create! inside a connected_to(role: :reading) block raises ActiveRecord::ReadOnlyError.',
+			},
+			{
+				task: 'Turn on automatic role switching: configure database_selector, database_resolver, and database_resolver_context in config/application.rb with a 2 second delay.',
+				commands: ['bin/rails middleware'],
+				verify:
+					'The middleware stack now includes the DatabaseSelector middleware, so GET requests read from the replica role automatically while writes stay on the primary.',
+			},
+		],
 	},
 	hint: {
 		delay: 25,

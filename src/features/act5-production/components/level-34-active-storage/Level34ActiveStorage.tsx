@@ -734,7 +734,7 @@ end`,
 end`,
 		correct: false,
 		feedback:
-			'has_many_attached is for multiple files (photos gallery, documents). A user has one avatar, so use has_one_attached.',
+			'has_many_attached is for collections of files. A user has exactly one avatar, so this declaration gives the model the wrong shape.',
 	},
 	{
 		id: 'correct-with-variants',

@@ -168,6 +168,35 @@ end`,
 				url: 'https://guides.rubyonrails.org/active_storage_overview.html#direct-uploads',
 			},
 		],
+		homework: [
+			{
+				task: 'Install Active Storage in your store_api app.',
+				commands: ['bin/rails active_storage:install', 'bin/rails db:migrate'],
+				verify:
+					'db/schema.rb gains active_storage_blobs, active_storage_attachments, and active_storage_variant_records tables.',
+			},
+			{
+				task: 'Add has_one_attached :photo to Product and attach a real file from the console (development uses the local Disk service).',
+				commands: [
+					'bin/rails console',
+					'product = Product.first',
+					'product.photo.attach(io: File.open("/path/to/any.jpg"), filename: "photo.jpg", content_type: "image/jpeg")',
+					'product.photo.attached?',
+				],
+				verify:
+					'attached? returns true, ActiveStorage::Blob.count went up by one, and the file bytes landed under storage/.',
+			},
+			{
+				task: 'Define a :thumb variant (resize_to_limit: [100, 100]) inside the has_one_attached block and process it. Install libvips first if your machine lacks it.',
+				commands: [
+					'bundle add image_processing',
+					'bin/rails console',
+					'Product.first.photo.variant(:thumb).processed',
+				],
+				verify:
+					'Processing creates an ActiveStorage::VariantRecord row and the resized image is at most 100px on its longest side.',
+			},
+		],
 	},
 	hint: {
 		delay: 25,

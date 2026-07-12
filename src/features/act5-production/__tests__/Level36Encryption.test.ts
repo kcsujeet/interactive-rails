@@ -101,14 +101,14 @@ const CREDENTIALS_OPTIONS = [
 		id: 'wrong-env-var',
 		correct: false,
 		feedback:
-			'Environment variables in .env files are not encrypted and can be accidentally committed. Rails credentials are encrypted at rest and the standard location for encryption keys.',
+			'Environment variables in .env files are not encrypted and can be accidentally committed. Keys this sensitive need a store that is encrypted at rest.',
 	},
 	{ id: 'correct-credentials', correct: true },
 	{
 		id: 'wrong-initializer',
 		correct: false,
 		feedback:
-			'Hardcoding keys in an initializer file means they are stored in plaintext in your repository. Rails credentials encrypts them at rest.',
+			'Hardcoding keys in an initializer file means they are stored in plaintext in your repository. Anyone with repo access can read every key.',
 	},
 ];
 

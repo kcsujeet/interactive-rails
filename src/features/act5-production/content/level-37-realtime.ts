@@ -248,6 +248,34 @@ end`,
 				url: 'https://anycable.io/',
 			},
 		],
+		homework: [
+			{
+				task: 'Install Solid Cable, point development at it in config/cable.yml (adapter: solid_cable), and create its table.',
+				commands: [
+					'bundle add solid_cable',
+					'bin/rails solid_cable:install',
+					'bin/rails db:prepare',
+				],
+				verify:
+					'config/cable.yml uses the solid_cable adapter and the solid_cable_messages table exists. No Redis anywhere.',
+			},
+			{
+				task: 'Generate a Notifications channel and have subscribed call stream_for current_user.',
+				commands: ['bin/rails generate channel Notifications'],
+				verify:
+					'app/channels/notifications_channel.rb exists alongside app/channels/application_cable/connection.rb, where connections are authenticated.',
+			},
+			{
+				task: 'Broadcast from the console and watch the message land in the database-backed pub/sub bus.',
+				commands: [
+					'bin/rails console',
+					'NotificationsChannel.broadcast_to(User.first, { type: "notification.created", id: 1 })',
+					'SolidCable::Message.count',
+				],
+				verify:
+					'Each broadcast writes a row into solid_cable_messages (the count goes up): that table is the pub/sub bus that replaces Redis for Action Cable.',
+			},
+		],
 	},
 	hint: {
 		delay: 25,

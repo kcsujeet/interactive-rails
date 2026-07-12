@@ -171,7 +171,7 @@ const COUNTER_CACHE_OPTIONS: StepOption[] = [
 		label: 'has_many :reviews, counter_cache: true',
 		correct: false,
 		feedback:
-			'counter_cache is declared on the belongs_to side, not has_many. The child model owns the relationship declaration.',
+			'counter_cache is not accepted on this side of the association. The declaration belongs on the child model, which holds the foreign key and sees every create and destroy.',
 	},
 	{
 		id: 'after-create',

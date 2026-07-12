@@ -623,7 +623,7 @@ const UPDATE_QUERIES_OPTIONS = [
 end`,
 		correct: false,
 		feedback:
-			'default_scope applies to ALL queries including admin panels and background jobs. Use explicit .kept scope in controllers so you can access discarded records when needed.',
+			'default_scope applies to ALL queries including admin panels and background jobs. Every place that legitimately needs discarded records has to fight it with unscoped.',
 	},
 	{
 		id: 'wrong-no-change',
@@ -632,7 +632,7 @@ end`,
 # All users see discarded records mixed with active ones`,
 		correct: false,
 		feedback:
-			'Without filtering, API consumers see discarded records in listings. Public-facing queries must use .kept to exclude soft-deleted records.',
+			'Without filtering, API consumers see discarded records in listings. Public-facing queries need to exclude soft-deleted records; only admin tooling should see them.',
 	},
 	{
 		id: 'correct',
@@ -691,7 +691,7 @@ const CONFIGURE_AUDIT_OPTIONS = [
 end`,
 		correct: false,
 		feedback:
-			'Without whodunnit, you know WHAT changed but not WHO changed it. Set PaperTrail.request.whodunnit in your controller to track the acting user.',
+			'Without whodunnit, you know WHAT changed but not WHO changed it. An audit trail that cannot answer "which admin did this?" fails its main purpose.',
 	},
 	{
 		id: 'correct',

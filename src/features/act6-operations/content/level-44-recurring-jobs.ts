@@ -281,6 +281,28 @@ end`,
 				url: 'https://guides.rubyonrails.org/active_job_basics.html',
 			},
 		],
+		homework: [
+			{
+				task: 'Create a cleanup job that deletes expired records in batches: use in_batches with delete_all on any model with a timestamp cutoff, and put it on a maintenance queue.',
+				commands: ['bin/rails generate job CleanupExpiredSessions'],
+				verify:
+					'CleanupExpiredSessionsJob.perform_now runs in the console without error and logs how many rows it removed.',
+			},
+			{
+				task: 'Schedule it: add a development section to config/recurring.yml with a one-minute schedule for testing, point development Active Job at Solid Queue, then start the worker and watch the clock fire it.',
+				commands: ['bin/jobs'],
+				verify:
+					'Within a minute the worker log shows your job enqueued and performed automatically, without you enqueuing anything by hand.',
+			},
+			{
+				task: 'Confirm the scheduler registered your task in the database.',
+				commands: [
+					"bin/rails runner 'puts SolidQueue::RecurringTask.pluck(:key, :schedule).inspect'",
+				],
+				verify:
+					'Your task key appears alongside the schedule string you wrote in recurring.yml.',
+			},
+		],
 	},
 	hint: {
 		delay: 20,

@@ -227,6 +227,32 @@ end`,
 				url: 'https://pragprog.com/titles/cpscaling/rails-scales/',
 			},
 		],
+		homework: [
+			{
+				task: 'Protect your login endpoint with the Rails 8 rate_limit macro: 10 attempts per 3 minutes per IP on the create action, rendering a JSON error with status 429. Enable the development cache first so the counters persist.',
+				commands: [
+					'bin/rails dev:cache',
+					'for i in {1..11}; do curl -s -o /dev/null -w "%{http_code}\\n" -X POST http://localhost:3000/session -H "Content-Type: application/json" -d \'{"email":"x@y.z","password":"wrong"}\'; done',
+				],
+				verify:
+					'The first 10 attempts return 401 and the 11th returns 429 Too Many Requests.',
+			},
+			{
+				task: 'Add middleware-level protection with Rack::Attack: a global throttle of 60 requests per minute per IP, plus a safelist for the /up health check.',
+				commands: [
+					'bundle add rack-attack',
+					'for i in {1..70}; do curl -s -o /dev/null -w "%{http_code}\\n" http://localhost:3000/api/products; done',
+				],
+				verify:
+					'Requests start returning 429 once the throttle trips, while repeated hits to /up always return 200.',
+			},
+			{
+				task: 'Return a proper backoff signal: configure Rack::Attack.throttled_responder so every 429 carries a Retry-After header.',
+				commands: ['curl -i http://localhost:3000/api/products'],
+				verify:
+					'A throttled response shows status 429 with a Retry-After header telling the client how many seconds to wait.',
+			},
+		],
 	},
 	hint: {
 		delay: 20,

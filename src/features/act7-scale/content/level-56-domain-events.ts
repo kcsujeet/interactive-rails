@@ -201,6 +201,20 @@ end`,
 				url: 'https://pragprog.com/titles/cpscaling/rails-scales/',
 			},
 		],
+		homework: [
+			{
+				task: 'Decouple one side effect: install Wisper, create an OrderCompletedEvent publisher, and move your receipt email into an EmailSubscriber that reacts to the event instead of being called directly.',
+				commands: ['bundle add wisper'],
+				verify:
+					'Completing an order in the console broadcasts order_completed and the subscriber enqueues the receipt mail, with the checkout code no longer referencing the mailer.',
+			},
+			{
+				task: 'Prove the open/closed benefit: add a second subscriber (an AnalyticsSubscriber that logs the purchase) in the initializer, without editing the publisher or the checkout service.',
+				commands: ['git diff --stat app/services'],
+				verify:
+					'git diff shows zero changes in the checkout service, yet completing an order now triggers both subscribers.',
+			},
+		],
 	},
 	hint: {
 		delay: 25,

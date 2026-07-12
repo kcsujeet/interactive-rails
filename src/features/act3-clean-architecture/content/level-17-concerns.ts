@@ -174,6 +174,24 @@ end`,
 				url: 'https://guides.rubyonrails.org/active_support_core_extensions.html',
 			},
 		],
+		homework: [
+			{
+				task: 'Add the flagging columns to both tables in your store_api app: flags_count (integer, default 0) and hidden (boolean, default false) on products and on reviews. Set the defaults inside the generated migrations before running them.',
+				commands: [
+					'bin/rails generate migration AddFlaggingToProducts flags_count:integer hidden:boolean',
+					'bin/rails generate migration AddFlaggingToReviews flags_count:integer hidden:boolean',
+					'bin/rails db:migrate',
+				],
+				verify:
+					'db/schema.rb shows flags_count defaulting to 0 and hidden defaulting to false on both products and reviews.',
+			},
+			{
+				task: 'Create app/models/concerns/flaggable.rb: FLAG_THRESHOLD = 3, the visible and flagged scopes inside the included block, and flag! plus visible? as instance methods. Adopt it in Product and Review with one include line each.',
+				commands: ['bin/rails console'],
+				verify:
+					'Calling flag! three times on a review flips hidden to true and Review.visible excludes it; a product behaves identically because both models share the single definition.',
+			},
+		],
 	},
 	hint: {
 		delay: 25,
