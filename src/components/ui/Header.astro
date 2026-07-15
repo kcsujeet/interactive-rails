@@ -25,7 +25,7 @@ const isActive = (href: string) =>
         <nav class="hidden md:flex items-center gap-1" id="main-nav">
           <a href="/acts" class:list={["relative text-sm px-3 py-1.5 rounded-md transition-colors no-underline", isActive('/acts') ? "text-primary font-medium" : "text-muted-foreground hover:text-foreground"]}>Acts{isActive('/acts') && <span class="absolute bottom-0 left-3 right-3 h-0.5 bg-primary rounded-full" />}</a>
           <a href="/sandbox" class:list={["relative text-sm px-3 py-1.5 rounded-md transition-colors no-underline", isActive('/sandbox') ? "text-primary font-medium" : "text-muted-foreground hover:text-foreground"]}>Sandbox{isActive('/sandbox') && <span class="absolute bottom-0 left-3 right-3 h-0.5 bg-primary rounded-full" />}</a>
-          <a href="/dashboard" class:list={["relative text-sm px-3 py-1.5 rounded-md transition-colors no-underline", isActive('/dashboard') ? "text-primary font-medium" : "text-muted-foreground hover:text-foreground"]}>Dashboard{isActive('/dashboard') && <span class="absolute bottom-0 left-3 right-3 h-0.5 bg-primary rounded-full" />}</a>
+          <a href="/dashboard" class:list={["relative text-sm px-3 py-1.5 rounded-md transition-colors no-underline", isActive('/dashboard') ? "text-primary font-medium" : "text-muted-foreground hover:text-foreground"]}>Progress{isActive('/dashboard') && <span class="absolute bottom-0 left-3 right-3 h-0.5 bg-primary rounded-full" />}</a>
         </nav>
       )}
     </div>
@@ -39,22 +39,16 @@ const isActive = (href: string) =>
         <svg id="theme-icon-sun" class="hidden size-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
         <svg id="theme-icon-moon" class="hidden size-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
       </button>
-      <div id="header-auth">
-        <Button variant="secondary" size="sm">
-          <a href="/login">Login</a>
-        </Button>
-      </div>
+      <Button variant="secondary" size="sm">
+        <a href="/dashboard">Your Progress</a>
+      </Button>
     </div>
   </div>
 </header>
 
 <script>
-  import { $user, initAuth, clearAuth } from "@/stores/authStore";
-  import { escapeHtml } from "@/lib/utils";
-
-  const API_URL = import.meta.env.DEV ? '' : 'https://api.interactiverails.com';
-
-  // Theme toggle
+  // Theme toggle. Progress is stored per-browser in localStorage; there is
+  // no account and no server.
   function updateThemeIcon() {
     const isDark = document.documentElement.classList.contains('dark');
     const sun = document.getElementById('theme-icon-sun');
@@ -70,38 +64,4 @@ const isActive = (href: string) =>
   });
 
   updateThemeIcon();
-
-  initAuth();
-
-  function updateHeader() {
-    const authContainer = document.getElementById('header-auth');
-    const user = $user.get();
-
-    if (user && authContainer) {
-      const userLevel = (user as any).level || 1;
-      authContainer.innerHTML = `
-        <div class="flex items-center gap-2.5">
-          <span class="text-[11px] font-semibold text-primary px-2 py-0.5 bg-primary/15 rounded-md">Lv ${userLevel}</span>
-          <span class="text-[13px] font-medium text-foreground">${escapeHtml(user.username)}</span>
-          <button id="logout-btn" class="inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium text-muted-foreground bg-transparent border-0 rounded-md cursor-pointer hover:bg-muted hover:text-foreground transition-all">Logout</button>
-        </div>
-      `;
-
-      document.getElementById('logout-btn')?.addEventListener('click', async () => {
-        try {
-          await fetch(`${API_URL}/api/auth/logout`, {
-            method: 'POST',
-            credentials: 'include',
-          });
-        } catch (e) {
-          // Ignore errors, still clear local state
-        }
-        clearAuth();
-        window.location.href = '/';
-      });
-    }
-  }
-
-  updateHeader();
-  $user.subscribe(updateHeader);
 </script>

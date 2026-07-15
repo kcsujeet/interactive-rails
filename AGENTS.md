@@ -499,23 +499,18 @@ import { Database, Zap, Search, Settings } from "lucide-react";
 
 ## Bun Reference
 
-### Preferred APIs
+This is a fully client-side, static app (open-sourced 2026-07-12). There is no server, database, or API: Bun is used only as the package manager, script runner, and test runner. Do NOT reintroduce a backend (`Bun.serve()`, `bun:sqlite`, `Bun.redis`, `Bun.sql`, etc.); if a feature needs persistence, it goes in `localStorage` (see `src/lib/progress.ts`).
 
-- `Bun.serve()` for HTTP/WebSocket/routes (not `express`)
-- `bun:sqlite` for SQLite (not `better-sqlite3`)
-- `Bun.redis` for Redis (not `ioredis`)
-- `Bun.sql` for Postgres (not `pg` / `postgres.js`)
-- `WebSocket` built-in (not `ws`)
-- `Bun.file` over `node:fs` readFile/writeFile
-- `Bun.$\`cmd\`` instead of `execa`
+### Tooling
+
+- `bun install` (not `npm` / `yarn` / `pnpm install`)
+- `bun run <script>` for the package.json scripts (`dev`, `build`, `preview`, `test`)
+- `bunx <pkg>` (not `npx`)
+- Bun automatically loads `.env`, so don't use dotenv.
 
 ### Testing
 
 Use `bun test` with imports from `"bun:test"` (`test`, `expect`, `describe`, etc.).
-
-### Frontend
-
-Use HTML imports with `Bun.serve()`, not Vite. HTML files can import `.tsx`/`.jsx`/`.js` directly; `<link>` tags bundle CSS automatically.
 
 For more information, read the Bun API docs in `node_modules/bun-types/docs/**.mdx`.
 

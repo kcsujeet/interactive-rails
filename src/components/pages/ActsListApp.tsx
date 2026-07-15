@@ -97,7 +97,6 @@ export function ActsListApp() {
 	const [levelProgress, setLevelProgress] = useState<
 		Record<string, LevelProgressEntry>
 	>({});
-	const [isGuest, setIsGuest] = useState(true);
 	const [loading, setLoading] = useState(true);
 	const [openActs, setOpenActs] = useState<Set<number>>(() => {
 		if (typeof window === 'undefined') return new Set();
@@ -116,7 +115,6 @@ export function ActsListApp() {
 	async function fetchProgress() {
 		try {
 			const progress = await getProgress();
-			setIsGuest(progress.isGuest);
 			setCompletedLevels(progress.completedLevels);
 			setLevelProgress(progress.levelProgress);
 
@@ -212,17 +210,6 @@ export function ActsListApp() {
 					/>
 				</div>
 			</div>
-
-			{isGuest && (
-				<div className="mb-6 flex items-center justify-between gap-4 py-3 px-4 bg-warning/10 border border-warning/20 rounded-lg">
-					<span className="text-sm text-foreground">
-						Playing as guest - progress won't sync
-					</span>
-					<Button className="px-0" size="sm" variant="link">
-						<a href="/signup">Create account</a>
-					</Button>
-				</div>
-			)}
 
 			<div className="space-y-3">
 				{ACTS.map((act) => {

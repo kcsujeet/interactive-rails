@@ -6,10 +6,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-	createIncident,
-	generateRandomIncident,
-} from '@/components/inspector/IncidentFeed';
+import { createIncident, generateRandomIncident } from '@/lib/incidents';
 import type {
 	Connection,
 	GameState,

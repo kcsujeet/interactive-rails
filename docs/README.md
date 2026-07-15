@@ -6,13 +6,11 @@ Interactive Rails is an educational web app for learning Rails 8 API development
 
 | Document | Description |
 |----------|-------------|
-| [Architecture](./architecture.md) | System architecture, tech stack, and project structure |
+| [Architecture](./architecture.md) | Static site architecture, tech stack, and project structure |
 | [Game Mechanics](./game-mechanics.md) | Current briefing, observe, build, reward, and progression systems |
 | [Content Structure](./content-structure.md) | Acts, levels, and learning content |
 | [Development Setup](./development-setup.md) | Local development environment setup |
-| [Deployment Guide](./deployment-guide.md) | Production deployment to Cloudflare |
-| [API Reference](./api-reference.md) | Mounted API endpoint documentation |
-| [Database Schema](./database-schema.md) | D1 database tables and relationships |
+| [Deployment Guide](./deployment-guide.md) | Building and hosting the static site |
 | [Troubleshooting](./troubleshooting.md) | Common issues and solutions |
 
 ## Quick Start
@@ -22,8 +20,9 @@ bun install
 bun run dev
 ```
 
-- Frontend: http://localhost:4321
-- API: mounted under the same Astro app at `/api/*`
+- App: http://localhost:4321
+
+Interactive Rails is a fully static, client-side app. There is no server, API, database, or account. Progress is saved to the browser's `localStorage`.
 
 ## Project Overview
 
@@ -62,26 +61,26 @@ Sandbox mode still exists as a free-form request-flow playground, but it is sepa
 | Layer | Technology |
 |-------|------------|
 | Runtime and package manager | Bun |
-| Frontend | Astro + React |
+| Site framework | Astro (static output, no adapter) |
+| Interactive UI | React |
 | State | Zustand |
 | Visualization | React Flow (@xyflow/react) |
 | Styling | Tailwind CSS 4 |
-| Backend | Cloudflare Workers + Hono |
-| Database | Cloudflare D1 |
-| Auth | Better Auth |
+| Progress storage | Browser `localStorage` |
 
 ## Key Directories
 
 ```text
 interactive-rails/
   src/
-    server/             Hono API, auth, repositories, D1 schema
-    pages/              Astro routes and API catch-all
-    features/           Act and level feature modules
-    components/         Shared UI, level, pipeline, and page components
+    pages/              Astro routes (static, dynamic level routes via getStaticPaths)
+    layouts/            Page layouts
+    features/           Act and level feature modules, plus the sandbox
+    components/         Shared UI, level, and page components
     hooks/              Shared React hooks
-    lib/                Client utilities, registries, progress helpers
+    lib/                Registries, progress helpers, shared utilities
     stores/             Zustand stores
+    utils/              Code generation, node behavior, pipeline data
     styles/             Global CSS
   docs/                 Project documentation
 ```
@@ -89,6 +88,6 @@ interactive-rails/
 ## Important Notes
 
 1. Use Bun for local commands.
-2. The current level standard is the sequential three-phase flow: observe, build, reward.
-3. There is no enemy/defense combat loop in the current gameplay.
-4. Legacy storage names such as `dungeon_id` remain in the database for compatibility, but gameplay and docs should refer to levels.
+2. The site is fully static: no server, API, database, or account. Progress lives in `localStorage`.
+3. The current level standard is the sequential three-phase flow: observe, build, reward.
+4. There is no enemy/defense combat loop in the current gameplay.

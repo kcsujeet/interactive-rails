@@ -2,79 +2,77 @@
 
 ## System Overview
 
-Interactive Rails uses a unified Astro + Cloudflare Workers architecture. A single deployment serves static pages, React islands, and the Hono API mounted at `/api/*`.
+Interactive Rails is a fully static, client-side web app. Astro prerenders every page to HTML/CSS/JS at build time, and React islands provide the interactive level gameplay. There is no server, no API, no database, and no authentication. Player progress is stored entirely in the browser's `localStorage`.
 
 ```text
 User Browser
   |
-  v
-Cloudflare Worker
+  +-- Static Astro pages (prerendered HTML)
   |
-  +-- Astro pages and React islands
+  +-- React islands (level gameplay, sandbox)
   |
-  +-- /api/* catch-all
-        |
-        v
-      Hono API
-        |
-        v
-      Cloudflare D1
+  +-- localStorage (progress, via src/lib/progress.ts)
 ```
+
+The whole site can be served from any static host (GitHub Pages, Netlify, Cloudflare Pages, or `bunx serve dist`).
 
 ## Tech Stack
 
 | Area | Technology |
 |------|------------|
 | Runtime and package manager | Bun |
-| Frontend | Astro, React, TypeScript |
+| Site framework | Astro (static output, no adapter) |
+| Interactive UI | React, TypeScript |
 | Visualization | React Flow (@xyflow/react) |
 | State | Zustand |
 | Styling | Tailwind CSS 4 |
-| API | Hono inside Astro's Cloudflare adapter |
-| Auth | Better Auth |
-| Database | Cloudflare D1 |
-| Validation | Zod |
+| Progress storage | Browser `localStorage` |
 
 ## Project Structure
 
 ```text
 interactive-rails/
   package.json
-  astro.config.mjs
-  wrangler.jsonc
+  astro.config.mjs          output: 'static', no adapter
   tsconfig.json
   biome.json
   src/
-    server/
-      index.ts              Hono app mounted by Astro
-      lib/auth.ts           Better Auth configuration
-      middleware/           Request ID, auth, and rate limiting
-      routes/               Pipeline and auth routes
-      repositories/         D1 data access helpers
-      db/schema.sql         Source schema
     pages/
-      api/[...path].ts      API catch-all route
-      acts/                 Act and level pages
+      index.astro
       dashboard.astro
+      sandbox.astro
+      acts/
+        index.astro
+        [actId]/[levelId]/index.astro     briefing (getStaticPaths)
+        [actId]/[levelId]/play.astro       gameplay
+        [actId]/[levelId]/complete.astro   completion
+    layouts/
     features/
       act1-foundation/
       act2-users-security/
       act3-clean-architecture/
       act4-performance/
-      act5-production/
+      act5-advanced-features/
       act6-operations/
       act7-scale/
+      sandbox/
     components/
       levels/               Shared level UI and visualization components
-      pipeline/             Sandbox pipeline editor components
       pages/                Page-level React islands
       ui/                   shadcn/ui components
     hooks/
-    lib/
-    stores/
+    lib/                    Registries, progress, shared utilities
+    stores/                 Zustand stores
+    utils/                  Code generation, node behavior, pipeline data
+    game/
+    types/
     styles/
   docs/
 ```
+
+## Static Routing
+
+Act and level pages use dynamic route files that are expanded at build time. Each `[actId]/[levelId]/*.astro` route implements `getStaticPaths()`, which calls `getActLevelStaticPaths()` in `src/lib/acts-registry.ts`. Every act/level combination becomes a prerendered HTML file in `dist/`. There are no server-rendered routes.
 
 ## Frontend Flow
 
@@ -92,13 +90,13 @@ import LevelPlayApp from '@/components/pages/LevelPlayApp';
 
 ### Level Selection
 
-`src/components/pages/ActsListApp.tsx` loads progress through `src/lib/progress.ts`, combines it with act content, and renders the act list.
+`src/components/pages/ActsListApp.tsx` reads progress through `src/lib/progress.ts`, combines it with act content from the registry, and renders the act list.
 
 ### Level Playback
 
 `src/components/pages/LevelPlayApp.tsx` looks up the active level in `src/lib/levels-registry.ts`.
 
-Current levels usually render a custom component with this sequence:
+Current levels render a custom component with this sequence:
 
 ```text
 briefing -> observe -> build -> reward -> complete
@@ -117,7 +115,13 @@ Most custom levels use shared components from `src/components/levels/`, includin
 - `PipelineFlow`
 - `QueryZoneFlow`
 
-The sandbox and legacy fallback path still use the visual pipeline editor, but that is not the primary teaching loop for current levels.
+## Registries
+
+| Registry | Responsibility |
+|----------|----------------|
+| `src/lib/acts-registry.ts` | Assembles acts and their level lists, exposes `getAllLevels()` and `getActLevelStaticPaths()` for static routing |
+| `src/lib/levels-registry.ts` | Maps level IDs to their React components |
+| `src/lib/codebase-registry.ts` | Aggregates each level's generated Rails code files into a unified project view (last-writer-wins on filename) |
 
 ## State Management
 
@@ -125,55 +129,20 @@ Zustand stores are split by concern:
 
 | Store | Responsibility |
 |-------|----------------|
-| `game.ts` | Player XP, unlocks, achievements, and local progression state |
+| `game.ts` | Player XP, unlocks, achievements, and progression state |
 | `pipeline.ts` | Sandbox pipeline nodes, edges, selection, and history |
-| `simulation.ts` | Sandbox request simulation metrics and runtime state |
 | `ui.ts` | Modals, panels, toasts, preferences, and responsive state |
 
-## API Flow
-
-The active mounted API is created in `src/server/index.ts`.
-
-```text
-src/pages/api/[...path].ts
-  -> src/server/index.ts
-    -> /api/auth/** handled by Better Auth
-    -> /api/pipeline/* handled by pipelineRoutes
-```
-
-The primary gameplay endpoints are:
-
-- `GET /api/pipeline/progress`
-- `POST /api/pipeline/levels/:levelId/complete`
-- `POST /api/pipeline/progress/import`
-- `GET /api/pipeline/leaderboard/:levelId`
+The `game` store persists to `localStorage` via Zustand's `persist` middleware. Level-completion progress is also tracked through `src/lib/progress.ts`.
 
 ## Progress Data
 
-Guest progress is stored in `localStorage` by `src/lib/progress.ts`. Authenticated progress is stored in D1.
+All progress is stored in the browser's `localStorage` by `src/lib/progress.ts` under the key `interactive_rails_progress_v1`. There is no account, no login, and no server sync. Clearing browser storage resets progress; it is never uploaded anywhere.
 
-The database still contains legacy names such as `dungeon_completions`, `dungeon_id`, and `dungeons_completed`. In current gameplay those represent level completions, level IDs, and levels completed.
+## Simulation Engine
 
-## Authentication
+The sandbox playground (`src/features/sandbox/`) runs a client-side request simulation in `src/features/sandbox/utils/sandbox-simulation.ts`, with node behavior defined in `src/utils/nodeBehavior.ts`. This is a free-form experimentation mode, separate from the primary three-phase level loop. Levels drive their own visualizations directly through React Flow components rather than through the sandbox engine.
 
-Authentication is handled by Better Auth in `src/server/lib/auth.ts` and mounted in `src/server/index.ts`:
+## Code Generation
 
-```typescript
-app.on(['GET', 'POST'], '/api/auth/**', (c) => {
-  const auth = createAuth(c.env.DB, c.env.BETTER_AUTH_SECRET, c.env.BETTER_AUTH_URL);
-  return auth.handler(c.req.raw);
-});
-```
-
-## Security Considerations
-
-- Better Auth manages sessions and credential flows.
-- CORS is restricted to configured origins.
-- Rate limiting runs on `/api/*`.
-- Request IDs are attached for traceability.
-- D1 access uses parameterized `prepare().bind()` queries.
-- Zod validates API request bodies.
-
-## Compatibility Notes
-
-Some older files and storage names still use the previous realm, dungeon, or simulation vocabulary. Treat those as compatibility layers unless the active level flow or mounted API still depends on them.
+Levels build up a virtual Rails codebase as the player progresses. Each level defines a `getCodeFiles()` function (in its `data/code-files.ts`) and registers it via `registerLevelCode(...)`. The codebase viewer reads these through `src/lib/codebase-registry.ts` to show the cumulative generated project. `src/utils/codeGeneration.ts` holds the shared `CodeFile` type and helpers.

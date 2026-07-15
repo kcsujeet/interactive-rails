@@ -1,10 +1,13 @@
 /**
  * Use Level Completion Hook
  *
- * Common completion logic for all levels - API calls, localStorage, navigation.
+ * Common completion logic for all levels. Progress is stored locally in
+ * the browser (no server, no account); stack choices and per-level
+ * decisions are kept in localStorage for later levels to read.
  */
 
 import { useCallback, useState } from 'react';
+import { completeLevel as saveProgress } from '@/lib/progress';
 
 interface CompletionData {
 	stars: number;
@@ -81,31 +84,20 @@ export function useLevelCompletion(): UseLevelCompletionReturn {
 					);
 				}
 
-				// Call the backend API to save completion
-				const response = await fetch(
-					`/api/pipeline/levels/${levelId}/complete`,
-					{
-						method: 'POST',
-						headers: { 'Content-Type': 'application/json' },
-						credentials: 'include',
-						body: JSON.stringify({
-							stars: data.stars,
-							finalStability: data.finalStability ?? 100,
-							timeToComplete: data.timeToComplete ?? 300,
-							stackChoices: data.stackChoices,
-							finalMetrics: data.finalMetrics ?? {
-								avgLatency: 50,
-								queriesPerRequest: 3,
-								cacheHitRate: 80,
-								errorRate: 0,
-							},
-						}),
-					},
-				);
-
-				if (!response.ok) {
-					throw new Error(`Server error: ${response.status}`);
-				}
+				// Save completion locally (no server, no account).
+				await saveProgress({
+					levelId,
+					stars: data.stars,
+					finalStability: data.finalStability ?? 100,
+					stackChoices: data.stackChoices
+						? {
+								database:
+									data.stackChoices.database === 'postgresql'
+										? 'postgres'
+										: 'sqlite',
+							}
+						: undefined,
+				});
 
 				return true;
 			} catch (err) {

@@ -97,6 +97,21 @@ export function getTotalLevelCount(): number {
 }
 
 /**
+ * Static paths for the `[actId]/[levelId]` dynamic routes. The site is a
+ * fully static build (no server), so every act/level page is prerendered
+ * from the registry.
+ */
+export function getActLevelStaticPaths(): {
+	params: { actId: string; levelId: string };
+}[] {
+	return ACTS.flatMap((act) =>
+		act.levels.map((level) => ({
+			params: { actId: String(act.id), levelId: level.id },
+		})),
+	);
+}
+
+/**
  * Check if a level is unlocked based on player progress
  */
 export function isLevelUnlocked(

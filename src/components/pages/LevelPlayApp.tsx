@@ -222,13 +222,6 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 				levelId,
 				stars,
 				finalStability: stability,
-				timeToComplete: 300,
-				finalMetrics: {
-					avgLatency: 50,
-					queriesPerRequest: 3,
-					cacheHitRate: 80,
-					errorRate: 0,
-				},
 			});
 
 			if (saveResult.success) {
@@ -268,13 +261,6 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 								levelId,
 								stars,
 								finalStability: 100,
-								timeToComplete: 120,
-								finalMetrics: {
-									avgLatency: 0,
-									queriesPerRequest: 0,
-									cacheHitRate: 0,
-									errorRate: 0,
-								},
 							});
 
 							if (result.success) {

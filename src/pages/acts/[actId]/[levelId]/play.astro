@@ -1,9 +1,13 @@
 ---
 import LevelPlayApp from '@/components/pages/LevelPlayApp';
 import GameLayout from '@/layouts/GameLayout.astro';
-import { getLevel } from '@/lib/acts-registry';
+import { getActLevelStaticPaths, getLevel } from '@/lib/acts-registry';
 
-const { actId, levelId } = Astro.params;
+export function getStaticPaths() {
+	return getActLevelStaticPaths();
+}
+
+const { levelId } = Astro.params;
 const level = getLevel(levelId || '');
 const title = level ? `L${level.levelNumber}: ${level.name}` : 'Level';
 ---

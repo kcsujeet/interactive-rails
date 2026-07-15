@@ -1,6 +1,11 @@
 ---
 import GameLayout from '@/layouts/GameLayout.astro';
-import { getLevel, getActForLevel, getNextLevel } from '@/lib/acts-registry';
+import {
+	getActLevelStaticPaths,
+	getLevel,
+	getActForLevel,
+	getNextLevel,
+} from '@/lib/acts-registry';
 import { Button } from '@/components/ui/Button';
 import { CodeBlock } from '@/components/ui/CodeBlock';
 import { LevelBreadcrumb } from '@/components/ui/LevelBreadcrumb';
@@ -14,27 +19,26 @@ import {
 	TerminalSquare,
 } from 'lucide-react';
 
-const { actId, levelId } = Astro.params;
-const starsParam = Astro.url.searchParams.get('stars');
-const stars = starsParam ? parseInt(starsParam, 10) : 3;
+export function getStaticPaths() {
+	return getActLevelStaticPaths();
+}
+
+const { levelId } = Astro.params;
 
 const level = getLevel(levelId || '');
 const act = getActForLevel(levelId || '');
 const nextLevel = getNextLevel(levelId || '');
 
-if (!level || !act) {
-	return Astro.redirect('/acts');
-}
+// getStaticPaths only emits valid act/level pairs, so level and act
+// always resolve here. Fall back defensively for the type-checker.
+const { learningContent, isCapstone } =
+	level ?? ({} as NonNullable<typeof level>);
 
-const { learningContent, isCapstone } = level;
-
-// Score messaging based on stars
-const scoreMessage =
-	stars === 3
-		? "Perfect! You've mastered this concept."
-		: stars === 2
-			? "Great job! You've got the basics down."
-			: 'Good start! Consider revisiting this level later.';
+// The star count arrives as a `?stars=N` query param at runtime and is
+// read client-side (this page is statically prerendered). Default to 3
+// for the no-JS render.
+const stars = 3;
+const scoreMessage = "Perfect! You've mastered this concept.";
 ---
 
 <GameLayout title="Level Complete">
@@ -43,8 +47,8 @@ const scoreMessage =
       {/* Breadcrumb */}
       <LevelBreadcrumb
         client:load
-        actName={act.name}
-        levelNumber={level.levelNumber}
+        actName={act?.name ?? ''}
+        levelNumber={level?.levelNumber ?? 0}
         currentPage="complete"
       />
 
@@ -56,21 +60,23 @@ const scoreMessage =
         <h1 class="text-2xl font-bold text-foreground mb-1">
           {isCapstone ? 'Capstone Complete!' : 'Level Complete!'}
         </h1>
-        <p class="text-muted-foreground text-sm mb-5">{level.name}</p>
+        <p class="text-muted-foreground text-sm mb-5">{level?.name}</p>
 
-        {/* Stars */}
+        {/* Stars (count read from ?stars=N client-side) */}
         <div class="inline-flex items-center gap-3 bg-card border border-border rounded-xl px-6 py-4">
-          <div class="flex gap-1">
+          <div class="flex gap-1" id="stars-row">
             {[1, 2, 3].map((i) => (
-              <Star
-                className={`w-7 h-7 ${i <= stars ? 'text-warning fill-warning' : 'text-muted'}`}
-              />
+              <span data-star={i}>
+                <Star
+                  className={`w-7 h-7 ${i <= stars ? 'text-warning fill-warning' : 'text-muted'}`}
+                />
+              </span>
             ))}
           </div>
           <div class="h-8 w-px bg-border" />
           <div class="text-left">
-            <div class="text-lg font-bold text-foreground">{stars}/3 Stars</div>
-            <div class="text-xs text-muted-foreground">{scoreMessage}</div>
+            <div class="text-lg font-bold text-foreground"><span id="stars-count">{stars}</span>/3 Stars</div>
+            <div class="text-xs text-muted-foreground" id="score-message">{scoreMessage}</div>
           </div>
         </div>
       </div>
@@ -185,3 +191,39 @@ const scoreMessage =
     </div>
   </div>
 </GameLayout>
+
+<script>
+  // Read the star count from the URL (?stars=N) and reflect it. The page
+  // is statically prerendered with a default of 3, so this runs on load.
+  const params = new URLSearchParams(window.location.search);
+  const raw = parseInt(params.get('stars') || '3', 10);
+  const stars = Number.isNaN(raw) ? 3 : Math.min(3, Math.max(1, raw));
+
+  const row = document.getElementById('stars-row');
+  if (row) {
+    for (const span of row.querySelectorAll('[data-star]')) {
+      const index = Number((span as HTMLElement).dataset.star);
+      const svg = span.querySelector('svg');
+      if (!svg) continue;
+      svg.classList.remove('text-warning', 'fill-warning', 'text-muted');
+      if (index <= stars) {
+        svg.classList.add('text-warning', 'fill-warning');
+      } else {
+        svg.classList.add('text-muted');
+      }
+    }
+  }
+
+  const count = document.getElementById('stars-count');
+  if (count) count.textContent = String(stars);
+
+  const message = document.getElementById('score-message');
+  if (message) {
+    message.textContent =
+      stars === 3
+        ? "Perfect! You've mastered this concept."
+        : stars === 2
+          ? "Great job! You've got the basics down."
+          : 'Good start! Consider revisiting this level later.';
+  }
+</script>
