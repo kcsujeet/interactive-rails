@@ -10,7 +10,8 @@
  * - matching is case-sensitive (options can differ only by case, and shell
  *   commands are case-sensitive)
  * - anything else is unrecognized
- * - options reveal after FREE_INPUT_MISS_LIMIT misses
+ * - options reveal after FREE_INPUT_MISS_LIMIT misses, or immediately when
+ *   the player clicks "Show the options" (manual reveal)
  */
 
 import { describe, expect, test } from 'bun:test';
@@ -72,13 +73,19 @@ describe('matchTypedCommand', () => {
 });
 
 describe('shouldRevealOptions', () => {
-	test('stays hidden below the miss limit', () => {
-		expect(shouldRevealOptions(0)).toBe(false);
-		expect(shouldRevealOptions(FREE_INPUT_MISS_LIMIT - 1)).toBe(false);
+	test('stays hidden below the miss limit without a manual reveal', () => {
+		expect(shouldRevealOptions(0, false)).toBe(false);
+		expect(shouldRevealOptions(FREE_INPUT_MISS_LIMIT - 1, false)).toBe(false);
 	});
 
 	test('reveals at the miss limit and beyond', () => {
-		expect(shouldRevealOptions(FREE_INPUT_MISS_LIMIT)).toBe(true);
-		expect(shouldRevealOptions(FREE_INPUT_MISS_LIMIT + 3)).toBe(true);
+		expect(shouldRevealOptions(FREE_INPUT_MISS_LIMIT, false)).toBe(true);
+		expect(shouldRevealOptions(FREE_INPUT_MISS_LIMIT + 3, false)).toBe(true);
+	});
+
+	test('reveals immediately when the player asks, regardless of misses', () => {
+		expect(shouldRevealOptions(0, true)).toBe(true);
+		expect(shouldRevealOptions(FREE_INPUT_MISS_LIMIT - 1, true)).toBe(true);
+		expect(shouldRevealOptions(FREE_INPUT_MISS_LIMIT + 3, true)).toBe(true);
 	});
 });

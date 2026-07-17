@@ -2,9 +2,11 @@
  * Simulated Terminal Component
  *
  * Free-input first: the player types the command at the prompt (recall).
- * After FREE_INPUT_MISS_LIMIT failed attempts the clickable command buttons
- * appear as the recognition fallback. Animated line-by-line output,
- * monospace font, colored output, auto-scroll.
+ * The clickable command buttons (recognition fallback) appear either when
+ * the player clicks "Show the options" or after FREE_INPUT_MISS_LIMIT
+ * failed attempts, so a first-timer who has never seen the command is
+ * never stuck at a blank prompt. Animated line-by-line output, monospace
+ * font, colored output, auto-scroll.
  */
 
 import { Terminal } from 'lucide-react';
@@ -66,6 +68,7 @@ export function SimulatedTerminal({
 	const [visibleLines, setVisibleLines] = useState(0);
 	const [typedInput, setTypedInput] = useState('');
 	const [missCount, setMissCount] = useState(0);
+	const [manuallyRevealed, setManuallyRevealed] = useState(false);
 	const scrollRef = useRef<HTMLDivElement>(null);
 
 	// Auto-scroll to bottom whenever new output appears. The deps `history`
@@ -158,7 +161,7 @@ export function SimulatedTerminal({
 		]);
 	};
 
-	const optionsRevealed = shouldRevealOptions(missCount);
+	const optionsRevealed = shouldRevealOptions(missCount, manuallyRevealed);
 
 	const colorClass = (color?: TerminalOutputLine['color']) => {
 		switch (color) {
@@ -269,9 +272,17 @@ export function SimulatedTerminal({
 							</div>
 						</>
 					) : (
-						<div className="text-xs text-muted-foreground">
-							Type the command and press Enter.
-							{missCount > 0 && ' One more miss reveals the options.'}
+						<div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+							<span>Type the command and press Enter, or</span>
+							<Button
+								className="h-6 px-2 text-xs"
+								disabled={disabled || animating}
+								onClick={() => setManuallyRevealed(true)}
+								size="sm"
+								variant="outline"
+							>
+								Show the options
+							</Button>
 						</div>
 					)}
 				</div>

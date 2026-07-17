@@ -43,6 +43,9 @@ export function matchTypedCommand(
 	return { kind: 'unrecognized' };
 }
 
-export function shouldRevealOptions(missCount: number): boolean {
-	return missCount >= FREE_INPUT_MISS_LIMIT;
+export function shouldRevealOptions(
+	missCount: number,
+	manuallyRevealed: boolean,
+): boolean {
+	return manuallyRevealed || missCount >= FREE_INPUT_MISS_LIMIT;
 }
