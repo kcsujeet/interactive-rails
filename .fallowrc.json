@@ -1,0 +1,7 @@
+{
+	"ignorePatterns": [
+		"src/styles/**",
+		"scripts/dump-level-ids.ts",
+		"scripts/fix-imports.ts"
+	]
+}

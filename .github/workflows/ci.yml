@@ -26,6 +26,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # Full history so the fallow audit step can diff against the
+          # base ref (auto-changed-since). Shallow clones break that scope.
+          fetch-depth: 0
 
       - name: Set up Node.js
         # Astro requires Node v22.12.0 or higher (even-numbered majors only).
@@ -63,6 +67,17 @@ jobs:
 
       - name: Lint and format check
         run: bunx biome check .
+
+      - name: Dead-code gate (fallow)
+        # Changed-file quality gate: fails only on dead code a change
+        # INTRODUCES, so the existing unused-export backlog does not block.
+        # Known false positives / intentional keeps are excluded in
+        # .fallowrc.json (the .astro-imported global stylesheet and the two
+        # standalone maintenance scripts). https://github.com/fallow-rs/fallow
+        uses: fallow-rs/fallow@v3
+        with:
+          command: audit
+          format: compact
 
       - name: Validate level data
         run: bun run validate:levels
