@@ -36,12 +36,24 @@ Deploy the `dist/` directory to any static host. A few common choices:
 
 Netlify detects the static output automatically. No environment variables are required.
 
+### Cloudflare Workers (configured in this repo)
+
+The repo ships a `wrangler.jsonc` for an assets-only Cloudflare Worker: it serves the static `dist/` directory with no server code, no D1, and no bindings (`main` is intentionally omitted, which the Wrangler config reference allows for assets-only Workers).
+
+One-time auth, then deploy:
+
+```bash
+bunx wrangler login          # or set CLOUDFLARE_API_TOKEN
+bun run deploy               # runs astro build, then wrangler deploy
+```
+
+`bun run deploy:dry-run` builds and validates the upload without publishing (no auth needed), useful for a local check or CI.
+
+The Worker uses Wrangler's defaults for a multi-page static site: `html_handling: "auto-trailing-slash"` (serves `/path/index.html` for `/path`, matching Astro's directory-per-route output) and `not_found_handling: "none"`. See https://developers.cloudflare.com/workers/static-assets/ for the full option set.
+
 ### Cloudflare Pages
 
-- Build command: `bun run build`
-- Build output directory: `dist`
-
-This uses Cloudflare Pages purely as a static file host. There is no Worker, no D1 binding, and no `wrangler.jsonc` in this project.
+Alternatively, use Cloudflare Pages purely as a static file host: build command `bun run build`, output directory `dist`. Pages needs no `wrangler.jsonc`.
 
 ### Any other static host
 

@@ -1,4 +1,9 @@
 ---
+// Global stylesheet, imported in the root layout so it applies everywhere.
+// A frontmatter import resolves the `@/` alias; a CSS `@import` inside a
+// <style> block does not under Vite 8 / Rolldown (Astro 7).
+import '@/styles/global.css';
+
 interface Props {
 	title: string;
 }
@@ -25,7 +30,3 @@ const { title } = Astro.props;
     <slot />
   </body>
 </html>
-
-<style is:global>
-  @import "@/styles/global.css";
-</style>

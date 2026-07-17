@@ -1,0 +1,15 @@
+{
+	// Assets-only Cloudflare Worker: serves the static `dist/` build with no
+	// server code. `main` is intentionally omitted (optional for assets-only
+	// Workers, per the Wrangler config reference). No D1, KV, or bindings:
+	// this is a pure static deploy. https://developers.cloudflare.com/workers/static-assets/
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "interactive-rails",
+	"compatibility_date": "2026-07-17",
+	"assets": {
+		// Astro's static output. Multi-page site: html_handling defaults to
+		// "auto-trailing-slash" (serves /path/index.html for /path), which
+		// matches Astro's directory-per-route output.
+		"directory": "./dist"
+	}
+}

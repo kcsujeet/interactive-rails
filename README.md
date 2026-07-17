@@ -1,5 +1,7 @@
 # Interactive Rails
 
+**▶ Play it live: https://interactive-rails.sujeetkc45.workers.dev/**
+
 Learn Rails 8 by building a real e-commerce marketplace, one concept at a time, through 58 interactive levels across 7 acts. Every level is a three-phase loop: **see the problem** (fire probes at a broken system and watch what goes wrong), **build the fix** (pick the right commands and code, with feedback that never just hands you the answer), and **see the payoff** (stress-test your solution and watch it hold).
 
 It is **free, open source, and runs entirely in your browser**. There is no account, no sign-up, and no server: your progress is saved locally in your own browser via `localStorage`. Clone it, host it anywhere static, or just run it on your laptop.
@@ -42,11 +44,12 @@ bun run preview
 
 ## Tech stack
 
-- [Astro 6](https://astro.build) (static output) + [React 19](https://react.dev) islands
+- [Astro 7](https://astro.build) (static output) + [React 19](https://react.dev) islands
 - [Tailwind CSS 4](https://tailwindcss.com) + [shadcn/ui](https://ui.shadcn.com)
 - [React Flow](https://reactflow.dev) for the pipeline visualizations
 - [Bun](https://bun.sh) for install, scripts, and tests
 - [Biome](https://biomejs.dev) for lint and format
+- Deployed as a static [Cloudflare Worker](https://developers.cloudflare.com/workers/static-assets/) (assets only, no server code); hostable on any static host
 
 ## Project structure
 

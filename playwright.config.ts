@@ -16,10 +16,14 @@ export default defineConfig({
 		trace: 'retain-on-failure',
 	},
 	webServer: {
-		command: 'bun run dev',
+		// Build once and serve the static output with `astro preview`. This is
+		// what actually ships (static dist/), and unlike Astro 7's `astro dev`
+		// (which daemonizes and returns), `astro preview` runs in the
+		// foreground so Playwright can manage its lifecycle.
+		command: 'bun run build && bun run preview',
 		url: 'http://localhost:4321',
 		reuseExistingServer: !process.env.CI,
 		stdout: 'ignore',
-		timeout: 60_000,
+		timeout: 120_000,
 	},
 });
