@@ -68,7 +68,11 @@ jobs:
         run: bun run validate:levels
 
       - name: Run tests
-        run: bun test
+        # Use the scoped script (bun test src scripts), NOT bare `bun test`.
+        # Bare `bun test` sweeps in the Playwright e2e specs under e2e/ and
+        # fails ("test.describe() not expected here"). E2E runs separately
+        # via `bun run test:e2e`, which needs a browser and a dev server.
+        run: bun run test
 
       - name: Build
         run: bun run build
