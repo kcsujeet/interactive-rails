@@ -17,6 +17,7 @@ import {
 } from '@/components/levels/terminal-input-matching';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { cn } from '@/lib/utils';
 
 export interface TerminalCommand {
 	id: string;
@@ -232,18 +233,33 @@ export function SimulatedTerminal({
 						<span className="text-emerald-600 dark:text-emerald-400 shrink-0">
 							{prompt}
 						</span>
-						<Input
-							aria-label="Type a command"
-							autoComplete="off"
-							className="h-5 flex-1 rounded-none border-0 bg-transparent dark:bg-transparent px-0 py-0 font-mono text-sm shadow-none focus-visible:ring-0 focus-visible:border-0"
-							disabled={disabled || animating}
-							onChange={(event) => setTypedInput(event.target.value)}
-							onKeyDown={(event) => {
-								if (event.key === 'Enter') handleTypedSubmit();
-							}}
-							spellCheck={false}
-							value={typedInput}
-						/>
+						<div className="relative flex-1">
+							{/* Blinking pipe marks the typing area while the prompt is
+							    empty; the native caret takes over once typing starts. */}
+							{typedInput.length === 0 && (
+								<span
+									aria-hidden="true"
+									className="pointer-events-none absolute inset-y-0 left-0 flex items-center"
+								>
+									<span className="h-4 w-px bg-foreground animate-caret-blink" />
+								</span>
+							)}
+							<Input
+								aria-label="Type a command"
+								autoComplete="off"
+								className={cn(
+									'h-5 w-full rounded-none border-0 bg-transparent dark:bg-transparent px-0 py-0 font-mono text-sm shadow-none focus-visible:ring-0 focus-visible:border-0',
+									typedInput.length === 0 && 'caret-transparent',
+								)}
+								disabled={disabled || animating}
+								onChange={(event) => setTypedInput(event.target.value)}
+								onKeyDown={(event) => {
+									if (event.key === 'Enter') handleTypedSubmit();
+								}}
+								spellCheck={false}
+								value={typedInput}
+							/>
+						</div>
 					</div>
 				)}
 			</div>
