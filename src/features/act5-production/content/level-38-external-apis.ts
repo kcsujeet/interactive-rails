@@ -133,7 +133,8 @@ class StripeClient
 
   def initialize
     @connection = Faraday.new(url: 'https://api.stripe.com') do |f|
-      f.request :authorization, 'Bearer', ENV['STRIPE_SECRET_KEY']
+      f.request :authorization, 'Bearer',
+        Rails.application.credentials.dig(:stripe, :secret_key)
       f.request :json
       f.request :retry, {
         max: MAX_RETRIES,
@@ -165,43 +166,43 @@ class StripeClient
   end
 end
 
-# Circuit breaker with the stoplight gem
+# Circuit breaker with the stoplight gem.
+# Current Stoplight uses constructor keyword arguments, not a builder chain.
+# See https://github.com/bolshakov/stoplight
 require 'stoplight'
 
 class PaymentService
   def charge(order)
-    Stoplight('stripe-charges')
-      .with_threshold(5)           # Open after 5 failures
-      .with_cool_off_time(30)      # Try again after 30s
-      .with_error_handler do |error, handle|
-        raise error if error.is_a?(Stripe::InvalidRequestError) # Don't trip on 4xx
-        handle.call(error)
-      end
-      .run do
-        stripe_client.create_charge(
-          amount_cents: order.total_cents,
-          idempotency_key: order.idempotency_key
-        )
-      end
+    # skipped_errors are 4xx client errors that must NOT trip the breaker
+    # (they are not transient and would never succeed on retry).
+    light = Stoplight(
+      'stripe-charges',
+      threshold: 5,           # Open after 5 failures
+      cool_off_time: 30,      # Try again after 30s
+      skipped_errors: [Stripe::InvalidRequestError]
+    )
+    light.run do
+      stripe_client.create_charge(
+        amount_cents: order.total_cents,
+        idempotency_key: order.idempotency_key
+      )
+    end
   rescue Stoplight::Error::RedLight
     # Circuit is open - fail fast
     order.update!(status: 'payment_pending')
-    PaymentRetryJob.perform_in(5.minutes, order.id)
+    PaymentRetryJob.set(wait: 5.minutes).perform_later(order.id)
     { status: 'pending', message: 'Payment queued for processing' }
   end
 end
 
-# Wrapper pattern for any external service
+# Wrapper pattern for any external service.
+# Timeouts belong on the Faraday connection (see StripeClient above), NOT in a
+# Timeout.timeout wrapper: Timeout.timeout around IO can interrupt at an unsafe
+# point and leave sockets or locks in a bad state.
+# See https://github.com/bolshakov/stoplight
 module Resilient
-  def self.call(service_name, timeout: 10, retries: 3, &block)
-    Timeout.timeout(timeout) do
-      Stoplight(service_name)
-        .with_threshold(5)
-        .with_cool_off_time(60)
-        .run(&block)
-    end
-  rescue Timeout::Error
-    raise ServiceTimeoutError, "#{service_name} timed out"
+  def self.call(service_name, &block)
+    Stoplight(service_name, threshold: 5, cool_off_time: 60).run(&block)
   rescue Stoplight::Error::RedLight
     raise CircuitOpenError, "#{service_name} circuit is open"
   end
@@ -281,7 +282,7 @@ end`,
 				commands: [
 					'bundle add stoplight',
 					'bin/rails console',
-					"light = Stoplight('stripe-demo').with_threshold(3)",
+					"light = Stoplight('stripe-demo', threshold: 3)",
 					'3.times { begin; light.run { raise "Stripe is down" }; rescue => e; puts e.class; end }',
 					'begin; light.run { puts "never runs" }; rescue => e; puts e.class; end',
 				],

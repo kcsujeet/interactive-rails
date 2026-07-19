@@ -288,11 +288,46 @@ const STRESS_SCENARIOS = [
 			},
 		],
 	},
+	{
+		id: 'public-sees-discarded',
+		label: 'Customer opens a discarded product page',
+		description: 'Public API hides soft-deleted records via .kept',
+		method: 'GET',
+		path: '/api/products/99',
+		actor: 'customer',
+		expectedResult: 'blocked' as const,
+		responseLines: [
+			{ text: 'Product.kept.find(99)', color: 'muted' },
+			{ text: '404 Not Found (discarded_at is set)', color: 'red' },
+			{
+				text: '# Public queries use .kept, so discarded rows stay hidden.',
+				color: 'green',
+			},
+		],
+	},
 ];
+
+// Mirror of the whodunnit config the correct CONFIGURE_AUDIT
+// option and reward code ship. PaperTrail's own callback is used;
+// user_for_paper_trail is overridden (never a hand-defined
+// set_paper_trail_whodunnit method).
+const WHODUNNIT_CONTROLLER_CODE = `class ApplicationController < ActionController::API
+  before_action :set_paper_trail_whodunnit
+  private
+  def user_for_paper_trail
+    Current.user&.id || "system"
+  end
+end`;
+
+// Mirror of the corrected content railsCodeExample lines about
+// discard NOT adding a default scope.
+const DISCARD_QUERY_EXAMPLE = `User.count            # ALL users (active + discarded)
+User.kept.count       # Only active (discarded_at IS NULL)
+User.discarded.count  # Only soft-deleted`;
 
 // ── Tests ──
 
-describe('Level 43: Soft Deletes & Audit Trails', () => {
+describe('Level 31: Soft Deletes & Audit Trails', () => {
 	describe('Discovery definitions', () => {
 		test('has exactly 3 discoveries', () => {
 			expect(DISCOVERY_DEFS).toHaveLength(3);
@@ -433,13 +468,18 @@ describe('Level 43: Soft Deletes & Audit Trails', () => {
 	});
 
 	describe('Stress scenarios', () => {
-		test('has exactly 4 scenarios', () => {
-			expect(STRESS_SCENARIOS).toHaveLength(4);
+		test('has exactly 5 scenarios', () => {
+			expect(STRESS_SCENARIOS).toHaveLength(5);
 		});
 
 		test('all IDs unique', () => {
 			const ids = STRESS_SCENARIOS.map((s) => s.id);
 			expect(new Set(ids).size).toBe(ids.length);
+		});
+
+		test('all labels unique', () => {
+			const labels = STRESS_SCENARIOS.map((s) => s.label);
+			expect(new Set(labels).size).toBe(labels.length);
 		});
 
 		test('every scenario has at least 2 responseLines', () => {
@@ -456,10 +496,18 @@ describe('Level 43: Soft Deletes & Audit Trails', () => {
 			}
 		});
 
-		test('all scenarios are allowed (soft delete is always recoverable)', () => {
-			for (const s of STRESS_SCENARIOS) {
-				expect(s.expectedResult).toBe('allowed');
-			}
+		test('has a mix of allowed and blocked results (Blocked counter moves)', () => {
+			const results = new Set(STRESS_SCENARIOS.map((s) => s.expectedResult));
+			expect(results.has('allowed')).toBe(true);
+			expect(results.has('blocked')).toBe(true);
+		});
+
+		test('the blocked scenario is the public-sees-discarded 404', () => {
+			const blocked = STRESS_SCENARIOS.filter(
+				(s) => s.expectedResult === 'blocked',
+			);
+			expect(blocked).toHaveLength(1);
+			expect(blocked[0].id).toBe('public-sees-discarded');
 		});
 
 		test('exact scenario IDs', () => {
@@ -467,6 +515,38 @@ describe('Level 43: Soft Deletes & Audit Trails', () => {
 			expect(STRESS_SCENARIOS[1].id).toBe('no-restore');
 			expect(STRESS_SCENARIOS[2].id).toBe('no-audit');
 			expect(STRESS_SCENARIOS[3].id).toBe('restore-with-trail');
+			expect(STRESS_SCENARIOS[4].id).toBe('public-sees-discarded');
+		});
+	});
+
+	describe('Whodunnit + discard-scope facts', () => {
+		test('uses PaperTrail set_paper_trail_whodunnit callback', () => {
+			expect(WHODUNNIT_CONTROLLER_CODE).toContain(
+				'before_action :set_paper_trail_whodunnit',
+			);
+		});
+
+		test('customizes the user via user_for_paper_trail override', () => {
+			expect(WHODUNNIT_CONTROLLER_CODE).toContain('def user_for_paper_trail');
+			expect(WHODUNNIT_CONTROLLER_CODE).toContain('Current.user&.id');
+		});
+
+		test('never hand-defines set_paper_trail_whodunnit as a method', () => {
+			expect(WHODUNNIT_CONTROLLER_CODE).not.toContain(
+				'def set_paper_trail_whodunnit',
+			);
+			expect(WHODUNNIT_CONTROLLER_CODE).not.toContain(
+				'PaperTrail.request.whodunnit =',
+			);
+		});
+
+		test('discard example: plain count includes discarded, .kept filters', () => {
+			expect(DISCARD_QUERY_EXAMPLE).toContain(
+				'User.count            # ALL users',
+			);
+			expect(DISCARD_QUERY_EXAMPLE).toContain('User.kept.count');
+			// The old false claim must be gone.
+			expect(DISCARD_QUERY_EXAMPLE).not.toContain('Only active users');
 		});
 	});
 

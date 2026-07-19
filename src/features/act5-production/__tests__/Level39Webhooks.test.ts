@@ -324,6 +324,102 @@ const STRESS_SCENARIOS = [
 	},
 ];
 
+// ── Mirrored code strings (from Level39Webhooks.tsx getCodeFiles + options) ──
+
+// The BUILD_SERVICE "all logic in controller" wrong option (no CSRF skip).
+const BUILD_SERVICE_CONTROLLER_OPTION_CODE = `module Webhooks
+  class StripeController < ApplicationController
+    def create
+      payload = request.body.read
+      sig = request.headers['Stripe-Signature']
+      event = Stripe::Webhook.construct_event(
+        payload, sig, credentials[:webhook_secret])
+      # ...dedup + enqueue...
+    end
+  end
+end`;
+
+// observe getCodeFiles: broken WebhooksController (no CSRF skip).
+const OBSERVE_CONTROLLER_CODE = `# Inherits from ActionController::API (this is an API-only app).
+class WebhooksController < ApplicationController
+  def stripe
+    result = HandleStripeWebhook.call(payload: request.body.read)
+    head :ok
+  end
+end`;
+
+// build getCodeFiles: Webhooks::StripeController (no CSRF skip).
+const BUILD_CONTROLLER_CODE = `module Webhooks
+  # Inherits from ActionController::API (https://guides.rubyonrails.org/api_app.html).
+  class StripeController < ApplicationController
+    def create
+      payload = request.body.read
+      sig_header = request.headers['Stripe-Signature']
+      # ...verify, dedup, enqueue...
+    rescue JSON::ParserError
+      head :bad_request
+    rescue Stripe::SignatureVerificationError
+      head :unauthorized
+    end
+  end
+end`;
+
+// reward getCodeFiles: final controller (distinct statuses, no CSRF skip).
+const REWARD_CONTROLLER_CODE = `module Webhooks
+  # Inherits from ActionController::API (https://guides.rubyonrails.org/api_app.html).
+  class StripeController < ApplicationController
+    def create
+      result = IngestStripeWebhook.call(
+        payload: request.body.read,
+        signature: request.headers['Stripe-Signature']
+      )
+
+      return head :ok if result.success?
+
+      if result.errors.key?(:payload)
+        head :bad_request      # malformed JSON
+      else
+        head :unauthorized     # bad signature
+      end
+    end
+  end
+end`;
+
+// content railsCodeExample: canonical handle_payment_succeeded (re-fetch).
+const PAYMENT_HANDLER_CODE = `def handle_payment_succeeded(webhook_event)
+  stripe_payment_id = webhook_event.payload.dig('object', 'id')
+  intent = Stripe::PaymentIntent.retrieve(stripe_payment_id)
+  return unless intent.status == 'succeeded'
+
+  ActiveRecord::Base.transaction do
+    payment = Payment.lock.find_by!(stripe_id: stripe_payment_id)
+    return if payment.completed?
+
+    payment.update!(status: 'completed')
+    payment.user.credits.create!(
+      amount: intent.amount,
+      source: 'payment',
+      idempotency_key: "payment-#{payment.id}"
+    )
+  end
+end`;
+
+const ALL_MIRRORED_CODE = [
+	BUILD_SERVICE_CONTROLLER_OPTION_CODE,
+	OBSERVE_CONTROLLER_CODE,
+	BUILD_CONTROLLER_CODE,
+	REWARD_CONTROLLER_CODE,
+	PAYMENT_HANDLER_CODE,
+].join('\n');
+
+// Mirrored player-visible prose that must not carry the false "verifies forever" claim.
+const MIRRORED_PROSE = [
+	'Misunderstanding construct_event tolerance (the default 300s already rejects replays of captured payloads after 5 minutes; a tolerance, default or explicit, is what provides replay protection). Pass it explicitly only when you want a non-default window',
+	'The default tolerance already protects you; pass it explicitly only when you want a narrower or wider window.',
+	...STRESS_SCENARIOS.flatMap((s) => s.responseLines.map((r) => r.text)),
+	...PROBES.flatMap((p) => p.responseLines.map((r) => r.text)),
+].join('\n');
+
 // ── Tests ──
 
 describe('Level 39: Webhooks & Idempotency', () => {
@@ -641,6 +737,64 @@ describe('Level 39: Webhooks & Idempotency', () => {
 				expect(s.path).toBe('/webhooks/stripe');
 				expect(s.method).toBe('POST');
 			}
+		});
+	});
+
+	describe('API-only controllers: no CSRF machinery', () => {
+		test('no mirrored controller code references verify_authenticity_token', () => {
+			expect(ALL_MIRRORED_CODE).not.toContain('verify_authenticity_token');
+		});
+
+		test('no mirrored controller code references skip_before_action', () => {
+			expect(ALL_MIRRORED_CODE).not.toContain('skip_before_action');
+		});
+
+		test('no mirrored controller code references CSRF', () => {
+			expect(ALL_MIRRORED_CODE).not.toContain('CSRF');
+		});
+
+		test('no raise: false workaround was substituted', () => {
+			expect(ALL_MIRRORED_CODE).not.toContain('raise: false');
+		});
+	});
+
+	describe('Payment handler re-fetches from Stripe (not payload truth)', () => {
+		test('canonical handler retrieves the PaymentIntent from the API', () => {
+			expect(PAYMENT_HANDLER_CODE).toContain('Stripe::PaymentIntent.retrieve');
+		});
+
+		test('canonical handler credits from the re-fetched intent amount', () => {
+			expect(PAYMENT_HANDLER_CODE).toContain('amount: intent.amount');
+		});
+
+		test('canonical handler does not credit from the webhook payload amount', () => {
+			expect(PAYMENT_HANDLER_CODE).not.toContain(
+				"payload.dig('object', 'amount')",
+			);
+		});
+	});
+
+	describe('Reward controller preserves distinct HTTP statuses', () => {
+		test('reward controller returns 400 for malformed payloads', () => {
+			expect(REWARD_CONTROLLER_CODE).toContain(':bad_request');
+		});
+
+		test('reward controller returns 401 for bad signatures', () => {
+			expect(REWARD_CONTROLLER_CODE).toContain(':unauthorized');
+		});
+	});
+
+	describe('Replay-protection prose is accurate', () => {
+		test('no player-visible text claims a payload "verifies forever"', () => {
+			expect(MIRRORED_PROSE).not.toContain('verifies forever');
+		});
+	});
+
+	describe('Typography', () => {
+		test('no mirrored code or prose contains an em dash', () => {
+			const emDash = String.fromCharCode(8212);
+			expect(ALL_MIRRORED_CODE).not.toContain(emDash);
+			expect(MIRRORED_PROSE).not.toContain(emDash);
 		});
 	});
 });

@@ -170,7 +170,7 @@ const DISCOVERY_DEFS = [
 const PROBES = [
 	{
 		id: 'v1-format-break',
-		label: 'v1 partner fetches order (format changed)',
+		label: 'v1 partner fetches order (new shape on staging)',
 		command: 'curl localhost:3000/api/orders/42',
 		responseLines: [
 			{ text: '200 OK', color: 'green' as const },
@@ -190,9 +190,9 @@ const PROBES = [
 		story: [
 			'A v1 partner integration fetches order #42.',
 			'They expect { "total": 1999 } (integer cents).',
-			'But product deployed the v2 format: total is now a money object.',
-			'Since there is only one controller, all clients get the new format.',
-			'The partner code does total / 100 and gets NaN.',
+			'On staging, product tried the proposed money-object shape.',
+			'Since there is only one controller, every client would get it.',
+			'The partner code does total / 100 and gets NaN. This is why the change cannot just ship.',
 		],
 	},
 	{
@@ -276,7 +276,11 @@ const PROBE_FRAMES: Record<string, AnimFrame[]> = {
 		},
 		{
 			edge1: { active: false },
-			app: { label: 'New format deployed!', flash: 'amber', badge: 'CHANGED' },
+			app: {
+				label: 'New format on staging',
+				flash: 'amber',
+				badge: 'PROPOSED',
+			},
 		},
 		{
 			edge1: {
@@ -472,9 +476,9 @@ const REWARD_FRAMES: Record<string, AnimFrame[]> = {
 		{
 			edge1: { active: false },
 			v1Partner: {
-				label: 'Deprecation: true',
+				label: 'Deprecation date set',
 				flash: 'green',
-				responseJson: 'Sunset: 2027-06-01, Link: /api/v2',
+				responseJson: 'Sunset: 01 Jun 2027, Link: /api/v2',
 			},
 			app: { label: 'Migration path provided', flash: 'green' },
 		},
@@ -796,20 +800,15 @@ end`,
 	},
 ];
 
+// The correct Deprecation header value is an RFC 9745 Date item: an @-prefixed
+// Unix timestamp marking when v1 became deprecated. @1780272000 is
+// 2026-06-01 00:00:00 GMT. Ref: https://datatracker.ietf.org/doc/html/rfc9745
+// (value MUST be a Date structured field per RFC 9651). A bare `true` is NOT
+// RFC-conformant, so it is one of the wrong options below.
 const DEPRECATION_OPTIONS = [
 	{
-		id: 'wrong-no-headers',
-		label: 'No deprecation signal (just update docs)',
-		code: `# Update the API docs page to say "v1 is deprecated"
-# No headers, no code changes
-# Partners will read the docs... eventually`,
-		correct: false,
-		feedback:
-			'Documentation alone is not enough. Partners parse response headers programmatically. Without Deprecation headers, automated migration tools cannot detect the change.',
-	},
-	{
-		id: 'correct',
-		label: 'Add Deprecation and Link headers to v1',
+		id: 'wrong-bare-true',
+		label: 'response.headers["Deprecation"] = "true"',
 		code: `module Api::V1
   class BaseController < Api::BaseController
     before_action :add_deprecation_headers
@@ -818,6 +817,27 @@ const DEPRECATION_OPTIONS = [
 
     def add_deprecation_headers
       response.headers['Deprecation'] = 'true'
+      response.headers['Link'] =
+        '</api/v2/docs>; rel="successor-version"'
+    end
+  end
+end`,
+		correct: false,
+		feedback:
+			'A bare "true" is not RFC-conformant. The Deprecation header (RFC 9745) carries a date value, so clients that auto-parse it to calculate "days since deprecated" get nothing useful from a boolean.',
+	},
+	{
+		id: 'correct',
+		label: 'response.headers["Deprecation"] = "@1780272000" (RFC 9745 date)',
+		code: `module Api::V1
+  class BaseController < Api::BaseController
+    before_action :add_deprecation_headers
+
+    private
+
+    def add_deprecation_headers
+      # RFC 9745: @-prefixed Unix timestamp for 2026-06-01
+      response.headers['Deprecation'] = '@1780272000'
       response.headers['Link'] =
         '</api/v2/docs>; rel="successor-version"'
     end
@@ -842,12 +862,15 @@ end`,
 	},
 ];
 
+// Sunset is RFC 8594: an HTTP-date. 2027-06-01 is a Tuesday, so the correct
+// value is 'Tue, 01 Jun 2027 00:00:00 GMT' (12 months after the 2026-06-01
+// deprecation date). Ref: https://datatracker.ietf.org/doc/html/rfc8594
 const SUNSET_OPTIONS = [
 	{
 		id: 'wrong-no-date',
 		label: 'Sunset header with no date',
 		code: `def add_deprecation_headers
-  response.headers['Deprecation'] = 'true'
+  response.headers['Deprecation'] = '@1780272000'
   response.headers['Sunset'] = 'soon'
   response.headers['Link'] =
     '</api/v2/docs>; rel="successor-version"'
@@ -860,7 +883,7 @@ end`,
 		id: 'wrong-past-date',
 		label: 'Sunset date in the past',
 		code: `def add_deprecation_headers
-  response.headers['Deprecation'] = 'true'
+  response.headers['Deprecation'] = '@1780272000'
   response.headers['Sunset'] = 'Mon, 01 Jan 2024 00:00:00 GMT'
   response.headers['Link'] =
     '</api/v2/docs>; rel="successor-version"'
@@ -873,9 +896,9 @@ end`,
 		id: 'correct',
 		label: 'Sunset header with future date (12 months)',
 		code: `def add_deprecation_headers
-  response.headers['Deprecation'] = 'true'
+  response.headers['Deprecation'] = '@1780272000'
   response.headers['Sunset'] =
-    'Sun, 01 Jun 2027 00:00:00 GMT'
+    'Tue, 01 Jun 2027 00:00:00 GMT'
   response.headers['Link'] =
     '</api/v2/docs>; rel="successor-version"'
 end`,
@@ -1018,7 +1041,10 @@ const STRESS_SCENARIOS = [
 		responseLines: [
 			{ text: '200 OK', color: 'green' },
 			{ text: '{ "total": 1999 }', color: 'green' },
-			{ text: 'Deprecation: true, Sunset: 2027-06-01', color: 'yellow' },
+			{
+				text: 'Deprecation: @1780272000, Sunset: 01 Jun 2027',
+				color: 'yellow',
+			},
 		],
 		story: [
 			'Same v1 partner, same request.',
@@ -1036,13 +1062,13 @@ const STRESS_SCENARIOS = [
 		actor: 'v1-partner',
 		expectedResult: 'allowed' as const,
 		responseLines: [
-			{ text: 'Deprecation: true', color: 'yellow' },
-			{ text: 'Sunset: Sun, 01 Jun 2027 00:00:00 GMT', color: 'yellow' },
+			{ text: 'Deprecation: @1780272000', color: 'yellow' },
+			{ text: 'Sunset: Tue, 01 Jun 2027 00:00:00 GMT', color: 'yellow' },
 			{ text: 'Link: </api/v2/docs>; rel="successor-version"', color: 'green' },
 		],
 		story: [
 			'Same partner developer checking headers.',
-			'Now they see: Deprecation: true.',
+			'Now they see a Deprecation header with a real date.',
 			'Sunset date: June 2027 (12 months of notice).',
 			'Link header points to v2 docs for migration.',
 		],
@@ -1269,13 +1295,14 @@ end`,
     private
 
     def add_deprecation_headers
-      response.headers['Deprecation'] = 'true'
+      # RFC 9745: @-prefixed Unix timestamp for 2026-06-01
+      response.headers['Deprecation'] = '@1780272000'
       response.headers['Link'] =
         '</api/v2/docs>; rel="successor-version"'${
 					completedStep >= 5
 						? `
       response.headers['Sunset'] =
-        'Sun, 01 Jun 2027 00:00:00 GMT'`
+        'Tue, 01 Jun 2027 00:00:00 GMT'`
 						: '\n      # Next: Add Sunset header...'
 				}
     end
@@ -1382,9 +1409,10 @@ end`,
     private
 
     def add_deprecation_headers
-      response.headers['Deprecation'] = 'true'
+      # RFC 9745: @-prefixed Unix timestamp for 2026-06-01
+      response.headers['Deprecation'] = '@1780272000'
       response.headers['Sunset'] =
-        'Sun, 01 Jun 2027 00:00:00 GMT'
+        'Tue, 01 Jun 2027 00:00:00 GMT'
       response.headers['Link'] =
         '</api/v2/docs>; rel="successor-version"'
     end

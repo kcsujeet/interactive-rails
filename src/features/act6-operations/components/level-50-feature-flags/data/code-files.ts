@@ -65,8 +65,19 @@ Flipper.enable_actor(:new_payment_processor, beta_user)
 # Full launch:
 Flipper.enable(:new_payment_processor)`;
 
-const ROUTES_WITH_ADMIN_UI = `Rails.application.routes.draw do
-  authenticate :user, ->(user) { user.admin? } do
+const ROUTES_WITH_ADMIN_UI = `# lib/admin_constraint.rb
+class AdminConstraint
+  def matches?(request)
+    token = request.cookie_jar.signed[:session_token]
+    Session.find_by(token: token)&.user&.admin?
+  end
+end
+
+# config/routes.rb
+require "admin_constraint"
+
+Rails.application.routes.draw do
+  constraints(AdminConstraint.new) do
     mount Flipper::UI.app(Flipper) => "/flipper"
   end
 
@@ -135,7 +146,7 @@ export function getCodeFiles(phase: Phase, furthestStep: number): CodeFile[] {
 			filename: 'config/routes.rb',
 			language: 'ruby',
 			code: ROUTES_WITH_ADMIN_UI,
-			highlight: [2, 3, 4],
+			highlight: [12, 13, 14],
 		});
 	}
 

@@ -3,7 +3,7 @@ import type { ProbeConfig } from '@/components/levels/ProbeTerminal';
 export const PROBES: ProbeConfig[] = [
 	{
 		id: 'rollout-everyone',
-		label: 'Customer pays during peak (3% drop, 30 min to roll back)',
+		label: 'Customer pays during peak (feature is all-or-nothing)',
 		command: 'POST /api/v1/payments (cart total: $87, 4:23pm peak)',
 		responseLines: [
 			{ text: 'HTTP/1.1 500 Internal Server Error', color: 'red' },
@@ -17,11 +17,11 @@ export const PROBES: ProbeConfig[] = [
 				color: 'yellow',
 			},
 			{
-				text: 'Engineering paged. Rolling back: git revert + Kamal redeploy ~30 min.',
+				text: 'The feature is on for 100% of users. There is no 5% dial.',
 				color: 'red',
 			},
 			{
-				text: 'During the deploy window, more customers fall into the 3% bucket.',
+				text: 'kamal rollback is fast, but reverts the whole release, not just this.',
 				color: 'red',
 			},
 		],
@@ -30,8 +30,8 @@ export const PROBES: ProbeConfig[] = [
 			'The request hits the new payment processor.',
 			'The processor has an edge case that fails 3% of charges under peak load.',
 			'This customer is in the 3%. Their charge returns 500. Customer sees an error.',
-			'Engineering notices. Tries to roll back. Without a runtime toggle, the only option is git revert + Kamal redeploy: about 30 minutes.',
-			'For the next 30 minutes, more customers fall into the 3% bucket and keep getting failed charges.',
+			'The feature shipped on for everyone: there was no way to launch it to just 5% first and catch this at low blast radius.',
+			'kamal rollback (L49) would recover in seconds, but it reverts the ENTIRE release, dragging back every other change shipped alongside this one.',
 		],
 	},
 	{
@@ -67,22 +67,27 @@ export const PROBES: ProbeConfig[] = [
 		label: 'Hit kill switch during a vendor outage',
 		command: 'POST /admin/launch-toggles/new_payment_processor/disable',
 		responseLines: [
-			{ text: 'HTTP/1.1 501 Not Implemented', color: 'red' },
+			{ text: 'HTTP/1.1 404 Not Found', color: 'red' },
 			{ text: '', color: 'muted' },
 			{
-				text: 'No runtime toggle exists. Feature is hardcoded into the controller.',
+				text: 'No such route. There is no toggle endpoint to hit.',
 				color: 'yellow',
 			},
 			{
-				text: 'Recovery requires a revert + redeploy. MTTR ~30 minutes.',
+				text: 'The feature is hardcoded into the controller, off switch and all.',
+				color: 'yellow',
+			},
+			{
+				text: 'To disable it you must roll the whole release back, not just this feature.',
 				color: 'red',
 			},
 		],
 		story: [
 			'A third-party vendor (NewPaymentProcessor) starts returning 500s at peak load.',
-			'Oncall pages, opens the runbook, and reads: "wait for the vendor to recover, or redeploy without the feature."',
-			'There is no runtime kill switch. The feature is hardcoded into the request flow.',
-			'30 minutes later, the redeploy ships. The vendor has already self-recovered. The whole episode was avoidable.',
+			'Oncall reaches for a kill switch and POSTs to a toggle route.',
+			'The route does not exist, so Rails returns 404: there is no runtime toggle to flip.',
+			'The feature is hardcoded into the request flow, with no per-feature off switch.',
+			'The only lever is kamal rollback (L49), which reverts the entire release. The vendor then self-recovers, and everything shipped alongside had to be rolled back for nothing.',
 		],
 	},
 ];

@@ -158,20 +158,22 @@ What "owning" the dead-letter queue actually means:
 
 A failed-executions table that grows for a week before anyone notices is the production-job equivalent of an uncaught exception in your monitoring blind spot.
 
-**Job uniqueness (queue-level idempotency):**
-A user double-clicks "send invoice." The controller enqueues \`SendInvoiceJob.perform_later(invoice.id)\` twice. The perform-level idempotency guard catches the second run (\`return if invoice.sent?\`), but it still uses two worker slots and two database round-trips. Solid Queue can prevent the duplicate from being enqueued at all:
+**At-least-once delivery, so idempotency is the real defense:**
+Solid Queue (like every production job backend) guarantees a job runs AT LEAST once, not exactly once. Retries, worker crashes mid-run, and duplicate enqueues (a user double-clicks "send invoice") all mean \`perform\` can execute more than once for the same logical work. There is no magic "run exactly once" switch. The honest Rails 8 story is: assume the job will run more than once, and make \`perform\` safe to re-run.
 
 \`\`\`ruby
 class SendInvoiceJob < ApplicationJob
-  unique :until_executed, lock_ttl: 5.minutes
-
   def perform(invoice_id)
-    # Same args + same job class within 5 minutes? Only one runs.
+    invoice = Invoice.find(invoice_id)
+    return if invoice.sent?  # already done? no-op on the re-run
+
+    invoice.deliver!
+    invoice.update!(sent_at: Time.current)
   end
 end
 \`\`\`
 
-\`unique :until_executed\` means: if a job with the same arguments is already pending, drop the duplicate. Belt-and-suspenders with the idempotency guard inside \`perform\`. You want both at scale: queue-level uniqueness saves the worker round-trip, perform-level idempotency saves you when the unique window expires or workers race.
+The \`return if invoice.sent?\` guard is what actually protects you: if the job runs twice, the second run sees the flag and does nothing. If you also want to cap how many copies of a job run at once (for example to protect a rate-limited vendor), use \`limits_concurrency\` (shown above). Solid Queue does NOT ship a "drop duplicate enqueues" macro; the perform-level idempotency guard is the durable fix.
 
 **The worker is a separate process:**
 Calling \`perform_later\` puts a row into a database table. That is all it does. Something has to actually pick those rows up and run the jobs, and that something is the **worker** process. Rails 8 ships a runner script at \`bin/jobs\` that boots Solid Queue and starts processing.
@@ -180,8 +182,12 @@ Calling \`perform_later\` puts a row into a database table. That is all it does.
 - In **production** you run \`bin/jobs\` as its own process: a Procfile entry on Heroku/Render, a systemd unit on a VPS, or a Kamal accessory
 - If no worker is running, your registration still returns instantly to the user, but the welcome email never sends. The jobs sit in the queue table forever
 - This is the most common Rails 8 background-jobs bug: people set up Solid Queue, write the job, switch to \`deliver_later\`, and forget to run the worker in production. Symptoms: emails never arrive, but the app appears healthy`,
-		railsCodeExample: `# config/application.rb -- Rails 8 default
-config.active_job.queue_adapter = :solid_queue
+		railsCodeExample: `# bin/rails solid_queue:install writes this into
+# config/environments/production.rb (and creates bin/jobs,
+# config/queue.yml, config/recurring.yml, db/queue_schema.rb).
+# In Rails 8, solid_queue is already the default production adapter.
+# config/environments/production.rb
+config.solid_queue.connects_to = { database: { writing: :queue } }
 
 # config/queue.yml -- Solid Queue configuration
 default: &default
@@ -315,7 +321,7 @@ end
 			'Forgetting that Solid Queue uses your database (monitor DB load under heavy job throughput)',
 			'No concurrency limit on a job that hits a rate-limited vendor API (50 workers get throttled and your queue grinds)',
 			'Letting SolidQueue::FailedExecution grow unbounded with no alert or review process (silent dead-letter pile-up)',
-			'Skipping queue-level uniqueness (`unique :until_executed`) for user-triggered actions where double-submits are likely',
+			'Assuming a job runs exactly once (Solid Queue guarantees at-least-once; retries and duplicate enqueues mean perform can run again, so guard it with an idempotency check)',
 		],
 		whenToUse:
 			'Any operation that takes more than 100ms, calls an external service, or does not need to complete before the HTTP response is sent.',
@@ -339,13 +345,10 @@ end
 		],
 		homework: [
 			{
-				task: 'Install Solid Queue, point development at it (config.active_job.queue_adapter = :solid_queue), and create the queue tables.',
-				commands: [
-					'bin/rails generate solid_queue:install',
-					'bin/rails db:prepare',
-				],
+				task: 'Install Solid Queue and create the queue tables.',
+				commands: ['bin/rails solid_queue:install', 'bin/rails db:prepare'],
 				verify:
-					'config/queue.yml and db/queue_schema.rb exist, and the solid_queue_* tables were created by db:prepare.',
+					'The installer created bin/jobs, config/queue.yml, config/recurring.yml, and db/queue_schema.rb, and configured config/environments/production.rb. db:prepare created the solid_queue_* tables.',
 			},
 			{
 				task: 'Generate a job and enqueue it while NO worker is running to see that the queue is just database rows.',

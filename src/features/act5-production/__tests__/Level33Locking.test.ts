@@ -1,5 +1,5 @@
 /**
- * Level 34: Locking (Concurrency Control) - Data Consistency Tests
+ * Level 33: Locking (Concurrency Control) - Data Consistency Tests
  *
  * Tests mirror the data structures from the component to verify:
  * - Discovery definitions are complete and correctly mapped
@@ -20,17 +20,13 @@ const DISCOVERY_DEFS = [
 		label: "Customer A's order overwrites Customer B's stock update",
 	},
 	{
-		id: 'stale-read',
-		label: 'Both requests read the same outdated stock count',
-	},
-	{
 		id: 'no-lock',
 		label: 'No mechanism prevents simultaneous row access',
 	},
 ];
 
 const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
-	'concurrent-checkout': ['lost-update', 'stale-read'],
+	'concurrent-checkout': ['lost-update'],
 	'stale-product-edit': ['no-lock'],
 };
 
@@ -42,11 +38,11 @@ const PROBES = [
 			'# Admin A: raise price by $10, Admin B: raise price by $5 (simultaneously)',
 		responseLines: [
 			{
-				text: 'Admin A: Product.find(1) => price: $50.00, lock_version: nil',
+				text: 'Admin A: Product.find(1) => price: $50.00',
 				color: 'cyan',
 			},
 			{
-				text: 'Admin B: Product.find(1) => price: $50.00, lock_version: nil',
+				text: 'Admin B: Product.find(1) => price: $50.00',
 				color: 'cyan',
 			},
 			{
@@ -154,7 +150,7 @@ const PESSIMISTIC_OPTIONS = [
 		id: 'wrong-with-lock-outside',
 		correct: false,
 		feedback:
-			'The order creation is outside the lock block. If it fails, the stock was already changed. All related writes must be inside the same locked transaction.',
+			'The audit log creation is outside the lock block. If it fails, the stock was already changed. All related writes must be inside the same locked transaction.',
 	},
 ];
 
@@ -163,7 +159,7 @@ const SERVICE_OPTIONS = [
 		id: 'wrong-no-contract',
 		correct: false,
 		feedback:
-			'Missing input validation via contract. Services must validate input through a Dry::Validation::Contract before executing business logic.',
+			'This runs the business logic on raw, unchecked input. Since L18, every service validates its input up front and returns structured errors before touching the database.',
 	},
 	{ id: 'correct-with-contract', correct: true },
 ];
@@ -217,12 +213,57 @@ const STRESS_SCENARIOS = [
 	},
 ];
 
+// Mirror of the observe before-state DB row (no lock_version yet;
+// that column only exists after the build migration).
+const OBSERVE_DB_COLUMNS = ['id', 'name', 'price', 'stock_count'];
+
+// Mirror of observe frame value arrays (checkout + stale edit).
+const OBSERVE_FRAME_VALUES = [
+	['1', 'Laptop Pro', '$50.00', '5'],
+	['1', 'Laptop Pro', '$50.00', '7'],
+	['1', 'Laptop Pro', '$50.00', '15'],
+	['1', 'Laptop Pro', '$60.00', '15'],
+	['1', 'Laptop Pro', '$55.00', '15'],
+];
+
+// Mirror of the per-scenario reward outcome (stock after, lock_version,
+// mismatch line). REWARD_ALLOWED_FRAMES is no longer shared.
+const REWARD_ALLOWED_OUTCOMES: Record<
+	string,
+	{ finalStock: string; finalLockVersion: string; mismatch: string }
+> = {
+	'single-order': {
+		finalStock: '5',
+		finalLockVersion: '1',
+		mismatch: '10 units sold, 10 deducted. Correct!',
+	},
+	transfer: {
+		finalStock: '10',
+		finalLockVersion: '1',
+		mismatch: '5 units sold, 5 deducted. Correct!',
+	},
+	'concurrent-order-locked': {
+		finalStock: '2',
+		finalLockVersion: '2',
+		mismatch: '13 units sold, 13 deducted. Correct!',
+	},
+	'concurrent-checkout': {
+		finalStock: '2',
+		finalLockVersion: '2',
+		mismatch: '13 units sold, 13 deducted. Correct!',
+	},
+};
+
+// Mirror of the single-order reward response line (deduped).
+const SINGLE_ORDER_RESPONSE_LINE =
+	'Transaction: lock -> deduct 10 -> create order -> audit log -> commit';
+
 // ── Tests ──
 
-describe('Level 34: Locking (Concurrency Control)', () => {
+describe('Level 33: Locking (Concurrency Control)', () => {
 	describe('Discovery definitions', () => {
-		test('has exactly 3 discoveries', () => {
-			expect(DISCOVERY_DEFS).toHaveLength(3);
+		test('has exactly 2 discoveries', () => {
+			expect(DISCOVERY_DEFS).toHaveLength(2);
 		});
 
 		test('all discovery IDs are unique', () => {
@@ -506,12 +547,12 @@ describe('Level 34: Locking (Concurrency Control)', () => {
 			expect(correct?.id).toBe('correct-with-contract');
 		});
 
-		test('wrong service option explains contract requirement', () => {
+		test('wrong service option explains missing up-front validation', () => {
 			const noContract = SERVICE_OPTIONS.find(
 				(o) => o.id === 'wrong-no-contract',
 			);
-			expect(noContract?.feedback).toContain('contract');
-			expect(noContract?.feedback).toContain('Dry::Validation::Contract');
+			expect(noContract?.feedback).toContain('unchecked input');
+			expect(noContract?.feedback).toContain('validates its input');
 		});
 
 		test('stale error handler uses standard error shape', () => {
@@ -530,9 +571,57 @@ describe('Level 34: Locking (Concurrency Control)', () => {
 		});
 	});
 
+	describe('Observe before-state has no lock_version', () => {
+		test('observe DB columns do not include lock_version', () => {
+			expect(OBSERVE_DB_COLUMNS).not.toContain('lock_version');
+			expect(OBSERVE_DB_COLUMNS).toHaveLength(4);
+		});
+
+		test('observe frame value rows have exactly 4 cells (no lock_version)', () => {
+			for (const row of OBSERVE_FRAME_VALUES) {
+				expect(row).toHaveLength(4);
+			}
+		});
+
+		test('stale-edit probe response never prints a lock_version', () => {
+			const probe = PROBES.find((p) => p.id === 'stale-product-edit');
+			const texts = probe?.responseLines.map((l) => l.text).join(' ') ?? '';
+			expect(texts).not.toContain('lock_version');
+		});
+	});
+
+	describe('Reward frames match each scenario', () => {
+		test('single-order and transfer produce different final stock', () => {
+			expect(REWARD_ALLOWED_OUTCOMES['single-order'].finalStock).toBe('5');
+			expect(REWARD_ALLOWED_OUTCOMES.transfer.finalStock).toBe('10');
+		});
+
+		test('single-order animation does not jump to concurrent numbers', () => {
+			const outcome = REWARD_ALLOWED_OUTCOMES['single-order'];
+			expect(outcome.finalLockVersion).toBe('1');
+			expect(outcome.mismatch).not.toContain('13 units');
+		});
+
+		test('single-order mismatch matches its own quantity', () => {
+			expect(REWARD_ALLOWED_OUTCOMES['single-order'].mismatch).toContain(
+				'10 units sold, 10 deducted',
+			);
+			expect(REWARD_ALLOWED_OUTCOMES.transfer.mismatch).toContain(
+				'5 units sold, 5 deducted',
+			);
+		});
+
+		test('single-order response line has no duplicated create order', () => {
+			const occurrences =
+				SINGLE_ORDER_RESPONSE_LINE.split('create order').length;
+			expect(occurrences).toBe(2); // one split boundary => one occurrence
+			expect(SINGLE_ORDER_RESPONSE_LINE).toContain('audit log');
+		});
+	});
+
 	describe('Data consistency', () => {
-		test('minRequired (3) matches total discoveries', () => {
-			expect(DISCOVERY_DEFS.length).toBe(3);
+		test('minRequired (2) matches total discoveries', () => {
+			expect(DISCOVERY_DEFS.length).toBe(2);
 		});
 
 		test('all option step arrays have at least 2 options', () => {

@@ -13,7 +13,7 @@ function ScenarioPanel() {
 				A new payment processor is half-built. Marketing wants the launch next
 				Tuesday at 9am sharp; engineering needs to ship the code now and turn it
 				on then. And the third-party integration occasionally goes flaky and
-				needs a kill switch faster than a Kamal redeploy can ship.
+				needs a per-feature kill switch, not a full-release rollback.
 			</p>
 			<p className="text-sm text-muted-foreground leading-relaxed">
 				Right now deploy and release are coupled: every time you change what

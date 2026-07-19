@@ -354,7 +354,7 @@ export function buildStagesFor(completedStep: number): PipelineStage[] {
 	} else if (completedStep >= 2) {
 		registrySpec = { sublabel: 'awaiting image', variant: 'default' };
 	} else if (completedStep >= 1) {
-		registrySpec = { sublabel: 'stub (kamal init)', variant: 'default' };
+		registrySpec = { sublabel: 'scaffolded, unconfigured', variant: 'default' };
 	}
 
 	let proxySpec: StageSpec = {
@@ -366,7 +366,7 @@ export function buildStagesFor(completedStep: number): PipelineStage[] {
 	} else if (completedStep >= 2) {
 		proxySpec = { sublabel: '/up health check', variant: 'default' };
 	} else if (completedStep >= 1) {
-		proxySpec = { sublabel: 'stub (kamal init)', variant: 'default' };
+		proxySpec = { sublabel: 'scaffolded, unconfigured', variant: 'default' };
 	}
 
 	let containerSpec: StageSpec = {
@@ -376,7 +376,10 @@ export function buildStagesFor(completedStep: number): PipelineStage[] {
 	if (completedStep >= 4) {
 		containerSpec = { sublabel: 'v1 healthy', variant: 'active' };
 	} else if (completedStep >= 1) {
-		containerSpec = { sublabel: 'stub (kamal init)', variant: 'default' };
+		containerSpec = {
+			sublabel: 'scaffolded, unconfigured',
+			variant: 'default',
+		};
 	}
 
 	const serverSpec: StageSpec =
@@ -460,7 +463,7 @@ export const SCENARIO_FRAMES: Record<string, PipelineFrame[]> = {
 				laptop: { sublabel: 'pushed v2', variant: 'active' },
 				registry: { sublabel: 'v1 + v2 tags', variant: 'active' },
 				proxy: {
-					sublabel: '/up returns 500 on v2',
+					sublabel: '/up returns 503 on v2',
 					variant: 'default',
 					badge: 'RETRY',
 				},

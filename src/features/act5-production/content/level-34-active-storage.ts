@@ -32,7 +32,7 @@ class UploadAvatar < ApplicationService
     path = Rails.root.join(
       "storage/avatars/#{user.id}.jpg")
     File.binwrite(path, @file.read)  # 5MB buffered!
-    # 10 concurrent uploads = 50MB memory spike
+    # 10 concurrent uploads = +50MB spike (peak ~95MB)
     user.update!(avatar_path: path.to_s)
     Result.new(success?: true, user:, errors: [])
   end
@@ -104,8 +104,15 @@ class User < ApplicationRecord
 end
 
 # app/services/upload_avatar.rb
+# Validation runs at ATTACH time: the file is already on
+# S3 by now (direct upload never touches Rails), so we
+# inspect the blob's metadata and refuse to attach a bad one.
 class UploadAvatar < ApplicationService
+  InvalidUpload = Class.new(StandardError)
   Result = Data.define(:success?, :user, :errors)
+
+  ALLOWED = %w[image/jpeg image/png image/webp].freeze
+  MAX_BYTES = 10.megabytes
 
   def initialize(user_id:, blob_signed_id:)
     @user_id = user_id
@@ -125,6 +132,20 @@ class UploadAvatar < ApplicationService
 
     user.avatar.attach(@blob_signed_id)
     Result.new(success?: true, user:, errors: [])
+  rescue InvalidUpload => e
+    Result.new(success?: false, user: nil, errors: [e.message])
+  end
+
+  private
+
+  def validate_content_type!(blob)
+    return if ALLOWED.include?(blob.content_type)
+    raise InvalidUpload, "content type not allowed"
+  end
+
+  def validate_file_size!(blob)
+    return if blob.byte_size <= MAX_BYTES
+    raise InvalidUpload, "file exceeds 10MB"
   end
 end
 
@@ -153,7 +174,7 @@ end`,
 			'Uploading large files through the Rails server instead of using direct upload',
 			'Not defining named variants (inconsistent resize dimensions across views)',
 			'Serving files through Rails instead of S3/CDN (blocks workers)',
-			'Not validating content type and file size before upload',
+			'Not validating the blob content type and file size at attach time (the file is already on S3 by then, so the service must refuse to attach a bad blob)',
 			'Forgetting to install image processing gems (image_processing, vips)',
 		],
 		whenToUse:

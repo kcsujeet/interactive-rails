@@ -112,22 +112,26 @@ user.discard          # Sets discarded_at = Time.current
 user.discarded?       # => true
 user.undiscard        # Sets discarded_at = nil (undo!)
 
-# Queries automatically exclude discarded:
-User.count            # Only active users
-User.with_discarded.count  # All users including discarded
+# Discard adds NO default scope, so plain queries
+# still see everyone. Filter explicitly:
+User.count            # ALL users (active + discarded)
+User.kept.count       # Only active (discarded_at IS NULL)
+User.discarded.count  # Only soft-deleted
 
 # ============================
 # Audit Trails with PaperTrail
 # ============================
 
-# Track who made the change (set in ApplicationController)
+# Track who made the change (set in ApplicationController).
+# set_paper_trail_whodunnit is provided by PaperTrail;
+# override user_for_paper_trail to say WHO that is.
 class ApplicationController < ActionController::API
   before_action :set_paper_trail_whodunnit
 
   private
 
   def user_for_paper_trail
-    current_user&.id || "system"
+    Current.user&.id || "system"
   end
 end
 

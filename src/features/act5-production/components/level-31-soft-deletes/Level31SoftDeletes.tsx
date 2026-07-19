@@ -483,6 +483,42 @@ const REWARD_FRAMES: Record<string, AnimFrame[]> = {
 			app: { label: 'Who, when, what: tracked', flash: 'green' },
 		},
 	],
+	'public-sees-discarded': [
+		{
+			admin: { label: 'GET /products/99 (customer)', flash: 'idle' },
+			edge1: {
+				active: true,
+				reverse: false,
+				label: 'find(99)',
+				dotColor: 'bg-cyan-500',
+			},
+			app: { label: 'ListProducts uses .kept', flash: 'idle' },
+		},
+		{
+			edge1: { active: false },
+			edge2: {
+				active: true,
+				reverse: false,
+				label: 'WHERE discarded_at IS NULL',
+				dotColor: 'bg-cyan-500',
+			},
+			db: {
+				label: 'products table (soft delete)',
+				flash: 'amber',
+				rows: [{ text: 'Product #99 (discarded, hidden)', color: 'amber' }],
+			},
+		},
+		{
+			edge2: {
+				active: true,
+				reverse: true,
+				label: '404 Not Found',
+				dotColor: 'bg-red-500',
+			},
+			app: { label: 'Discarded row excluded', flash: 'green' },
+			admin: { label: 'Customer sees clean 404', flash: 'green' },
+		},
+	],
 	'restore-with-trail': [
 		{
 			admin: { label: 'Restore + check trail', flash: 'idle' },
@@ -516,7 +552,7 @@ const STEP_DEFS = [
 	{ id: 'add-discard', title: 'Install Discard Gem' },
 	{ id: 'add-column', title: 'Add discarded_at Column' },
 	{ id: 'configure-model', title: 'Configure Soft Deletes' },
-	{ id: 'update-queries', title: 'Update Default Scope' },
+	{ id: 'update-queries', title: 'Filter Discarded Records' },
 	{ id: 'add-paper-trail', title: 'Install PaperTrail' },
 	{ id: 'configure-audit', title: 'Configure Audit Trail' },
 ];
@@ -703,13 +739,15 @@ class User < ApplicationRecord
 end
 
 # app/controllers/application_controller.rb
+# set_paper_trail_whodunnit is provided by the gem.
+# Override user_for_paper_trail to say who the user is.
 class ApplicationController < ActionController::API
   before_action :set_paper_trail_whodunnit
 
   private
 
-  def set_paper_trail_whodunnit
-    PaperTrail.request.whodunnit = Current.user&.id
+  def user_for_paper_trail
+    Current.user&.id || "system"
   end
 end`,
 		correct: true,
@@ -858,6 +896,32 @@ const STRESS_SCENARIOS = [
 			'Complete audit trail: who deleted, who restored, when.',
 		],
 	},
+	{
+		id: 'public-sees-discarded',
+		label: 'Customer opens a discarded product page',
+		description: 'Public API hides soft-deleted records via .kept',
+		method: 'GET' as const,
+		path: '/api/products/99',
+		actor: 'customer',
+		expectedResult: 'blocked' as const,
+		responseLines: [
+			{ text: 'Product.kept.find(99)', color: 'muted' },
+			{
+				text: '404 Not Found (discarded_at is set)',
+				color: 'red',
+			},
+			{
+				text: '# Public queries use .kept, so discarded rows stay hidden.',
+				color: 'green',
+			},
+		],
+		story: [
+			'A customer clicks an old link to a product the admin discarded.',
+			'The public listing service queries with .kept, not the raw table.',
+			'The discarded row is excluded, so the customer gets a clean 404.',
+			'The row still exists in the database and an admin can restore it.',
+		],
+	},
 ];
 
 // ─── Code preview builder ──────────────────────────────────────────────
@@ -948,7 +1012,7 @@ end`,
 		{
 			filename: 'app/controllers/application_controller.rb',
 			language: 'ruby',
-			code: `class ApplicationController < ActionController::API\n  before_action :set_paper_trail_whodunnit\n\n  private\n\n  def set_paper_trail_whodunnit\n    PaperTrail.request.whodunnit = Current.user&.id\n  end\nend`,
+			code: `class ApplicationController < ActionController::API\n  before_action :set_paper_trail_whodunnit\n\n  private\n\n  # set_paper_trail_whodunnit is provided by the gem.\n  # Override user_for_paper_trail to say who the user is.\n  def user_for_paper_trail\n    Current.user&.id || "system"\n  end\nend`,
 		},
 		{
 			filename: 'app/services/list_users.rb',

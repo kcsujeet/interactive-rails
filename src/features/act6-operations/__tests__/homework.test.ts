@@ -13,7 +13,8 @@
  *   https://github.com/roidrage/lograge
  * - OpenTelemetry Ruby (use_all, console exporter):
  *   https://opentelemetry.io/docs/languages/ruby/getting-started/
- * - Kamal init / config: https://kamal-deploy.org/docs/commands/
+ * - Kamal version / config (rails new already scaffolds Kamal):
+ *   https://kamal-deploy.org/docs/commands/
  * - Flipper setup generator: https://github.com/flippercloud/flipper
  */
 
@@ -67,7 +68,7 @@ describe('Act 6 homework exercises', () => {
 		expect(commandsOf('act6-level47-observability')).toContain(
 			'bundle add lograge',
 		);
-		expect(commandsOf('act6-level49-deployment')).toContain('kamal init');
+		expect(commandsOf('act6-level49-deployment')).toContain('kamal config');
 		expect(commandsOf('act6-level50-feature-flags')).toContain(
 			'bin/rails generate flipper:setup',
 		);

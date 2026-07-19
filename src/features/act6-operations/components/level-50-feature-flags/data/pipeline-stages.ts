@@ -153,7 +153,7 @@ end`,
 		stageId: 'new-processor',
 		title: 'New Payment Processor',
 		description:
-			'A new vendor integration. Half-built, occasionally returns 500s on edge cases, and costs roughly 30 minutes of revert-and-redeploy time when it misbehaves at peak. Currently the only path the request can take.',
+			'A new vendor integration. Half-built, occasionally returns 500s on edge cases. It is on for 100% of users with no per-feature off switch, so the only lever when it misbehaves is a full-release rollback. Currently the only path the request can take.',
 	},
 };
 
@@ -182,16 +182,18 @@ export interface ProbeObserveOverride {
 
 export const PROBE_OBSERVE_OVERRIDES: Record<string, ProbeObserveOverride> = {
 	// A customer pays at peak. Their request hits a new-processor edge
-	// case that fails 3% of charges. Engineering can only roll back via
-	// a 30-minute redeploy. Each node carries one piece of the pain:
-	// AppServer = the operational pain (stuck for 30 min), NewProcessor
-	// = the customer pain (3% of charges return 500).
+	// case that fails 3% of charges. The feature is all-or-nothing: no
+	// per-feature toggle, no 5% dial. The only lever is a full-release
+	// rollback (which reverts everything else too). Each node carries
+	// one piece of the pain: AppServer = the operational pain (no
+	// surgical off switch), NewProcessor = the customer pain (3% of
+	// charges return 500).
 	'rollout-everyone': {
 		stages: {
 			'app-server': {
 				variant: 'critical',
-				badge: 'STUCK 30 MIN',
-				sublabel: 'no kill switch; only fix is a full redeploy',
+				badge: 'ALL OR NOTHING',
+				sublabel: 'no per-feature toggle; only a full-release rollback',
 			},
 			'new-processor': {
 				variant: 'critical',

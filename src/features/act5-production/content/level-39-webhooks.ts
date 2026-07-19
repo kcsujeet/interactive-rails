@@ -82,9 +82,8 @@ export const level39Webhooks: Level = {
 		rootCause:
 			'Webhook handler is not idempotent. No signature verification (anyone could spoof webhooks). No deduplication of already-processed events. Processing happens synchronously, risking timeout.',
 		codeExample: `# app/controllers/webhooks_controller.rb
+# Inherits from ActionController::API (this is an API-only app).
 class WebhooksController < ApplicationController
-  skip_before_action :verify_authenticity_token
-
   def stripe
     result = HandleStripeWebhook.call(
       payload: request.body.read)
@@ -168,7 +167,7 @@ def create
   )
 end
 \`\`\`
-The \`tolerance\` argument (default 300 seconds) protects against replay attacks: an attacker who captures a valid signed payload cannot re-submit it after 5 minutes because the timestamp inside the signature is too old. Always pass a tolerance.
+The \`tolerance\` argument (default 300 seconds) protects against replay attacks: an attacker who captures a valid signed payload cannot re-submit it after 5 minutes because the timestamp inside the signature is too old. The default tolerance already protects you; pass it explicitly only when you want a narrower or wider window.
 
 **Constant-time comparison:**
 The Stripe SDK uses constant-time comparison internally. If you ever hand-roll signature verification for a provider without an SDK, use \`ActiveSupport::SecurityUtils.secure_compare\`, NOT \`==\`. \`==\` short-circuits on the first mismatch, leaking timing information that lets an attacker brute-force the signature byte by byte across many requests. The vulnerability is real; the fix is one line.
@@ -233,11 +232,9 @@ class CreateWebhookEvents < ActiveRecord::Migration[8.0]
 end
 
 # app/controllers/webhooks/stripe_controller.rb
+# Inherits from ActionController::API (https://guides.rubyonrails.org/api_app.html).
 module Webhooks
   class StripeController < ApplicationController
-    # Skip CSRF - Stripe can't send CSRF tokens
-    skip_before_action :verify_authenticity_token
-
     def create
       # Step 1: Verify signature
       payload = request.body.read
@@ -308,7 +305,9 @@ class ProcessStripeWebhookJob < ApplicationJob
 
   def handle_payment_succeeded(webhook_event)
     stripe_payment_id = webhook_event.payload.dig('object', 'id')
-    amount = webhook_event.payload.dig('object', 'amount')
+    # Re-fetch from Stripe: the payload is a notification, not truth.
+    intent = Stripe::PaymentIntent.retrieve(stripe_payment_id)
+    return unless intent.status == 'succeeded'
 
     ActiveRecord::Base.transaction do
       payment = Payment.lock.find_by!(stripe_id: stripe_payment_id)
@@ -318,7 +317,7 @@ class ProcessStripeWebhookJob < ApplicationJob
 
       payment.update!(status: 'completed')
       payment.user.credits.create!(
-        amount: amount,
+        amount: intent.amount,
         source: 'payment',
         idempotency_key: "payment-#{payment.id}"
       )
@@ -337,7 +336,7 @@ end`,
 			'Using the event payload for amount/status instead of re-fetching from Stripe API',
 			'Not handling race conditions between webhook and polling (both try to complete payment)',
 			'Verifying the signature against parsed params instead of the raw body (Rails parsing can reorder keys and break the HMAC). Use request.raw_post',
-			'Not passing a tolerance to construct_event (default 300s rejects replays of captured payloads after 5 minutes; without it an old signed payload still verifies forever)',
+			'Misunderstanding construct_event tolerance (the default 300s already rejects replays of captured payloads after 5 minutes; a tolerance, default or explicit, is what provides replay protection). Pass it explicitly only when you want a non-default window',
 			'Hand-rolling signature comparison with == instead of ActiveSupport::SecurityUtils.secure_compare (== short-circuits and leaks timing info)',
 			'Assuming Stripe delivers events in order (retries reorder them; use find_or_create_by! on the natural key, or a state machine that tolerates out-of-order)',
 			'One global STRIPE_WEBHOOK_SECRET for production, staging, and the Stripe CLI dev tunnel (each endpoint has its own secret)',

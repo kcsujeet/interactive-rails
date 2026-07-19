@@ -10,7 +10,7 @@ export const level30Polymorphic: Level = {
 	trigger: {
 		type: 'new_feature',
 		description:
-			'Users want to review Products, ProductImages, AND ProductVideos. Three separate review tables with identical schemas exist. Polymorphic associations can unify them.',
+			'Users want to review Products, Photos, AND Videos. Three separate review tables with identical schemas exist. Polymorphic associations can unify them.',
 	},
 	startingPipeline: standardPipeline(),
 	problem: {
@@ -105,7 +105,8 @@ class CreateReviews < ActiveRecord::Migration[8.0]
       t.references :user, null: false, foreign_key: true
       t.timestamps
     end
-    add_index :reviews, [:reviewable_type, :reviewable_id]
+    # t.references ..., polymorphic: true already adds the
+    # composite [reviewable_type, reviewable_id] index.
   end
 end
 
@@ -166,7 +167,7 @@ class Api::ReviewsController < ApplicationController
   end
 end`,
 		commonMistakes: [
-			'Not adding a composite index on [reviewable_type, reviewable_id]',
+			'Adding a redundant manual index when t.references polymorphic: true already creates the composite [reviewable_type, reviewable_id] index',
 			'Forgetting that database-level foreign keys cannot enforce polymorphic associations',
 			'Not using eager loading with polymorphic associations (causes N+1)',
 			'Storing full namespaced class names when STI is involved',

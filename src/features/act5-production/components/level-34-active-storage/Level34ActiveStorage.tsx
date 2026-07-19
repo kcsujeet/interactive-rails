@@ -133,7 +133,7 @@ const UPLOAD_PROBE_FRAMES: AnimationFrame[] = [
 		client: { label: '', flash: 'idle' },
 		connA: { active: false, label: '' },
 		app: { label: 'Buffering 5MB...', flash: 'red' },
-		memoryMB: 95,
+		memoryMB: 50,
 	},
 	{
 		app: { label: 'File.binwrite to disk...', flash: 'amber' },
@@ -141,7 +141,7 @@ const UPLOAD_PROBE_FRAMES: AnimationFrame[] = [
 	{
 		app: { label: 'Saved to local disk', flash: 'amber' },
 		warningMessage:
-			'The entire 5MB file was buffered in Rails process memory. 10 concurrent uploads = 500MB memory spike. Files saved to local disk (lost on deploy, no CDN).',
+			'The entire 5MB file was buffered in Rails process memory (45MB -> 50MB). Ten concurrent uploads spike memory by about 50MB (peak ~95MB). Files saved to local disk (lost on deploy, no CDN).',
 	},
 ];
 
@@ -154,7 +154,7 @@ const DOWNLOAD_PROBE_FRAMES: AnimationFrame[] = [
 	},
 	{
 		app: { label: 'Reading 5MB from disk...', flash: 'red' },
-		memoryMB: 95,
+		memoryMB: 50,
 	},
 	{
 		connA: {
@@ -404,13 +404,39 @@ const REWARD_BLOCKED_CONTENT: AnimationFrame[] = [
 		connA: {
 			active: true,
 			reverse: false,
-			label: 'content_type: .exe',
-			dotColor: 'bg-red-500 dark:bg-red-400',
+			label: 'metadata only',
+			dotColor: 'bg-amber-500 dark:bg-amber-400',
 		},
 	},
 	{
+		connA: {
+			active: true,
+			reverse: true,
+			label: 'presigned URL',
+			dotColor: 'bg-amber-500 dark:bg-amber-400',
+		},
+		app: { label: 'Blob record created (local DB)', flash: 'amber' },
+	},
+	{
 		connA: { active: false, label: '' },
-		app: { label: 'UploadAvatar: validate_content_type!', flash: 'amber' },
+		client: { label: 'Uploading .exe direct to S3...', flash: 'blue' },
+		connC: {
+			active: true,
+			reverse: false,
+			label: 'file uploaded',
+			dotColor: 'bg-amber-500 dark:bg-amber-400',
+		},
+	},
+	{
+		connC: { active: false, label: '' },
+		s3: { label: 'File on S3 (not attached yet)', flash: 'amber' },
+		client: { label: 'Attaching to profile...', flash: 'blue' },
+		connA: {
+			active: true,
+			reverse: false,
+			label: 'signed ID',
+			dotColor: 'bg-red-500 dark:bg-red-400',
+		},
 	},
 	{
 		connA: {
@@ -419,13 +445,13 @@ const REWARD_BLOCKED_CONTENT: AnimationFrame[] = [
 			label: '422 rejected',
 			dotColor: 'bg-red-500 dark:bg-red-400',
 		},
-		app: { label: 'REJECTED: invalid content type', flash: 'red' },
+		app: { label: 'UploadAvatar rejects at attach', flash: 'red' },
 	},
 	{
 		connA: { active: false, label: '' },
 		client: { label: '422 Unprocessable Entity', flash: 'red' },
 		warningMessage:
-			'Content type application/x-msdownload rejected by UploadAvatar service. validate_content_type! blocks non-image files.',
+			'The file reached S3 first (direct upload never touches Rails). At attach time UploadAvatar checks the blob content_type, sees application/x-msdownload, and refuses to attach it. The stray blob is never linked to a user and gets swept up by Active Storage cleanup.',
 	},
 ];
 
@@ -437,13 +463,39 @@ const REWARD_BLOCKED_OVERSIZED: AnimationFrame[] = [
 		connA: {
 			active: true,
 			reverse: false,
-			label: 'byte_size: 50MB',
-			dotColor: 'bg-red-500 dark:bg-red-400',
+			label: 'metadata only',
+			dotColor: 'bg-amber-500 dark:bg-amber-400',
 		},
 	},
 	{
+		connA: {
+			active: true,
+			reverse: true,
+			label: 'presigned URL',
+			dotColor: 'bg-amber-500 dark:bg-amber-400',
+		},
+		app: { label: 'Blob record created (local DB)', flash: 'amber' },
+	},
+	{
 		connA: { active: false, label: '' },
-		app: { label: 'UploadAvatar: validate_file_size!', flash: 'amber' },
+		client: { label: 'Uploading 50MB direct to S3...', flash: 'blue' },
+		connC: {
+			active: true,
+			reverse: false,
+			label: '50MB uploaded',
+			dotColor: 'bg-amber-500 dark:bg-amber-400',
+		},
+	},
+	{
+		connC: { active: false, label: '' },
+		s3: { label: '50MB on S3 (not attached yet)', flash: 'amber' },
+		client: { label: 'Attaching to profile...', flash: 'blue' },
+		connA: {
+			active: true,
+			reverse: false,
+			label: 'signed ID',
+			dotColor: 'bg-red-500 dark:bg-red-400',
+		},
 	},
 	{
 		connA: {
@@ -452,13 +504,13 @@ const REWARD_BLOCKED_OVERSIZED: AnimationFrame[] = [
 			label: '422 rejected',
 			dotColor: 'bg-red-500 dark:bg-red-400',
 		},
-		app: { label: 'REJECTED: exceeds 10MB limit', flash: 'red' },
+		app: { label: 'UploadAvatar rejects at attach', flash: 'red' },
 	},
 	{
 		connA: { active: false, label: '' },
 		client: { label: '422 Unprocessable Entity', flash: 'red' },
 		warningMessage:
-			'UploadAvatar service rejected: validate_file_size! blocks files over 10MB.',
+			'The 50MB file reached S3 first (direct upload). At attach time UploadAvatar checks blob.byte_size against the 10MB limit and refuses to attach it. The oversized blob is never linked to a user and gets swept up by Active Storage cleanup.',
 	},
 ];
 
@@ -498,8 +550,11 @@ const PROBES: ProbeConfig[] = [
 		command: 'curl -X POST /api/users/1/avatar -F "file=@photo.jpg"',
 		responseLines: [
 			{ text: 'Uploading 5MB through Rails process...', color: 'yellow' },
-			{ text: 'Memory: 45MB -> 95MB (+50MB buffering file!)', color: 'red' },
-			{ text: '10 concurrent uploads = 500MB memory spike', color: 'red' },
+			{ text: 'Memory: 45MB -> 50MB (+5MB buffering the file)', color: 'red' },
+			{
+				text: '10 concurrent uploads = +50MB spike (peak ~95MB)',
+				color: 'red',
+			},
 			{
 				text: 'No presigned URL configured. File routes through app.',
 				color: 'red',
@@ -508,8 +563,8 @@ const PROBES: ProbeConfig[] = [
 		story: [
 			'A seller uploads a 5MB profile photo for their store page.',
 			'The entire file streams through the Rails process into memory.',
-			'Memory jumps from 45MB to 95MB just to handle one upload.',
-			'Ten sellers uploading at the same time would spike memory by 500MB.',
+			'Memory rises from 45MB to 50MB just to handle one upload.',
+			'Ten sellers uploading at once would spike memory by about 50MB (peak ~95MB).',
 			'No presigned URL is configured, so every byte passes through the app server.',
 		],
 	},
@@ -601,11 +656,7 @@ const INSTALL_COMMANDS = [
 
 const INSTALL_OUTPUT = [
 	{
-		text: '  Copied migration ...create_active_storage_tables.migration',
-		color: 'green' as const,
-	},
-	{
-		text: '  create  db/migrate/..._create_active_storage_tables.rb',
+		text: '       copy  db/migrate/..._create_active_storage_tables.active_storage.rb',
 		color: 'green' as const,
 	},
 ];
@@ -778,6 +829,7 @@ end`,
 	{
 		id: 'correct-with-contract',
 		label: `class UploadAvatar < ApplicationService
+  InvalidUpload = Class.new(StandardError)
   Result = Data.define(:success?, :user, :errors)
 
   def initialize(user_id:, blob_signed_id:)
@@ -802,6 +854,24 @@ end`,
   rescue ActiveStorage::FileNotFoundError
     Result.new(success?: false, user: nil,
       errors: ["File not found"])
+  rescue InvalidUpload => e
+    Result.new(success?: false, user: nil,
+      errors: [e.message])
+  end
+
+  private
+
+  ALLOWED = %w[image/jpeg image/png image/webp].freeze
+  MAX_BYTES = 10.megabytes
+
+  def validate_content_type!(blob)
+    return if ALLOWED.include?(blob.content_type)
+    raise InvalidUpload, "content type not allowed"
+  end
+
+  def validate_file_size!(blob)
+    return if blob.byte_size <= MAX_BYTES
+    raise InvalidUpload, "file exceeds 10MB"
   end
 end`,
 		correct: true,
@@ -1010,7 +1080,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 			{ text: '422 Unprocessable Entity', color: 'red' },
 			{ text: '{ error: { code: "INVALID_CONTENT_TYPE" } }', color: 'yellow' },
 			{
-				text: 'UploadAvatar service: validate_content_type! rejected .exe',
+				text: 'File reached S3, but UploadAvatar refused to attach the .exe blob',
 				color: 'red',
 			},
 		],
@@ -1027,7 +1097,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 			{ text: '422 Unprocessable Entity', color: 'red' },
 			{ text: '{ error: { code: "FILE_TOO_LARGE" } }', color: 'yellow' },
 			{
-				text: 'UploadAvatar service: validate_file_size! rejected 50MB (limit: 10MB)',
+				text: 'File reached S3, but UploadAvatar refused to attach 50MB (limit: 10MB)',
 				color: 'red',
 			},
 		],
@@ -1121,7 +1191,8 @@ end`,
 		if (completedStep <= 0) {
 			return [
 				{
-					filename: 'db/migrate/..._create_active_storage_tables.rb',
+					filename:
+						'db/migrate/..._create_active_storage_tables.active_storage.rb',
 					language: 'ruby',
 					code: `# Generated by: bin/rails active_storage:install
 class CreateActiveStorageTables < ActiveRecord::Migration[8.0]
@@ -1271,6 +1342,7 @@ end`,
 					filename: 'app/services/upload_avatar.rb',
 					language: 'ruby',
 					code: `class UploadAvatar < ApplicationService
+  InvalidUpload = Class.new(StandardError)
   Result = Data.define(:success?, :user, :errors)
 
   def initialize(user_id:, blob_signed_id:)
@@ -1295,6 +1367,24 @@ end`,
   rescue ActiveStorage::FileNotFoundError
     Result.new(success?: false, user: nil,
       errors: ["File not found"])
+  rescue InvalidUpload => e
+    Result.new(success?: false, user: nil,
+      errors: [e.message])
+  end
+
+  private
+
+  ALLOWED = %w[image/jpeg image/png image/webp].freeze
+  MAX_BYTES = 10.megabytes
+
+  def validate_content_type!(blob)
+    return if ALLOWED.include?(blob.content_type)
+    raise InvalidUpload, "content type not allowed"
+  end
+
+  def validate_file_size!(blob)
+    return if blob.byte_size <= MAX_BYTES
+    raise InvalidUpload, "file exceeds 10MB"
   end
 end`,
 				},
@@ -1341,6 +1431,7 @@ end`,
 				filename: 'app/services/upload_avatar.rb',
 				language: 'ruby',
 				code: `class UploadAvatar < ApplicationService
+  InvalidUpload = Class.new(StandardError)
   Result = Data.define(:success?, :user, :errors)
 
   def initialize(user_id:, blob_signed_id:)
@@ -1365,6 +1456,24 @@ end`,
   rescue ActiveStorage::FileNotFoundError
     Result.new(success?: false, user: nil,
       errors: ["File not found"])
+  rescue InvalidUpload => e
+    Result.new(success?: false, user: nil,
+      errors: [e.message])
+  end
+
+  private
+
+  ALLOWED = %w[image/jpeg image/png image/webp].freeze
+  MAX_BYTES = 10.megabytes
+
+  def validate_content_type!(blob)
+    return if ALLOWED.include?(blob.content_type)
+    raise InvalidUpload, "content type not allowed"
+  end
+
+  def validate_file_size!(blob)
+    return if blob.byte_size <= MAX_BYTES
+    raise InvalidUpload, "file exceeds 10MB"
   end
 end`,
 			},
@@ -1402,6 +1511,7 @@ end`,
 			filename: 'app/services/upload_avatar.rb',
 			language: 'ruby',
 			code: `class UploadAvatar < ApplicationService
+  InvalidUpload = Class.new(StandardError)
   Result = Data.define(:success?, :user, :errors)
 
   def initialize(user_id:, blob_signed_id:)
@@ -1426,6 +1536,24 @@ end`,
   rescue ActiveStorage::FileNotFoundError
     Result.new(success?: false, user: nil,
       errors: ["File not found"])
+  rescue InvalidUpload => e
+    Result.new(success?: false, user: nil,
+      errors: [e.message])
+  end
+
+  private
+
+  ALLOWED = %w[image/jpeg image/png image/webp].freeze
+  MAX_BYTES = 10.megabytes
+
+  def validate_content_type!(blob)
+    return if ALLOWED.include?(blob.content_type)
+    raise InvalidUpload, "content type not allowed"
+  end
+
+  def validate_file_size!(blob)
+    return if blob.byte_size <= MAX_BYTES
+    raise InvalidUpload, "file exceeds 10MB"
   end
 end`,
 		},

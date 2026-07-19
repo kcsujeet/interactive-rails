@@ -666,7 +666,7 @@ const REWARD_CIRCUIT_FRAMES: AnimFrame[] = [
 	{
 		client: { label: 'Everyone waiting...', flash: 'amber' },
 		app: {
-			label: '5 failures counted...',
+			label: '3 failures counted...',
 			flash: 'amber',
 			threads: ['available', 'available', 'available', 'blocked', 'blocked'],
 			circuitLabel: '3/5 failures',
@@ -764,7 +764,7 @@ const REWARD_FAST_FRAMES: AnimFrame[] = [
 		edge: {
 			active: true,
 			reverse: true,
-			label: '200 Created',
+			label: '200 OK',
 			dotColor: 'bg-emerald-500',
 		},
 		edgeB: { active: false, label: '' },
@@ -980,10 +980,11 @@ const CONFIGURE_CIRCUIT_OPTIONS = [
 	{
 		id: 'wrong-high-threshold',
 		label: 'Open after 50 failures',
-		code: `Stoplight('stripe-api')
-  .with_threshold(50)
-  .with_cool_off_time(300)
-  .run { stripe_client.create_charge(params) }`,
+		code: `Stoplight('stripe-api',
+  threshold: 50,
+  cool_off_time: 300,
+  skipped_errors: [Faraday::ClientError]
+).run { stripe_client.create_charge(params) }`,
 		correct: false,
 		feedback:
 			'50 failures means 50 wasted requests and blocked threads before protection kicks in. The circuit should open much sooner.',
@@ -991,25 +992,22 @@ const CONFIGURE_CIRCUIT_OPTIONS = [
 	{
 		id: 'wrong-no-error-filter',
 		label: 'Trip on all errors including 4xx',
-		code: `Stoplight('stripe-api')
-  .with_threshold(5)
-  .with_cool_off_time(30)
-  .run { stripe_client.create_charge(params) }`,
+		code: `Stoplight('stripe-api',
+  threshold: 5,
+  cool_off_time: 30
+).run { stripe_client.create_charge(params) }`,
 		correct: false,
 		feedback:
 			'This trips the circuit on client errors (400, 422) which are never transient. The circuit should only track server-side failures.',
 	},
 	{
 		id: 'correct',
-		label: 'Threshold 5, filter client errors',
-		code: `Stoplight('stripe-api')
-  .with_threshold(5)
-  .with_cool_off_time(30)
-  .with_error_handler do |error, handle|
-    raise error if error.is_a?(Faraday::ClientError)
-    handle.call(error)  # Only track 5xx / timeouts
-  end
-  .run { stripe_client.create_charge(params) }`,
+		label: 'Threshold 5, skip client errors',
+		code: `Stoplight('stripe-api',
+  threshold: 5,
+  cool_off_time: 30,
+  skipped_errors: [Faraday::ClientError]  # 4xx never trips the breaker
+).run { stripe_client.create_charge(params) }`,
 		correct: true,
 	},
 ];
@@ -1081,14 +1079,11 @@ end`,
         errors: validation.errors.to_h)
     end
 
-    response = Stoplight('stripe-api')
-      .with_threshold(5)
-      .with_cool_off_time(30)
-      .with_error_handler do |error, handle|
-        raise error if error.is_a?(Faraday::ClientError)
-        handle.call(error)
-      end
-      .run { stripe_client.create_charge(@params) }
+    response = Stoplight('stripe-api',
+      threshold: 5,
+      cool_off_time: 30,
+      skipped_errors: [Faraday::ClientError]
+    ).run { stripe_client.create_charge(@params) }
 
     payment = @user.payments.create!(
       amount: @params[:amount], stripe_id: response.body["id"]
@@ -1308,7 +1303,7 @@ end`,
   def initialize
     @connection = Faraday.new(url: 'https://api.stripe.com') do |f|
       f.request :authorization, 'Bearer',
-        Rails.application.credentials.stripe[:secret_key]
+        Rails.application.credentials.dig(:stripe, :secret_key)
       f.request :json
       f.response :json
       f.options.open_timeout = 3
@@ -1354,14 +1349,11 @@ end`,
         errors: validation.errors.to_h)
     end
 
-    response = Stoplight('stripe-api')
-      .with_threshold(5)
-      .with_cool_off_time(30)
-      .with_error_handler do |error, handle|
-        raise error if error.is_a?(Faraday::ClientError)
-        handle.call(error)
-      end
-      .run { stripe_client.create_charge(@params) }
+    response = Stoplight('stripe-api',
+      threshold: 5,
+      cool_off_time: 30,
+      skipped_errors: [Faraday::ClientError]
+    ).run { stripe_client.create_charge(@params) }
 
     payment = @user.payments.create!(
       amount: @params[:amount], stripe_id: response.body["id"]
@@ -1406,7 +1398,7 @@ end`,
   def initialize
     @connection = Faraday.new(url: 'https://api.stripe.com') do |f|
       f.request :authorization, 'Bearer',
-        Rails.application.credentials.stripe[:secret_key]
+        Rails.application.credentials.dig(:stripe, :secret_key)
       f.request :json
       f.request :retry, {
         max: 3,
@@ -1445,14 +1437,11 @@ end`,
         errors: validation.errors.to_h)
     end
 
-    response = Stoplight('stripe-api')
-      .with_threshold(5)
-      .with_cool_off_time(30)
-      .with_error_handler do |error, handle|
-        raise error if error.is_a?(Faraday::ClientError)
-        handle.call(error)
-      end
-      .run { stripe_client.create_charge(@params) }
+    response = Stoplight('stripe-api',
+      threshold: 5,
+      cool_off_time: 30,
+      skipped_errors: [Faraday::ClientError]
+    ).run { stripe_client.create_charge(@params) }
 
     payment = @user.payments.create!(
       amount: @params[:amount], stripe_id: response.body["id"]

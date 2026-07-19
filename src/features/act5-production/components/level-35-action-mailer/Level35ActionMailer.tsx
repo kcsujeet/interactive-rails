@@ -242,11 +242,14 @@ end`,
 	},
 };
 
-// Map stage IDs to discovery IDs they trigger
+// Map stage IDs to discovery IDs they trigger.
+// The three probes cover no-reset-endpoint, manual-resets, and
+// no-token-generation. The remaining discovery (no-mailer) is surfaced by
+// clicking the missing-controller stage, whose inspector explains that no
+// action exists to send a reset email. The router teaches routing, not
+// mailers, so it is intentionally not mapped to a discovery.
 const STAGE_DISCOVERY_MAP: Record<string, string> = {
-	controller: 'no-reset-endpoint',
-	model: 'no-token-generation',
-	router: 'no-mailer',
+	controller: 'no-mailer',
 };
 
 // ──────────────────────────────────────────────
@@ -374,7 +377,10 @@ const TOKEN_OPTIONS: StepOption[] = [
 	},
 ];
 
-// Step 2: Build the password reset email
+// Step 2: Build the password reset email.
+// The reset link points at the React frontend reset page, not the API. The
+// mailer builds that URL from a configured host plus the token and stashes it
+// in @reset_url for the template.
 const EMAIL_OPTIONS: StepOption[] = [
 	{
 		id: 'no-token-in-url',
@@ -385,14 +391,26 @@ const EMAIL_OPTIONS: StepOption[] = [
 	},
 	{
 		id: 'deliver-now-inline',
-		label: `def password_reset(user)\n  @user = user\n  @token = user.generate_token_for(:password_reset)\n  mail(to: user.email, subject: "Reset your password").deliver_now\nend`,
+		label:
+			'def password_reset(user)\n' +
+			'  @user = user\n' +
+			'  @token = user.generate_token_for(:password_reset)\n' +
+			'  @reset_url = "#{FRONTEND_HOST}/reset-password?token=#{@token}"\n' +
+			'  mail(to: user.email, subject: "Reset your password").deliver_now\n' +
+			'end',
 		correct: false,
 		feedback:
 			'Calling deliver_now inside the mailer method blocks the entire request. Delivery should be triggered by the controller, not hardcoded in the mailer.',
 	},
 	{
 		id: 'correct-mailer',
-		label: `def password_reset(user)\n  @user = user\n  @token = user.generate_token_for(:password_reset)\n  mail(to: user.email, subject: "Reset your password")\nend`,
+		label:
+			'def password_reset(user)\n' +
+			'  @user = user\n' +
+			'  @token = user.generate_token_for(:password_reset)\n' +
+			'  @reset_url = "#{FRONTEND_HOST}/reset-password?token=#{@token}"\n' +
+			'  mail(to: user.email, subject: "Reset your password")\n' +
+			'end',
 		correct: true,
 	},
 ];
@@ -404,7 +422,7 @@ const TEMPLATE_OPTIONS: StepOption[] = [
 		label: `<h1>Reset your password</h1>
 <p>Hi {{ user.name }},</p>
 <p>You requested a password reset.</p>
-<p>{{ link_to "Reset password", password_reset_url(token) }}</p>
+<p>{{ link_to "Reset password", reset_url }}</p>
 <p>This link expires in 15 minutes.</p>`,
 		correct: false,
 		feedback:
@@ -415,7 +433,7 @@ const TEMPLATE_OPTIONS: StepOption[] = [
 		label: `<h1>Reset your password</h1>
 <p>Hi <% @user.name %>,</p>
 <p>You requested a password reset.</p>
-<p><% link_to "Reset password", password_reset_url(@token) %></p>
+<p><% link_to "Reset password", @reset_url %></p>
 <p>This link expires in 15 minutes.</p>`,
 		correct: false,
 		feedback:
@@ -426,7 +444,7 @@ const TEMPLATE_OPTIONS: StepOption[] = [
 		label: `<h1>Reset your password</h1>
 <p>Hi <%= @user.name %>,</p>
 <p>You requested a password reset.</p>
-<p><%= link_to "Reset password", password_reset_url(@token) %></p>
+<p><%= link_to "Reset password", @reset_url %></p>
 <p>This link expires in 15 minutes.</p>`,
 		correct: true,
 	},
@@ -659,9 +677,12 @@ end`,
 			code:
 				furthestStep >= 3
 					? `class UserMailer < ApplicationMailer
+  FRONTEND_HOST = "https://shop.example.com"
+
   def password_reset(user)
     @user = user
     @token = user.generate_token_for(:password_reset)
+    @reset_url = "#{'#{FRONTEND_HOST}'}/reset-password?token=#{'#{@token}'}"
 
     mail(to: user.email, subject: "Reset your password")
   end
@@ -672,7 +693,7 @@ end`
     # Build the email method...
   end
 end`,
-			highlight: furthestStep >= 3 ? [3, 4, 6] : [4],
+			highlight: furthestStep >= 3 ? [5, 6, 7, 9] : [4],
 		});
 	}
 
@@ -683,7 +704,7 @@ end`,
 			code: `<h1>Reset your password</h1>
 <p>Hi <%= @user.name %>,</p>
 <p>You requested a password reset.</p>
-<p><%= link_to "Reset password", password_reset_url(@token) %></p>
+<p><%= link_to "Reset password", @reset_url %></p>
 <p>This link expires in 15 minutes.</p>`,
 			highlight: [2, 4],
 		});
@@ -702,11 +723,13 @@ end`,
 
   def update
     user = User.find_by_token_for(:password_reset, params[:token])
-    if user
-      user.update!(password: params[:password])
+    if user.nil?
+      render json: { error: "Invalid or expired token" },
+             status: :unprocessable_entity
+    elsif user.update(password: params[:password])
       render json: { message: "Password updated" }
     else
-      render json: { error: "Invalid or expired token" },
+      render json: { errors: user.errors.full_messages },
              status: :unprocessable_entity
     end
   end

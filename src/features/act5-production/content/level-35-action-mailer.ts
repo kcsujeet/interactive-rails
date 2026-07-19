@@ -79,18 +79,29 @@ class User < ApplicationRecord
   end
 end
 
+# config/application.rb
+# Mailer URL helpers need a host. Unlike controllers, a mailer has no
+# incoming request to infer the domain from, so set it once globally.
+# (Action Mailer Basics guide: "Generating URLs in Action Mailer Views")
+config.action_mailer.default_url_options = { host: "shop.example.com" }
+
 # app/mailers/application_mailer.rb
 class ApplicationMailer < ActionMailer::Base
-  default from: "noreply@socialplatform.com"
+  default from: "noreply@shop.example.com"
   layout "mailer"
 end
 
 # app/mailers/user_mailer.rb
 class UserMailer < ApplicationMailer
+  # The reset link points at the React frontend reset page, NOT the API
+  # endpoint. The customer clicks it, the SPA reads the token from the URL,
+  # then PUTs it to PUT /api/password_resets/:token to set a new password.
+  FRONTEND_HOST = "https://shop.example.com"
+
   def password_reset(user)
     @user = user
     @token = user.generate_token_for(:password_reset)
-    @reset_url = "https://socialplatform.com/reset-password?token=#{@token}"
+    @reset_url = "#{FRONTEND_HOST}/reset-password?token=#{@token}"
 
     mail(
       to: @user.email,
@@ -100,7 +111,7 @@ class UserMailer < ApplicationMailer
 
   def welcome(user)
     @user = user
-    mail(to: @user.email, subject: "Welcome to SocialPlatform!")
+    mail(to: @user.email, subject: "Welcome to the shop!")
   end
 end
 
@@ -108,6 +119,7 @@ end
 <h1>Password Reset</h1>
 <p>Hi <%= @user.name %>,</p>
 <p>Click the link below to reset your password. This link expires in 15 minutes.</p>
+<%# @reset_url points at the frontend reset page, carrying the token %>
 <p><%= link_to "Reset Password", @reset_url %></p>
 <p>If you didn't request this, you can safely ignore this email.</p>
 
@@ -159,7 +171,7 @@ class UserMailerTest < ActionMailer::TestCase
       email.deliver_now
     end
 
-    assert_equal ["noreply@socialplatform.com"], email.from
+    assert_equal ["noreply@shop.example.com"], email.from
     assert_equal [user.email], email.to
     assert_match "Reset your password", email.subject
     assert_match "expires in 15 minutes", email.body.encoded
@@ -265,6 +277,6 @@ end`,
 	},
 	hint: {
 		delay: 25,
-		text: 'Two pieces: a class that composes the email (subject, body, recipient) using ERB templates, and a token mechanism for the password-reset link that does not require storing reset tokens in the database. Rails 7.1+ ships a built-in helper for the second piece.',
+		text: 'Two pieces: a class that composes the email (subject, body, recipient) using ERB templates, and a token mechanism for the password-reset link that does not require storing reset tokens in the database. Rails 8 ships a built-in helper for the second piece.',
 	},
 };

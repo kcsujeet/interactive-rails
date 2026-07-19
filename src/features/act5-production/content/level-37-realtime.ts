@@ -107,6 +107,8 @@ NotificationsChannel.broadcast_to(user, { type: "notification.created", id: noti
 \`\`\`
 This also keeps WebSocket and HTTP semantics aligned: the source of truth lives at the GET endpoint, the WebSocket is a notification of "go fetch this." Cache hits on the HTTP side absorb most of the load.
 
+You may have learned in an earlier level that side effects do not belong in model callbacks. Broadcasting a record's creation is the recognized exception: it is a pure derived notification of a committed state change (it fires only after_commit, it is idempotent, and it is the same for every caller), which is why Rails' own Turbo and broadcasts_to helpers are built on after_commit.
+
 **Per-user rate limiting on subscribe:**
 Each WebSocket subscription opens a server-side resource. A malicious client can subscribe to thousands of channels in a loop. Add a Rack::Attack-style throttle on the subscribe action:
 
@@ -126,9 +128,9 @@ end
 The connection-level rate limit on the underlying WebSocket is separate (handled by the proxy / Rack::Attack); this limits the per-channel subscribe rate.
 
 **Solid Cable retention tradeoffs:**
-\`message_retention: 1.day\` (the example) keeps every broadcast for 24 hours so a reconnecting client can replay missed messages. The cost: every broadcast writes a row, the table grows linearly with broadcast volume, and the cleanup job has to keep up. For a high-volume notification system, drop retention to 1 hour or even 5 minutes. For low-volume apps, 1 day is fine.
+\`message_retention: 1.day\` (the example) is purely a database-cleanup cutoff: how long a row lives in the \`solid_cable_messages\` table before Solid Cable autotrims it. Per the Solid Cable README, messages are autotrimmed based on the \`message_retention\` setting, and the trim runs when a message is broadcast (https://github.com/rails/solid_cable). It is NOT a replay buffer. Action Cable never replays messages to a client that was disconnected, regardless of retention: a larger retention window only means the messages table holds more rows (more database cost) before trimming, it does not hand a late subscriber a backlog.
 
-The retention store is what makes Solid Cable horizontally scalable without Redis: subscribe pulls a backlog from the database. If retention is short, late-joining clients miss messages; if retention is long, the database carries the cost. There is no free lunch here; pick based on the application's tolerance for missed events.
+So pick retention based on broadcast volume and database cost, not on missed-message recovery. For a high-volume notification system, drop retention to 1 hour or even 5 minutes so the table stays small and the trim keeps up. For low-volume apps, 1 day is fine. A reconnecting client recovers missed state by re-fetching from the HTTP API (see below), never from the WebSocket.
 
 **When to graduate from Solid Cable:**
 Solid Cable scales to roughly tens of thousands of concurrent connections per Rails process before the polling adapter (default \`polling_interval: 0.1\` seconds) becomes the bottleneck. Past that, the graduation path is:
@@ -139,12 +141,14 @@ Solid Cable scales to roughly tens of thousands of concurrent connections per Ra
 For a Rails 8 app under "billion-dollar SaaS" load profile, Solid Cable handles the realtime tier of most products without that graduation. The decision is volume-driven; do not graduate prematurely.
 
 **Reconnection and message ordering:**
-WebSockets do not guarantee in-order delivery across reconnects. If the client disconnects mid-broadcast, reconnects, and Solid Cable's retention serves a backlog, the order can shuffle relative to a brand-new broadcast that arrives during reconnect. For ordering-sensitive flows (chat, audit log), include a server-side sequence number in each broadcast and let the client sort:
+Messages broadcast while a client is disconnected are simply lost. Action Cable has no backlog, and Solid Cable's retention is a cleanup cutoff, not a replay buffer, so a reconnecting client never receives what it missed. The correct pattern is: on reconnect, the client re-fetches current state from the HTTP API (the source of truth), then resumes listening for live pushes.
+
+For ordering-sensitive flows (chat, audit log), the live messages a client DOES receive can still arrive slightly out of order, so include a server-side sequence number in each broadcast and let the client order and de-duplicate:
 
 \`\`\`ruby
 { type: "message.created", id: msg.id, seq: msg.id, at: msg.created_at.iso8601(6) }
 \`\`\`
-\`seq\` (use the model id, monotonic by definition) lets the client drop duplicates and re-order the small window of overlap.`,
+\`seq\` (use the model id, monotonic by definition) lets the client drop duplicates and order the small window of live messages it receives.`,
 		railsCodeExample: `# config/cable.yml (Solid Cable, no Redis!)
 production:
   adapter: solid_cable
@@ -163,8 +167,11 @@ module ApplicationCable
     private
 
     def find_verified_user
-      verified = User.find_by(id: cookies.encrypted[:user_id])
-      verified || reject_unauthorized_connection
+      if session = Session.find_by(id: cookies.signed[:session_id])
+        session.user
+      else
+        reject_unauthorized_connection
+      end
     end
   end
 end
@@ -226,7 +233,7 @@ end`,
 			'Broadcasting too much data (send IDs, let client fetch details)',
 			'Using Redis when Solid Cable is sufficient (unnecessary infrastructure)',
 			'Broadcasting in the request cycle instead of via model callbacks',
-			'Cookie-based Connection auth on a SPA / mobile client (cookies are not always sent on cross-origin WebSocket upgrades). Use a session token from the bearer header or a signed query param',
+			'Cookie-based Connection auth on a SPA / mobile client (cookies are not always sent on cross-origin WebSocket upgrades, and browsers cannot set custom headers on the WebSocket handshake). Pass a signed session token as a query parameter on the wss:// URL instead',
 			'Logout that invalidates the session but leaves the WebSocket open (the client keeps receiving private events). Emit a logout event on the user channel and force the client to disconnect',
 			'No per-user subscribe rate limit (a malicious client opens thousands of channels in a loop)',
 			'message_retention: 1.day on a high-volume broadcaster (every broadcast writes a row; the retention table grows faster than cleanup can prune it). Pick a retention window the cleanup job can actually keep up with',

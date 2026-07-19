@@ -94,8 +94,9 @@ export function BuildPhase({
 					</h3>
 					<p className="text-sm text-muted-foreground leading-relaxed">
 						Swap the shell playbook for a reproducible, health-gated deployment.
-						Five steps: add the tool, scaffold config, fill in the deploy
-						manifest, wire secrets, then run the first deploy.
+						Five steps: confirm the tool rails new gave you, review the
+						generated files, fill in the deploy manifest, wire secrets, then run
+						the first deploy.
 					</p>
 				</div>
 				<div className="p-4">

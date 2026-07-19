@@ -73,7 +73,7 @@ describe('Act 5 homework exercises', () => {
 			'bin/rails generate mailer User password_reset',
 		);
 		expect(commandsOf('act5-level36-background-jobs')).toContain(
-			'bin/rails generate solid_queue:install',
+			'bin/rails solid_queue:install',
 		);
 		expect(commandsOf('act5-level36-background-jobs')).toContain('bin/jobs');
 		expect(commandsOf('act5-level37-realtime')).toContain(

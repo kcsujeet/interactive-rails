@@ -1000,8 +1000,6 @@ const BUILD_SERVICE_OPTIONS = [
 		label: 'All logic in the controller action',
 		code: `module Webhooks
   class StripeController < ApplicationController
-    skip_before_action :verify_authenticity_token
-
     def create
       payload = request.body.read
       sig = request.headers['Stripe-Signature']
@@ -1255,9 +1253,8 @@ function getCodeFiles(
 			{
 				filename: 'app/controllers/webhooks_controller.rb',
 				language: 'ruby',
-				code: `class WebhooksController < ApplicationController
-  skip_before_action :verify_authenticity_token
-
+				code: `# Inherits from ActionController::API (this is an API-only app).
+class WebhooksController < ApplicationController
   def stripe
     result = HandleStripeWebhook.call(
       payload: request.body.read)
@@ -1330,9 +1327,8 @@ end${completedStep >= 1 ? '\n# Migration applied. Table created.' : ''}`,
 				filename: 'app/controllers/webhooks/stripe_controller.rb',
 				language: 'ruby',
 				code: `module Webhooks
+  # Inherits from ActionController::API (https://guides.rubyonrails.org/api_app.html).
   class StripeController < ApplicationController
-    skip_before_action :verify_authenticity_token
-
     def create
       payload = request.body.read
       sig_header = request.headers['Stripe-Signature']
@@ -1485,19 +1481,20 @@ end`,
 			filename: 'app/controllers/webhooks/stripe_controller.rb',
 			language: 'ruby',
 			code: `module Webhooks
+  # Inherits from ActionController::API (https://guides.rubyonrails.org/api_app.html).
   class StripeController < ApplicationController
-    skip_before_action :verify_authenticity_token
-
     def create
       result = IngestStripeWebhook.call(
         payload: request.body.read,
         signature: request.headers['Stripe-Signature']
       )
 
-      if result.success?
-        head :ok
+      return head :ok if result.success?
+
+      if result.errors.key?(:payload)
+        head :bad_request      # malformed JSON
       else
-        head :unauthorized
+        head :unauthorized     # bad signature
       end
     end
   end

@@ -1333,7 +1333,7 @@ const AUTHENTICATE_CONNECTION_OPTIONS = [
 	},
 	{
 		id: 'correct',
-		label: `module ApplicationCable\n  class Connection < ActionCable::Connection::Base\n    identified_by :current_user\n\n    def connect\n      self.current_user = find_verified_user\n    end\n\n    private\n\n    def find_verified_user\n      verified = User.find_by(id: cookies.encrypted[:user_id])\n      verified || reject_unauthorized_connection\n    end\n  end\nend`,
+		label: `module ApplicationCable\n  class Connection < ActionCable::Connection::Base\n    identified_by :current_user\n\n    def connect\n      self.current_user = find_verified_user\n    end\n\n    private\n\n    def find_verified_user\n      if session = Session.find_by(id: cookies.signed[:session_id])\n        session.user\n      else\n        reject_unauthorized_connection\n      end\n    end\n  end\nend`,
 		correct: true,
 	},
 	{
@@ -1351,7 +1351,7 @@ const BROADCAST_SERVICE_OPTIONS = [
 		label: `class Api::PaymentsController < ApplicationController\n  def create\n    result = ProcessPayment.call(user: Current.user, params:)\n    if result.success?\n      NotificationsChannel.broadcast_to(\n        Current.user, { type: "payment" })\n      render json: result.payment, status: :created\n    end\n  end\nend`,
 		correct: false,
 		feedback:
-			'Broadcasting in the request cycle blocks the response. Notifications should be triggered by model callbacks or background jobs.',
+			'Broadcasting lives inline in one controller here. Every code path that creates the record has to remember to broadcast, so some will forget and updates go missing. Broadcasting belongs with the record itself so it happens consistently for every caller.',
 	},
 	{
 		id: 'correct',
@@ -1454,7 +1454,7 @@ export const STRESS_SCENARIOS: StressScenario[] = [
 		description: 'No authentication cookies',
 		story: [
 			'Someone tries to open a WebSocket connection without being logged in.',
-			'The find_verified_user method checks cookies.encrypted[:user_id].',
+			'The find_verified_user method looks up the Session by cookies.signed[:session_id].',
 			'It finds nothing. The connection is rejected immediately.',
 			'No anonymous users can subscribe to notification channels.',
 		],
@@ -1593,7 +1593,7 @@ function getCodeFiles(phase: Phase, completedStep: number) {
 				{
 					filename: 'app/channels/application_cable/connection.rb',
 					language: 'ruby',
-					code: `module ApplicationCable\n  class Connection < ActionCable::Connection::Base\n    identified_by :current_user\n\n    def connect\n      self.current_user = find_verified_user\n    end\n\n    private\n\n    def find_verified_user\n      verified = User.find_by(id: cookies.encrypted[:user_id])\n      verified || reject_unauthorized_connection\n    end\n  end\nend`,
+					code: `module ApplicationCable\n  class Connection < ActionCable::Connection::Base\n    identified_by :current_user\n\n    def connect\n      self.current_user = find_verified_user\n    end\n\n    private\n\n    def find_verified_user\n      if session = Session.find_by(id: cookies.signed[:session_id])\n        session.user\n      else\n        reject_unauthorized_connection\n      end\n    end\n  end\nend`,
 				},
 				{
 					filename: 'app/channels/notifications_channel.rb',

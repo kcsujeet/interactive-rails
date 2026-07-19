@@ -98,7 +98,7 @@ Two transactions that lock multiple rows in different orders deadlock:
 T1: lock Product A, then lock Order X
 T2: lock Order X, then lock Product A
 \`\`\`
-Each waits forever for the other. PostgreSQL detects the cycle and aborts one with \`ActiveRecord::Deadlocked\` (covered in L33's retry pattern). The defensive rule: always acquire locks in a consistent order across the codebase. Pick a canonical sort (by id, by class name) and stick to it. The convention has to be a codebase-wide rule; one careless service that locks Order before Product creates the cycle.
+Each waits forever for the other. PostgreSQL detects the cycle and aborts one with \`ActiveRecord::Deadlocked\` (covered in L32's retry pattern). The defensive rule: always acquire locks in a consistent order across the codebase. Pick a canonical sort (by id, by class name) and stick to it. The convention has to be a codebase-wide rule; one careless service that locks Order before Product creates the cycle.
 
 **Lock timeouts:**
 \`SELECT FOR UPDATE\` waits for the lock. If another transaction holds it for 30 seconds because of an HTTP call, your request blocks for those 30 seconds. Set a per-statement lock timeout to fail fast:
@@ -241,7 +241,7 @@ end`,
 			'Using SELECT FOR UPDATE for queue-style "next available row" processing instead of FOR UPDATE SKIP LOCKED (every worker fights every other)',
 			'No retry around StaleObjectError for server-driven optimistic-lock flows (one momentary conflict bubbles up as a 500)',
 			'No database-level CHECK constraint as a safety net (an application bug can drive stock_count negative without the database noticing)',
-			'Doing HTTP calls inside the transaction holding the lock (covered in L33 but worth restating: connection pool exhaustion plus long-held locks cascade)',
+			'Doing HTTP calls inside the transaction holding the lock (covered in L32 but worth restating: connection pool exhaustion plus long-held locks cascade)',
 		],
 		whenToUse:
 			'Pessimistic locking for inventory and financial data. Optimistic locking for product details and content edits.',

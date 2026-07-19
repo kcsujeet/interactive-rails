@@ -16,7 +16,7 @@ export const level49Deployment: Level = {
 		observation:
 			'Each release involves scp, ssh, and a systemctl restart. Users see 502s during the restart window. A bad release takes 20 minutes to undo by hand, and there is no record of what was running before.',
 		rootCause:
-			'No deployment system: no Docker image, no registry, no reverse proxy, no health-gated traffic shift, no rollback.',
+			'The deploy scaffolding rails new generated (Dockerfile, config/deploy.yml, .kamal/secrets) was never configured or used. The team still ships by hand: no registry, no reverse proxy, no health-gated traffic shift, no rollback.',
 		codeExample: `# Day of the release. Your deploy playbook is:
 
 scp -r . user@prod:/var/www/app
@@ -45,7 +45,7 @@ ssh user@prod "systemctl restart puma"
 		title: 'Deployment with Kamal',
 		goal: `In this level, you'll:
 - learn how Rails 8 apps ship to production with Kamal.
-- generate and configure a deployment manifest for your servers.
+- configure the deployment manifest rails new already generated, including a job role for the worker.
 - wire secrets so credentials never live in a committed file.
 - run a first-time deploy, then an incremental deploy, and understand why they are different.`,
 		conceptExplanation: `Kamal is Rails 8's default deployment tool. It packages your app as a Docker image, pushes it to a container registry, pulls it onto your servers over SSH, and rotates containers behind a proxy with a health check before it sends any real traffic to the new release.
@@ -56,12 +56,14 @@ ssh user@prod "systemctl restart puma"
 - \`kamal rollback\` re-routes to the previous image tag instantly, no rebuild.
 - One command deploys to N servers in a coordinated rotation.
 
-**The two config files:**
+**What rails new already gave you:**
+Rails 8 puts \`kamal\` in the Gemfile and generates \`config/deploy.yml\`, \`.kamal/secrets\`, and a \`Dockerfile\` at \`rails new\`. You are not installing or scaffolding the tool: you are customizing files that already exist.
 - \`config/deploy.yml\`: service name, Docker image, servers, registry, proxy settings. Committed to the repo.
 - \`.kamal/secrets\`: references env vars and commands that resolve to secrets at deploy time. Never contains literal secret values.
 
 **Commands you'll meet:**
-- \`kamal init\` scaffolds the two config files.
+- \`kamal version\` confirms the binary that \`rails new\` already added to the Gemfile.
+- \`kamal build push\` builds the image and pushes it to the registry (no deploy).
 - \`kamal setup\` first-time deploy. Installs Docker on the server, logs in to the registry, runs your app.
 - \`kamal deploy\` incremental deploy. Reuses the already-prepared servers.
 - \`kamal rollback\` flip traffic back to the previous image.
@@ -81,21 +83,20 @@ Either pattern only works if migrations are **backward-compatible** (covered in 
 
 (Kamal also supports lifecycle hooks via \`.kamal/hooks/<name>\` executable files. The official docs describe \`pre-deploy\` as the place for "final checks before deploying, e.g., checking CI completed" rather than a prescribed migrations location, so this curriculum picks one of the two patterns above instead.)
 
-**Accessory containers (workers, scheduler, cache):**
-A Rails 8 app does not run as one container. Solid Queue needs a worker process (\`bin/jobs\`), Solid Cable needs the connection adapter, the recurring scheduler needs to be running somewhere. Kamal models these as accessories:
+**The job worker: a role, not an accessory:**
+A Rails 8 app does not run as one container. Solid Queue needs a worker process (\`bin/jobs\`) running the same code as the web app. The right place for it is a custom **role** under \`servers:\`, not an accessory:
 
 \`\`\`yaml
-accessories:
-  worker:
-    image: my-registry.example.com/my-org/my-app
+servers:
+  web:
+    - 192.0.2.10
+    - 192.0.2.11
+  job:
+    hosts:
+      - 192.0.2.12
     cmd: bin/jobs
-    host: 192.0.2.10
-    env:
-      secret:
-        - RAILS_MASTER_KEY
-        - DATABASE_URL
 \`\`\`
-The accessory uses the same image as the web service, ensuring the worker and the web app are always at the same SHA. Without an accessory definition, \`perform_later\` queues jobs that nothing ever runs (the most common Rails 8 background-jobs bug, called out in \`rails-conventions.md\`).
+A role under \`servers:\` is deployed and rotated on every \`kamal deploy\`, so the worker always runs the exact same image SHA as the web containers ([roles docs](https://kamal-deploy.org/docs/configuration/roles/)). An **accessory** would be the wrong tool here: per the Kamal docs, accessories are managed separately, are not updated when you deploy, and have no zero-downtime rotation ([accessories docs](https://kamal-deploy.org/docs/configuration/accessories/)). A worker modelled as an accessory would keep running yesterday's code after the next deploy. Accessories are for third-party services you run in Docker but do not build from your app image (a standalone Redis or a database). Without a job role, \`perform_later\` queues jobs that nothing ever runs (the most common Rails 8 background-jobs bug, called out in \`rails-conventions.md\`).
 
 **Asset precompilation in the image:**
 The Dockerfile runs \`bundle install\` and \`bin/rails assets:precompile\` at build time so the image ships with compiled assets in \`public/assets/\`. Propshaft (Rails 8's default) fingerprints filenames so the same asset can be cached forever. Kamal's proxy serves them with appropriate cache headers. The build is the slow step; runtime startup is fast.
@@ -134,11 +135,12 @@ kamal app exec --reuse "bin/rails runner 'raise unless Stripe::Account.retrieve.
 
 **Master key handling:**
 \`RAILS_MASTER_KEY\` lives outside the repo in \`config/master.key\` (git-ignored). \`.kamal/secrets\` references it via \`$(cat config/master.key)\`. In CI, expose the key as a CI secret env var; locally, keep it on disk. Never commit the master key, never paste it in deploy.yml, never log it. The encrypted credentials file is useless without it; the master key is the entire trust boundary.`,
-		railsCodeExample: `# 1. Add Kamal to the project
-#    $ bundle add kamal
-#    $ kamal init
+		railsCodeExample: `# 1. Kamal is already in the Gemfile from rails new.
+#    Confirm it, then look at the files rails new generated.
+#    $ kamal version
+#    $ ls config/deploy.yml .kamal/secrets Dockerfile
 
-# config/deploy.yml
+# config/deploy.yml (customize the generated file)
 service: my_app
 
 image: my-registry.example.com/my-org/my-app
@@ -147,6 +149,10 @@ servers:
   web:
     - 192.0.2.10
     - 192.0.2.11
+  job:
+    hosts:
+      - 192.0.2.12
+    cmd: bin/jobs
 
 proxy:
   ssl: true
@@ -186,7 +192,8 @@ DATABASE_URL=$(op read "op://prod/app/DATABASE_URL")
 			'Shipping without a /up endpoint so the proxy has no way to health-gate a broken release',
 			'Running kamal deploy on a brand-new host before kamal setup has prepared it',
 			'Assuming the old container keeps running forever. Kamal stops it once the new one is healthy',
-			'No accessory for the Solid Queue worker. perform_later queues jobs and nothing ever runs them',
+			'No job role for the Solid Queue worker. perform_later queues jobs and nothing ever runs them',
+			'Modelling the job worker as an accessory. Accessories are not updated on deploy, so the worker keeps running the previous release code after the next deploy',
 			'Running migrations after traffic has shifted instead of before. The new container hits a schema it expects to exist; the old containers still hit the pre-migrated schema',
 			'Migrations that are not backward-compatible (NOT NULL without default, column rename, type change). Old containers crash the moment the migration commits',
 			'Re-tagging an image SHA after rebuilding (kamal rollback no longer points at the bytes you think it does)',
@@ -220,10 +227,13 @@ DATABASE_URL=$(op read "op://prod/app/DATABASE_URL")
 		],
 		homework: [
 			{
-				task: 'Scaffold the deploy config: add Kamal to your project, generate the two config files, and read through what each section of deploy.yml controls.',
-				commands: ['bundle add kamal', 'kamal init'],
+				task: 'Confirm the deploy scaffolding rails new already gave you: check that Kamal is installed, then read through what each section of the generated deploy.yml controls.',
+				commands: [
+					'kamal version',
+					'ls config/deploy.yml .kamal/secrets Dockerfile',
+				],
 				verify:
-					'config/deploy.yml and .kamal/secrets exist, and .kamal/secrets contains only references (env vars, command substitutions), no literal secret values.',
+					'config/deploy.yml, .kamal/secrets, and Dockerfile all exist from rails new, and .kamal/secrets contains only references (env vars, command substitutions), no literal secret values.',
 			},
 			{
 				task: 'Fill in deploy.yml for a hypothetical server: service name, image, one web server IP, registry, and a proxy block with an /up healthcheck, referencing RAILS_MASTER_KEY through .kamal/secrets.',
@@ -241,6 +251,6 @@ DATABASE_URL=$(op read "op://prod/app/DATABASE_URL")
 	},
 	hint: {
 		delay: 30,
-		text: 'Start with the gem, then generate the config files, then wire secrets before you run any deploy command.',
+		text: 'The tooling and config files already exist from rails new. Confirm them, then customize the manifest and secrets before you run any deploy command.',
 	},
 };

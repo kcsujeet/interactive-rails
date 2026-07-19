@@ -8,6 +8,8 @@
  * - Cross-phase consistency
  */
 
+const EM_DASH = String.fromCharCode(8212);
+
 import { describe, expect, test } from 'bun:test';
 
 // ── Mirrored data from Level38ExternalAPIs.tsx ──
@@ -234,6 +236,94 @@ const ALL_OPTION_SETS = [
 	{ name: 'CONFIGURE_RETRY_OPTIONS', options: CONFIGURE_RETRY_OPTIONS },
 	{ name: 'CONFIGURE_CIRCUIT_OPTIONS', options: CONFIGURE_CIRCUIT_OPTIONS },
 	{ name: 'BUILD_SERVICE_OPTIONS', options: BUILD_SERVICE_OPTIONS },
+];
+
+// ── Mirrored Stoplight code (constructor-kwargs API, no builder chain) ──
+// Current Stoplight uses constructor keyword arguments; the builder methods
+// .with_threshold / .with_cool_off_time / .with_error_handler were removed.
+// See https://github.com/bolshakov/stoplight
+
+const CIRCUIT_CORRECT_CODE = `Stoplight('stripe-api',
+  threshold: 5,
+  cool_off_time: 30,
+  skipped_errors: [Faraday::ClientError]  # 4xx never trips the breaker
+).run { stripe_client.create_charge(params) }`;
+
+const BUILD_SERVICE_CORRECT_CODE = `class ProcessPayment < ApplicationService
+  Result = Data.define(:success?, :payment, :errors)
+
+  def initialize(user:, params:)
+    @user = user
+    @params = params
+  end
+
+  def call
+    validation = PaymentContract.new.call(@params)
+    if validation.failure?
+      return Result.new(success?: false, payment: nil,
+        errors: validation.errors.to_h)
+    end
+
+    response = Stoplight('stripe-api',
+      threshold: 5,
+      cool_off_time: 30,
+      skipped_errors: [Faraday::ClientError]
+    ).run { stripe_client.create_charge(@params) }
+
+    payment = @user.payments.create!(
+      amount: @params[:amount], stripe_id: response.body["id"]
+    )
+    Result.new(success?: true, payment:, errors: {})
+  rescue Stoplight::Error::RedLight
+    Result.new(success?: false, payment: nil,
+      errors: { payment: ["Service temporarily unavailable"] })
+  end
+
+  private
+
+  def stripe_client
+    @stripe_client ||= StripeClient.new
+  end
+end`;
+
+const STRIPE_CLIENT_REWARD_CODE = `class StripeClient
+  def initialize
+    @connection = Faraday.new(url: 'https://api.stripe.com') do |f|
+      f.request :authorization, 'Bearer',
+        Rails.application.credentials.dig(:stripe, :secret_key)
+      f.request :json
+      f.request :retry, {
+        max: 3,
+        interval: 0.5,
+        interval_randomness: 0.5,
+        backoff_factor: 2,
+        retry_statuses: [429, 500, 502, 503, 504],
+        methods: [:get, :head, :options, :put, :delete]
+      }
+      f.response :json
+      f.options.open_timeout = 3
+      f.options.timeout = 10
+    end
+  end
+
+  def create_charge(params)
+    @connection.post('/v1/charges', params)
+  end
+end`;
+
+// Every string a player can read in the circuit-breaker steps or the reward
+// code preview. Guards against the removed builder API and the wrong-stack /
+// wrong-secret patterns coming back.
+const CANONICAL_CODE_STRINGS = [
+	CIRCUIT_CORRECT_CODE,
+	BUILD_SERVICE_CORRECT_CODE,
+	STRIPE_CLIENT_REWARD_CODE,
+];
+
+const REMOVED_BUILDER_METHODS = [
+	'.with_threshold',
+	'.with_cool_off_time',
+	'.with_error_handler',
 ];
 
 // ── Stress scenarios ──
@@ -500,6 +590,59 @@ describe('Level 38: External APIs', () => {
 			const wrong = BUILD_SERVICE_OPTIONS.filter((o) => !o.correct);
 			for (const opt of wrong) {
 				expect(opt.feedback ?? '').not.toContain('Stoplight::Error::RedLight');
+			}
+		});
+	});
+
+	describe('Stoplight API is the constructor-kwargs form (no builder chain)', () => {
+		test('no canonical code string uses a removed builder method', () => {
+			for (const code of CANONICAL_CODE_STRINGS) {
+				for (const method of REMOVED_BUILDER_METHODS) {
+					expect(code).not.toContain(method);
+				}
+			}
+		});
+
+		test('circuit-breaker correct answer uses threshold: and cool_off_time: kwargs', () => {
+			expect(CIRCUIT_CORRECT_CODE).toContain('threshold: 5');
+			expect(CIRCUIT_CORRECT_CODE).toContain('cool_off_time: 30');
+			expect(CIRCUIT_CORRECT_CODE).toContain('skipped_errors:');
+		});
+
+		test('build-service correct answer uses the constructor-kwargs light', () => {
+			expect(BUILD_SERVICE_CORRECT_CODE).toContain('threshold: 5');
+			expect(BUILD_SERVICE_CORRECT_CODE).toContain('cool_off_time: 30');
+			expect(BUILD_SERVICE_CORRECT_CODE).toContain('skipped_errors:');
+		});
+
+		test('no canonical code string uses Sidekiq perform_in', () => {
+			for (const code of CANONICAL_CODE_STRINGS) {
+				expect(code).not.toContain('perform_in(');
+			}
+		});
+
+		test('no canonical code string reads the secret from ENV', () => {
+			for (const code of CANONICAL_CODE_STRINGS) {
+				expect(code).not.toContain("ENV['STRIPE_SECRET_KEY']");
+			}
+		});
+
+		test('reward StripeClient reads the secret from Rails credentials', () => {
+			expect(STRIPE_CLIENT_REWARD_CODE).toContain(
+				'Rails.application.credentials.dig(:stripe, :secret_key)',
+			);
+		});
+
+		test('no canonical code string wraps calls in Timeout.timeout', () => {
+			for (const code of CANONICAL_CODE_STRINGS) {
+				expect(code).not.toContain('Timeout.timeout');
+			}
+		});
+
+		test('no canonical code string contains an em dash', () => {
+			const emDash = EM_DASH;
+			for (const code of CANONICAL_CODE_STRINGS) {
+				expect(code).not.toContain(emDash);
 			}
 		});
 	});

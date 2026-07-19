@@ -191,17 +191,21 @@ export const MOUNT_ADMIN_UI_OPTIONS: StepOption[] = [
 			'Restricting to localhost (`req.local?`) means the admin UI is unreachable in production, where you actually need it during incidents. Oncall cannot flip a kill switch from their laptop.',
 	},
 	{
-		id: 'wrong-rails-env-block',
+		id: 'wrong-devise-authenticate',
 		label:
-			"if Rails.env.development?\n  mount Flipper::UI.app(Flipper) => '/flipper'\nend",
+			"authenticate :user, ->(user) { user.admin? } do\n  mount Flipper::UI.app(Flipper) => '/flipper'\nend",
 		correct: false,
 		feedback:
-			'Same problem as the localhost variant: the UI does not exist in production. The whole point of flags is to let oncall flip switches in prod without redeploying.',
+			'That routing helper ships with Devise, which this app does not use (it is on the Rails 8 built-in auth generator). The route would boot to a NameError. You need a gate built from the primitives this app actually has.',
 	},
 	{
 		id: 'correct',
+		// A route constraint that reads the session and checks admin is the
+		// Rails-8-built-in-auth-correct gate. Ref (Flipper docs recommend route
+		// constraints): https://www.flippercloud.io/docs/ui and
+		// https://guides.rubyonrails.org/routing.html (class-based constraints).
 		label:
-			"authenticate :user, ->(user) { user.admin? } do\n  mount Flipper::UI.app(Flipper) => '/flipper'\nend",
+			"constraints(AdminConstraint.new) do\n  mount Flipper::UI.app(Flipper) => '/flipper'\nend",
 		correct: true,
 	},
 ];

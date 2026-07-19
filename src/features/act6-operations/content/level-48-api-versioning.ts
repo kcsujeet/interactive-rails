@@ -133,13 +133,13 @@ end
 
 Two RFCs define the wire format. If you want clients (and tooling) to actually read your deprecation signal, follow them:
 
-- **RFC 9745 \`Deprecation\`** carries the date the version became deprecated. Use an HTTP-date string or a Unix timestamp prefixed with \`@\`. \`Deprecation: true\` works in practice but is not RFC-conformant; clients that auto-parse the header (calculating "days since deprecated") will see nothing.
+- **RFC 9745 \`Deprecation\`** carries the date the version became deprecated, encoded as a structured-field Date: an \`@\`-prefixed Unix timestamp (e.g. \`@1780272000\` for 2026-06-01). \`Deprecation: true\` works in practice but is not RFC-conformant; clients that auto-parse the header (calculating "days since deprecated") will see nothing.
 - **RFC 8594 \`Sunset\`** carries the HTTP-date when the version will go away. After that date the server is allowed to return \`410 Gone\`.
 - \`Link: <https://api.example.com/api/v2/docs>; rel="successor-version"\` is the standard way to point clients at the replacement.
 
 \`\`\`http
-Deprecation: Sat, 01 Jan 2026 00:00:00 GMT
-Sunset:      Mon, 01 Jun 2026 00:00:00 GMT
+Deprecation: @1780272000
+Sunset:      Tue, 01 Jun 2027 00:00:00 GMT
 Link:        <https://api.example.com/api/v2/docs>; rel="successor-version"
 \`\`\`
 
@@ -225,8 +225,9 @@ module Api
       private
 
       def add_deprecation_headers
-        response.headers['Deprecation'] = 'true'
-        response.headers['Sunset'] = 'Sat, 01 Jun 2026 00:00:00 GMT'
+        # RFC 9745: @-prefixed Unix timestamp for 2026-06-01
+        response.headers['Deprecation'] = '@1780272000'
+        response.headers['Sunset'] = 'Tue, 01 Jun 2027 00:00:00 GMT'
         response.headers['Link'] = '<https://api.example.com/api/v2/docs>; rel="successor-version"'
       end
     end

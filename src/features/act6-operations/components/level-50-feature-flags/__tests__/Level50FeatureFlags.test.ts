@@ -338,7 +338,7 @@ describe('Level 49: Feature Flags & Staged Rollouts', () => {
 			1: ['flipper:setup', 'db:migrate'],
 			2: ['Flipper.enabled?'],
 			3: ['enable_percentage_of_actors'],
-			4: ['authenticate :user', 'Flipper::UI'],
+			4: ['AdminConstraint', 'Flipper::UI'],
 		};
 
 		test('preview while working on step k does not contain step k answer signatures', () => {
@@ -360,8 +360,11 @@ describe('Level 49: Feature Flags & Staged Rollouts', () => {
 			expect(blob).toContain('Flipper.enabled?');
 			expect(blob).toContain('Current.user');
 			expect(blob).toContain('LegacyPaymentProcessor');
-			expect(blob).toContain('authenticate :user');
+			expect(blob).toContain('constraints(AdminConstraint.new)');
 			expect(blob).toContain('Flipper::UI.app(Flipper)');
+			// Devise's authenticate helper must never appear (this app is on the
+			// Rails 8 built-in auth generator).
+			expect(blob).not.toContain('authenticate :user');
 		});
 	});
 
@@ -379,11 +382,21 @@ describe('Level 49: Feature Flags & Staged Rollouts', () => {
 			expect(correct?.label).not.toContain('percentage_of_time');
 		});
 
-		test('the admin-UI correct answer mounts inside an admin-only authenticate block', () => {
+		test('the admin-UI correct answer mounts inside a Rails route constraints block (not Devise authenticate)', () => {
 			const correct = MOUNT_ADMIN_UI_OPTIONS.find((o) => o.correct);
-			expect(correct?.label).toContain('authenticate');
-			expect(correct?.label).toContain('admin?');
+			expect(correct?.label).toContain('constraints(AdminConstraint.new)');
 			expect(correct?.label).toContain('Flipper::UI');
+			// The Rails 8 built-in auth app has no Devise `authenticate` helper.
+			expect(correct?.label).not.toContain('authenticate :user');
+		});
+
+		test('the Devise authenticate variant is present as a WRONG option', () => {
+			const devise = MOUNT_ADMIN_UI_OPTIONS.find(
+				(o) => o.id === 'wrong-devise-authenticate',
+			);
+			expect(devise?.correct).toBe(false);
+			expect(devise?.label).toContain('authenticate :user');
+			expect(devise?.feedback ?? '').toContain('Devise');
 		});
 	});
 
@@ -547,5 +560,40 @@ describe('Level 50: reward wiring', () => {
 		for (const key of Object.keys(SCENARIO_REWARD_OVERRIDES)) {
 			expect(ids.has(key), `override for "${key}" has no button`).toBe(true);
 		}
+	});
+});
+
+// ---------------------------------------------------------------------------
+// Cross-level honesty with L49 (kamal rollback is fast; a hand redeploy is
+// not the alternative) and correct HTTP status for an unmatched route.
+// ---------------------------------------------------------------------------
+
+describe('Level 50: cross-level + HTTP correctness', () => {
+	const probeText = (id: string) => {
+		const p = PROBES.find((x) => x.id === id);
+		return [
+			...(p?.responseLines ?? []).map((l) => l.text),
+			...((p?.story as string[] | undefined) ?? []),
+		].join('\n');
+	};
+
+	test('no probe claims a 30-minute Kamal redeploy (L49: rollback is ~2s)', () => {
+		for (const p of PROBES) {
+			const blob = probeText(p.id);
+			expect(blob).not.toContain('30 min');
+			expect(blob).not.toContain('~30');
+		}
+	});
+
+	test('vendor-flaky kill-switch probe returns 404 for the unmatched route, not 501', () => {
+		const blob = probeText('vendor-flaky');
+		expect(blob).toContain('404');
+		expect(blob).not.toContain('501');
+	});
+
+	test('the flag advantage is framed as surgical scope vs full-release rollback', () => {
+		const blob = probeText('rollout-everyone').toLowerCase();
+		expect(blob).toContain('rollback');
+		expect(blob).toContain('release');
 	});
 });

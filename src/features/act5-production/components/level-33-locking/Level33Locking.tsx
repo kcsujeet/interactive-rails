@@ -114,11 +114,11 @@ const PROBES: ProbeConfig[] = [
 			'# Admin A: raise price by $10, Admin B: raise price by $5 (simultaneously)',
 		responseLines: [
 			{
-				text: 'Admin A: Product.find(1) => price: $50.00, lock_version: nil',
+				text: 'Admin A: Product.find(1) => price: $50.00',
 				color: 'cyan',
 			},
 			{
-				text: 'Admin B: Product.find(1) => price: $50.00, lock_version: nil',
+				text: 'Admin B: Product.find(1) => price: $50.00',
 				color: 'cyan',
 			},
 			{
@@ -264,7 +264,7 @@ const MIGRATE_OUTPUT = [
 		color: 'green' as const,
 	},
 	{
-		text: '-- add_column(:products, :lock_version, :integer, {:default=>0, :null=>false})',
+		text: '-- add_column(:products, :lock_version, :integer, default: 0, null: false)',
 		color: 'green' as const,
 	},
 	{
@@ -449,7 +449,7 @@ const OPTION_STEP_CONFIG: Record<
 	2: {
 		title: 'Add Pessimistic Locking',
 		description:
-			'For financial operations, acquire a row lock to prevent concurrent modifications.',
+			'A checkout is not just a counter decrement: it also creates an Order and an AuditLog that must commit with the stock change as one unit. A row lock holds the product steady while all three writes happen, so a bare atomic UPDATE on stock_count alone is not enough here.',
 		options: PESSIMISTIC_OPTIONS,
 	},
 	3: {
@@ -482,7 +482,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		responseLines: [
 			{ text: '200 OK', color: 'green' },
 			{
-				text: 'Transaction: lock -> deduct 10 -> create order -> create order -> commit',
+				text: 'Transaction: lock -> deduct 10 -> create order -> audit log -> commit',
 				color: 'cyan',
 			},
 			{ text: 'Stock: 15 -> 5', color: 'green' },
@@ -720,7 +720,7 @@ const OBSERVE_CHECKOUT_FRAMES: AnimationFrame[] = [
 	},
 	{
 		dbRow: {
-			values: ['1', 'Laptop Pro', '$50.00', '5', '(none)'],
+			values: ['1', 'Laptop Pro', '$50.00', '5'],
 			flashCells: { 3: 'success' },
 		},
 		requestA: {
@@ -741,7 +741,7 @@ const OBSERVE_CHECKOUT_FRAMES: AnimationFrame[] = [
 	},
 	{
 		dbRow: {
-			values: ['1', 'Laptop Pro', '$50.00', '7', '(none)'],
+			values: ['1', 'Laptop Pro', '$50.00', '7'],
 			flashCells: { 3: 'overwrite' },
 		},
 		requestB: {
@@ -761,8 +761,8 @@ const OBSERVE_CHECKOUT_FRAMES: AnimationFrame[] = [
 const OBSERVE_STALE_EDIT_FRAMES: AnimationFrame[] = [
 	{
 		dbRow: {
-			columns: ['id', 'name', 'price', 'stock_count', 'lock_version'],
-			values: ['1', 'Laptop Pro', '$50.00', '15', '(none)'],
+			columns: ['id', 'name', 'price', 'stock_count'],
+			values: ['1', 'Laptop Pro', '$50.00', '15'],
 			flashCells: { 2: 'reading' },
 		},
 		requestA: {
@@ -815,7 +815,7 @@ const OBSERVE_STALE_EDIT_FRAMES: AnimationFrame[] = [
 	},
 	{
 		dbRow: {
-			values: ['1', 'Laptop Pro', '$60.00', '15', '(none)'],
+			values: ['1', 'Laptop Pro', '$60.00', '15'],
 			flashCells: { 2: 'success' },
 		},
 		requestA: {
@@ -836,7 +836,7 @@ const OBSERVE_STALE_EDIT_FRAMES: AnimationFrame[] = [
 	},
 	{
 		dbRow: {
-			values: ['1', 'Laptop Pro', '$55.00', '15', '(none)'],
+			values: ['1', 'Laptop Pro', '$55.00', '15'],
 			flashCells: { 2: 'overwrite' },
 		},
 		requestB: {
@@ -853,7 +853,9 @@ const OBSERVE_STALE_EDIT_FRAMES: AnimationFrame[] = [
 	},
 ];
 
-const REWARD_ALLOWED_FRAMES: AnimationFrame[] = [
+// Two concurrent requests, both serialized by the lock.
+// A buys 10 (15 -> 5, v0 -> v1), B waits then buys 3 (5 -> 2, v1 -> v2).
+const REWARD_CONCURRENT_FRAMES: AnimationFrame[] = [
 	{
 		dbRow: { flashCells: { 3: 'locked' } },
 		requestA: {
@@ -927,6 +929,58 @@ const REWARD_ALLOWED_FRAMES: AnimationFrame[] = [
 		mismatchCounter: '13 units sold, 13 deducted. Correct!',
 	},
 ];
+
+// A single customer buys `qty` units. Lock -> deduct -> commit.
+// Starting stock is 15, lock_version 0 -> 1. Only Request A runs.
+function buildSingleOrderFrames(qty: number): AnimationFrame[] {
+	const remaining = 15 - qty;
+	return [
+		{
+			dbRow: { flashCells: { 3: 'locked' } },
+			requestA: {
+				newLogEntry: {
+					icon: 'lock',
+					text: 'SELECT ... FOR UPDATE (lock acquired)',
+					variant: 'default',
+				},
+			},
+		},
+		{
+			requestA: {
+				newLogEntry: {
+					icon: 'cpu',
+					text: `Computing: 15 - ${qty} = ${remaining}`,
+					variant: 'default',
+				},
+			},
+		},
+		{
+			dbRow: {
+				values: ['1', 'Laptop Pro', '$50.00', String(remaining), '1'],
+				flashCells: { 3: 'success', 4: 'success' },
+			},
+			requestA: {
+				newLogEntry: {
+					icon: 'save',
+					text: `COMMIT! stock_count = ${remaining}, lock_version = 1`,
+					variant: 'success',
+				},
+				badge: { text: 'COMMITTED', variant: 'success' },
+			},
+			mismatchCounter: `${qty} units sold, ${qty} deducted. Correct!`,
+		},
+	];
+}
+
+const REWARD_SINGLE_ORDER_FRAMES = buildSingleOrderFrames(10);
+const REWARD_TRANSFER_FRAMES = buildSingleOrderFrames(5);
+
+const REWARD_ALLOWED_FRAMES_MAP: Record<string, AnimationFrame[]> = {
+	'single-order': REWARD_SINGLE_ORDER_FRAMES,
+	transfer: REWARD_TRANSFER_FRAMES,
+	'concurrent-order-locked': REWARD_CONCURRENT_FRAMES,
+	'concurrent-checkout': REWARD_CONCURRENT_FRAMES,
+};
 
 const BLOCKED_FRAMES_INSUFFICIENT_STOCK: AnimationFrame[] = [
 	{
@@ -1246,11 +1300,13 @@ end`,
 					language: 'ruby',
 					code: `class AddLockVersionToProducts < ActiveRecord::Migration[8.0]
   def change
+    # Generated bare; edit to add default: 0, null: false
+    # so every product starts at lock_version 0.
     add_column :products, :lock_version, :integer,
       default: 0, null: false
   end
 end`,
-					highlight: [3, 4],
+					highlight: [5, 6],
 				},
 			];
 		}
@@ -1261,11 +1317,13 @@ end`,
 					language: 'ruby',
 					code: `class AddLockVersionToProducts < ActiveRecord::Migration[8.0]
   def change
+    # Generated bare; edit to add default: 0, null: false
+    # so every product starts at lock_version 0.
     add_column :products, :lock_version, :integer,
       default: 0, null: false
   end
 end`,
-					highlight: [3, 4],
+					highlight: [5, 6],
 				},
 				{
 					filename: 'app/services/place_order.rb (next step)',
@@ -1441,8 +1499,8 @@ export function Level33Locking({ onComplete }: LevelComponentProps) {
 
 	// Database row state
 	const defaultDbRow: ProductRowState = {
-		columns: ['id', 'name', 'price', 'stock_count', 'lock_version'],
-		values: ['1', 'Laptop Pro', '$50.00', '15', '(none)'],
+		columns: ['id', 'name', 'price', 'stock_count'],
+		values: ['1', 'Laptop Pro', '$50.00', '15'],
 		flashCells: {},
 	};
 	const [dbRow, setDbRow] = useState<ProductRowState>(defaultDbRow);
@@ -1560,8 +1618,8 @@ export function Level33Locking({ onComplete }: LevelComponentProps) {
 
 			if (probeId === 'concurrent-checkout') {
 				setDbRow({
-					columns: ['id', 'name', 'price', 'stock_count', 'lock_version'],
-					values: ['1', 'Laptop Pro', '$50.00', '15', '(none)'],
+					columns: ['id', 'name', 'price', 'stock_count'],
+					values: ['1', 'Laptop Pro', '$50.00', '15'],
 					flashCells: {},
 				});
 				setRequestA({ ...emptyCardA, log: [] });
@@ -1572,8 +1630,8 @@ export function Level33Locking({ onComplete }: LevelComponentProps) {
 				});
 			} else {
 				setDbRow({
-					columns: ['id', 'name', 'price', 'stock_count', 'lock_version'],
-					values: ['1', 'Laptop Pro', '$50.00', '15', '(none)'],
+					columns: ['id', 'name', 'price', 'stock_count'],
+					values: ['1', 'Laptop Pro', '$50.00', '15'],
 					flashCells: {},
 				});
 				setRequestA({
@@ -1640,7 +1698,7 @@ export function Level33Locking({ onComplete }: LevelComponentProps) {
 				},
 				'concurrent-checkout': {
 					a: '{ product_id: 1, qty: 10 }',
-					b: '{ product_id: 1, qty: 8 }',
+					b: '{ product_id: 1, qty: 3 }',
 				},
 				transfer: {
 					a: '{ product_id: 1, qty: 5 }',
@@ -1687,7 +1745,8 @@ export function Level33Locking({ onComplete }: LevelComponentProps) {
 
 			const frames =
 				scenario.expectedResult === 'allowed'
-					? REWARD_ALLOWED_FRAMES
+					? (REWARD_ALLOWED_FRAMES_MAP[scenarioId] ??
+						REWARD_SINGLE_ORDER_FRAMES)
 					: (BLOCKED_FRAMES_MAP[scenarioId] ??
 						BLOCKED_FRAMES_INSUFFICIENT_STOCK);
 

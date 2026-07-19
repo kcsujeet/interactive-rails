@@ -14,7 +14,7 @@
  *   Step 0: Identify the atomicity problem
  *   Step 1: Wrap operations in ActiveRecord::Base.transaction
  *   Step 2: Handle custom abort with raise ActiveRecord::Rollback
- *   Step 3: Build BoostPost service with contract + transaction
+ *   Step 3: Build BoostProduct service with contract + transaction
  *
  * Phase 3 (ADVANTAGE - reward): Same DB snapshot, now with transaction boundary
  *   (dashed border). On success, all tables update + COMMIT label. On failure,
@@ -84,7 +84,10 @@ type Phase = 'observe' | 'build' | 'reward';
 // ──────────────────────────────────────────────
 
 const DISCOVERY_DEFS: DiscoveryDef[] = [
-	{ id: 'credits-no-boost', label: 'Credits deducted but post never boosted' },
+	{
+		id: 'credits-no-boost',
+		label: 'Credits deducted but product never boosted',
+	},
 	{ id: 'orphan-boost', label: 'Product boosted without audit trail' },
 ];
 
@@ -100,7 +103,7 @@ const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
 const PROBES: ProbeConfig[] = [
 	{
 		id: 'boost-fail',
-		label: 'Boost post (Boost.create! fails)',
+		label: 'Boost product (Boost.create! fails)',
 		command: '# Deduct credits, then create boost (boost fails)',
 		responseLines: [
 			{
@@ -116,13 +119,13 @@ const PROBES: ProbeConfig[] = [
 				color: 'muted',
 			},
 			{
-				text: 'Credits deducted but post was never boosted!',
+				text: 'Credits deducted but product was never boosted!',
 				color: 'red',
 			},
 			{ text: 'No rollback. 10 credits vanished.', color: 'red' },
 		],
 		story: [
-			'A seller clicks "Boost Post" to promote their Laptop Pro listing.',
+			'A seller clicks "Boost Product" to promote their Laptop Pro listing.',
 			'The system deducts 10 credits from their account and saves immediately.',
 			'Next it tries to create the Boost record, but validation fails.',
 			'The credit deduction already committed. There is no rollback.',
@@ -131,7 +134,7 @@ const PROBES: ProbeConfig[] = [
 	},
 	{
 		id: 'log-fail',
-		label: 'Boost post (CreditLog fails)',
+		label: 'Boost product (CreditLog fails)',
 		command: '# Deduct credits, create boost, then log (log fails)',
 		responseLines: [
 			{
@@ -281,11 +284,11 @@ end`,
 	},
 ];
 
-// OptionCard step 3: Build BoostPost service
+// OptionCard step 3: Build BoostProduct service
 const SERVICE_OPTIONS = [
 	{
 		id: 'wrong-no-contract',
-		label: `class BoostPost < ApplicationService
+		label: `class BoostProduct < ApplicationService
   Result = Data.define(:success?, :boost, :errors)
 
   def initialize(user_id:, product_id:, cost:)
@@ -316,7 +319,7 @@ end`,
 	},
 	{
 		id: 'correct-with-contract',
-		label: `class BoostPost < ApplicationService
+		label: `class BoostProduct < ApplicationService
   Result = Data.define(:success?, :boost, :errors)
 
   def initialize(user_id:, product_id:, cost:)
@@ -451,13 +454,13 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		id: 'log-fail',
 		label: 'POST boost (CreditLog fails)',
 		description:
-			'Credit log creation fails mid-transaction, entire operation rolled back',
+			'Credit log write fails on a dropped DB connection, entire operation rolled back',
 		method: 'POST',
 		path: '/api/boosts',
 		actor: 'authenticated user',
 		expectedResult: 'blocked',
 		responseLines: [
-			{ text: '422 Unprocessable Entity', color: 'red' },
+			{ text: '500 Internal Server Error', color: 'red' },
 			{
 				text: 'CreditLog.create! raised ConnectionError inside transaction',
 				color: 'yellow',
@@ -485,46 +488,6 @@ const STRESS_SCENARIOS: StressScenario[] = [
 			{
 				text: 'Rejected before transaction. No writes attempted.',
 				color: 'cyan',
-			},
-		],
-	},
-	{
-		id: 'boost-creation-fails',
-		label: 'POST boost (creation error)',
-		description: 'Boost creation fails mid-transaction, rollback triggered',
-		method: 'POST',
-		path: '/api/boosts',
-		actor: 'authenticated user',
-		expectedResult: 'blocked',
-		responseLines: [
-			{ text: '422 Unprocessable Entity', color: 'red' },
-			{
-				text: 'Boost.create! raised RecordInvalid',
-				color: 'yellow',
-			},
-			{
-				text: 'Transaction ROLLED BACK. Credits unchanged.',
-				color: 'green',
-			},
-		],
-	},
-	{
-		id: 'log-fails-rollback',
-		label: 'POST boost (log fails, rollback)',
-		description: 'Credit log creation fails, entire transaction rolls back',
-		method: 'POST',
-		path: '/api/boosts',
-		actor: 'authenticated user',
-		expectedResult: 'blocked',
-		responseLines: [
-			{ text: '422 Unprocessable Entity', color: 'red' },
-			{
-				text: 'CreditLog.create! raised ConnectionError',
-				color: 'yellow',
-			},
-			{
-				text: 'Transaction ROLLED BACK. Credits and boost both undone.',
-				color: 'green',
 			},
 		],
 	},
@@ -842,7 +805,7 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
 			{
 				filename: 'app/services/boost_product.rb',
 				language: 'ruby',
-				code: `class BoostPost < ApplicationService
+				code: `class BoostProduct < ApplicationService
   Result = Data.define(:success?, :boost, :errors)
 
   def initialize(user_id:, product_id:, cost:)
@@ -960,7 +923,7 @@ end`,
 		{
 			filename: 'app/services/boost_product.rb',
 			language: 'ruby',
-			code: `class BoostPost < ApplicationService
+			code: `class BoostProduct < ApplicationService
   Result = Data.define(:success?, :boost, :errors)
 
   def initialize(user_id:, product_id:, cost:)
@@ -997,7 +960,7 @@ end`,
 			language: 'ruby',
 			code: `class Api::BoostsController < ApplicationController
   def create
-    result = BoostPost.call(
+    result = BoostProduct.call(
       user_id: Current.user.id,
       product_id: boost_params[:product_id],
       cost: boost_params[:cost])
@@ -1007,7 +970,7 @@ end`,
     else
       render json: { error: {
         code: "BOOST_FAILED",
-        message: "Could not boost post",
+        message: "Could not boost product",
         details: result.errors } },
         status: :unprocessable_entity
     end
@@ -1137,7 +1100,7 @@ export function Level32Transactions({ onComplete }: LevelComponentProps) {
 
 				const t3 = setTimeout(() => {
 					setProblemCallout(
-						'Credits deducted but post was never boosted. 10 credits vanished with nothing to show.',
+						'Credits deducted but product was never boosted. 10 credits vanished with nothing to show.',
 					);
 					setVizAnimating(false);
 					const discoveries = PROBE_DISCOVERY_MAP[probeId] ?? [];
@@ -1281,10 +1244,7 @@ export function Level32Transactions({ onComplete }: LevelComponentProps) {
 
 				const t1 = setTimeout(() => {
 					// Tentative write, then failure
-					if (
-						scenarioId === 'boost-creation-fails' ||
-						scenarioId === 'boost-fail'
-					) {
+					if (scenarioId === 'boost-fail') {
 						setRewardDb((prev) => ({ ...prev, usersCredits: 40 }));
 						setRewardFlash({
 							users: 'success',
@@ -1294,10 +1254,7 @@ export function Level32Transactions({ onComplete }: LevelComponentProps) {
 						setRewardOps(['success', 'failed', 'skipped']);
 						setRewardError('boosts');
 						setRewardErrorMsg('RecordInvalid');
-					} else if (
-						scenarioId === 'log-fails-rollback' ||
-						scenarioId === 'log-fail'
-					) {
+					} else if (scenarioId === 'log-fail') {
 						setRewardDb({
 							usersCredits: 40,
 							boostRow: { userId: 1, postId: 42, reach: 5000 },
@@ -1312,17 +1269,28 @@ export function Level32Transactions({ onComplete }: LevelComponentProps) {
 						setRewardError('creditLogs');
 						setRewardErrorMsg('ConnectionError');
 					} else {
-						// negative-credits: contract rejects before transaction
+						// negative-credits: contract rejects before ANY DB access.
+						// No write is attempted, so no table flashes red.
 						setRewardFlash({
-							users: 'failed',
+							users: 'none',
 							boosts: 'none',
 							creditLogs: 'none',
 						});
-						setRewardOps(['failed', 'skipped', 'skipped']);
+						setRewardOps(['skipped', 'skipped', 'skipped']);
 					}
 				}, step);
 
 				const t2 = setTimeout(() => {
+					if (scenarioId === 'negative-credits') {
+						// No transaction ran, so there is nothing to roll back.
+						// The contract rejected the request before any DB access.
+						setRewardDb({ ...INITIAL_DB });
+						setRewardFlash({ ...INITIAL_FLASH });
+						setRewardOps(['skipped', 'skipped', 'skipped']);
+						setRewardError(null);
+						setRewardErrorMsg(undefined);
+						return;
+					}
 					// Rollback: revert everything
 					setRewardDb({ ...INITIAL_DB });
 					setRewardFlash({
@@ -1337,7 +1305,9 @@ export function Level32Transactions({ onComplete }: LevelComponentProps) {
 				}, step * 2);
 
 				const t3 = setTimeout(() => {
-					setRewardFlash({ ...INITIAL_FLASH });
+					if (scenarioId !== 'negative-credits') {
+						setRewardFlash({ ...INITIAL_FLASH });
+					}
 					setVizAnimating(false);
 				}, step * 3);
 

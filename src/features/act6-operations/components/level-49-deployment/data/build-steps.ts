@@ -2,59 +2,65 @@ import type { TerminalStepData } from '@/components/levels';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 
 export const STEP_DEFS = [
-	{ id: 'add-kamal', title: 'Add Kamal to the project' },
-	{ id: 'kamal-init', title: 'Generate deploy config' },
+	{ id: 'confirm-kamal', title: 'Confirm Kamal is installed' },
+	{ id: 'review-scaffold', title: 'Review the generated deploy files' },
 	{ id: 'deploy-yml', title: 'Configure config/deploy.yml' },
 	{ id: 'kamal-secrets', title: 'Wire .kamal/secrets' },
 	{ id: 'kamal-setup', title: 'Run the first deploy' },
 ];
 
-export const ADD_KAMAL_COMMANDS = [
+// Rails 8 already puts kamal in the Gemfile at `rails new`, so there is no
+// install step. Confirm the binary is available instead.
+// Ref: https://guides.rubyonrails.org/getting_started.html (rails new
+// generates a Dockerfile, .kamal/, and config/deploy.yml by default).
+export const CONFIRM_KAMAL_COMMANDS = [
 	{
 		id: 'wrong-brew',
 		label: 'brew install kamal',
 		command: 'brew install kamal',
 		correct: false,
 		feedback:
-			'Kamal is a Ruby gem, not a system package. Homebrew will not find it in its formula index.',
+			'Rails 8 already added Kamal to your Gemfile at `rails new`, and it is not a system package anyway. You do not need to install it again.',
 	},
 	{
-		id: 'wrong-cap',
-		label: 'bundle add capistrano',
-		command: 'bundle add capistrano',
+		id: 'wrong-add',
+		label: 'bundle add kamal',
+		command: 'bundle add kamal',
 		correct: false,
 		feedback:
-			'Capistrano is a different deploy tool, not the Rails 8 default. Add the tool Rails 8 actually ships with.',
+			'Kamal is already in the Gemfile from `rails new`. Adding it again is a no-op. You just need to confirm the binary runs.',
 	},
 	{
 		id: 'correct',
-		label: 'bundle add kamal',
-		command: 'bundle add kamal',
+		label: 'kamal version',
+		command: 'kamal version',
 		correct: true,
 	},
 ];
 
-export const KAMAL_INIT_COMMANDS = [
+// rails new already scaffolded config/deploy.yml, .kamal/secrets, and the
+// Dockerfile. There is no `kamal init` to run; confirm the files exist.
+export const REVIEW_SCAFFOLD_COMMANDS = [
+	{
+		id: 'wrong-init',
+		label: 'kamal init',
+		command: 'kamal init',
+		correct: false,
+		feedback:
+			'`rails new` already generated the deploy config and the Dockerfile. Re-scaffolding would overwrite the files you are about to customize.',
+	},
 	{
 		id: 'wrong-generate',
 		label: 'bin/rails generate deploy',
 		command: 'bin/rails generate deploy',
 		correct: false,
 		feedback:
-			'Rails has no deploy generator. The scaffolding comes from the deploy tool itself, not `rails generate`.',
-	},
-	{
-		id: 'wrong-new',
-		label: 'kamal new',
-		command: 'kamal new',
-		correct: false,
-		feedback:
-			'That is not a Kamal subcommand. Scaffolding an existing project uses a different verb.',
+			'Rails has no deploy generator, and the deploy files already exist from `rails new`. You only need to look at what is already there.',
 	},
 	{
 		id: 'correct',
-		label: 'kamal init',
-		command: 'kamal init',
+		label: 'ls config/deploy.yml .kamal/secrets Dockerfile',
+		command: 'ls config/deploy.yml .kamal/secrets Dockerfile',
 		correct: true,
 	},
 ];
@@ -98,13 +104,20 @@ proxy:
 	},
 	{
 		id: 'correct',
-		label: 'Config with servers, registry, and a health-gated proxy',
+		label: 'Config with web + job roles, registry, and a health-gated proxy',
+		// A "job" role under servers: rotates on every deploy (same image SHA
+		// as web), so the Solid Queue worker is never left running stale code.
+		// Ref: https://kamal-deploy.org/docs/configuration/roles/
 		code: `service: my_app
 image: my-org/my-app
 servers:
   web:
     - 192.0.2.10
     - 192.0.2.11
+  job:
+    hosts:
+      - 192.0.2.12
+    cmd: bin/jobs
 proxy:
   ssl: true
   host: app.example.com
@@ -186,12 +199,12 @@ export const KAMAL_SETUP_COMMANDS = [
 			'This command assumes the servers are already prepared. For the very first deploy on a brand-new host, something else has to install Docker and log in to the registry first.',
 	},
 	{
-		id: 'wrong-push',
-		label: 'kamal push',
-		command: 'kamal push',
+		id: 'wrong-build-push',
+		label: 'kamal build push',
+		command: 'kamal build push',
 		correct: false,
 		feedback:
-			'Pushing builds and ships the image but does not prepare a fresh host. The first-run command does more than that.',
+			'This builds and ships the image to the registry but does not prepare a fresh host (install Docker, log in to the registry). The first-run command does more than that.',
 	},
 	{
 		id: 'correct',
@@ -205,37 +218,46 @@ const KAMAL_SETUP_OUTPUT: Array<{
 	text: string;
 	color?: 'default' | 'green' | 'yellow' | 'red' | 'cyan' | 'muted';
 }> = [
-	{ text: 'Ensuring Docker is installed on 192.0.2.10...', color: 'muted' },
-	{ text: 'Ensuring Docker is installed on 192.0.2.11...', color: 'muted' },
+	{ text: 'Ensuring Docker is installed on all hosts...', color: 'muted' },
 	{ text: 'Logging in to ghcr.io on all servers...', color: 'muted' },
 	{ text: 'Building image my-org/my-app:abc123...', color: 'cyan' },
 	{ text: 'Pushing image to ghcr.io...', color: 'cyan' },
 	{
-		text: 'Starting container on 192.0.2.10 (healthcheck: /up)...',
+		text: 'Starting web container on 192.0.2.10 (healthcheck: /up)...',
 		color: 'muted',
 	},
 	{ text: 'Healthy. Shifting traffic.', color: 'green' },
 	{
-		text: 'Starting container on 192.0.2.11 (healthcheck: /up)...',
+		text: 'Starting web container on 192.0.2.11 (healthcheck: /up)...',
 		color: 'muted',
 	},
 	{ text: 'Healthy. Shifting traffic.', color: 'green' },
+	{
+		text: 'Starting job container on 192.0.2.12 (cmd: bin/jobs)...',
+		color: 'muted',
+	},
+	{ text: 'Worker up. Solid Queue processing jobs.', color: 'green' },
 	{ text: '\u2713 App live at https://app.example.com', color: 'green' },
 ];
 
 export const TERMINAL_STEP_MAP: Array<TerminalStepData | null> = [
 	{
-		commands: shuffleOptions(ADD_KAMAL_COMMANDS, 0),
+		commands: shuffleOptions(CONFIRM_KAMAL_COMMANDS, 0),
 		outputLines: [
-			{ text: 'Resolving dependencies...', color: 'muted' },
-			{ text: 'Added kamal (2.3.0)', color: 'green' },
+			{ text: 'Kamal 2.3.0', color: 'green' },
+			{ text: '(already in the Gemfile from rails new)', color: 'muted' },
 		],
 	},
 	{
-		commands: shuffleOptions(KAMAL_INIT_COMMANDS, 1),
+		commands: shuffleOptions(REVIEW_SCAFFOLD_COMMANDS, 1),
 		outputLines: [
-			{ text: 'Created config/deploy.yml', color: 'green' },
-			{ text: 'Created .kamal/secrets', color: 'green' },
+			{ text: 'config/deploy.yml', color: 'green' },
+			{ text: '.kamal/secrets', color: 'green' },
+			{ text: 'Dockerfile', color: 'green' },
+			{
+				text: '(all generated by rails new; now customize them)',
+				color: 'muted',
+			},
 		],
 	},
 	null,
@@ -249,11 +271,11 @@ export const TERMINAL_STEP_MAP: Array<TerminalStepData | null> = [
 export function describeStep(step: number): string {
 	switch (step) {
 		case 0:
-			return 'Rails 8 has a default deployment tool. Bring it into the project as a gem.';
+			return 'Rails 8 already added the default deployment tool to your Gemfile at rails new. Confirm the binary runs.';
 		case 1:
-			return 'Scaffold the two files the deploy tool needs: a manifest and a secrets reference.';
+			return 'rails new already generated the deploy manifest, the secrets file, and the Dockerfile. Look at what is already there before customizing it.';
 		case 2:
-			return 'Pick the deploy manifest that declares servers, routes traffic through a proxy with a health check, and keeps secrets out of the committed file.';
+			return 'Pick the deploy manifest that declares web and job servers, routes traffic through a proxy with a health check, and keeps secrets out of the committed file.';
 		case 3:
 			return 'Pick the secrets file that resolves values at deploy time instead of storing them in plaintext.';
 		case 4:

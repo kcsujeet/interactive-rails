@@ -127,7 +127,8 @@ const MIGRATION_COMMANDS = [
 	},
 	{
 		id: 'correct-polymorphic',
-		label: 'rails g model Review body:text reviewable:references{polymorphic}',
+		label:
+			'rails g model Review body:text reviewable:references{polymorphic} user:references',
 		command:
 			'rails generate model Review body:text reviewable:references{polymorphic} user:references',
 		correct: true,
@@ -140,7 +141,7 @@ const MIGRATION_COMMANDS = [
 			'rails generate model Review body:text reviewable_type:string reviewable_id:integer',
 		correct: false,
 		feedback:
-			'Adding columns manually works but misses the composite index, so every lookup by parent scans the whole table. The generator shorthand creates the columns and the index together.',
+			'Typing the two columns out by hand works, but it is verbose and easy to get subtly wrong. There is a shorthand that declares both columns as a single polymorphic reference and wires up the matching index for you.',
 	},
 ];
 
@@ -184,12 +185,7 @@ const RUN_MIGRATION_OUTPUT = [
 	{ text: '-- create_table(:reviews)', color: 'green' as const },
 	{ text: '   -> 0.0045s', color: 'muted' as const },
 	{
-		text: '-- add_index(:reviews, [:reviewable_type, :reviewable_id])',
-		color: 'green' as const,
-	},
-	{ text: '   -> 0.0012s', color: 'muted' as const },
-	{
-		text: '== CreateReviews: migrated (0.0057s) ====',
+		text: '== CreateReviews: migrated (0.0045s) ====',
 		color: 'green' as const,
 	},
 ];
@@ -416,7 +412,7 @@ const OPTION_STEP_CONFIG: Record<
 	3: {
 		title: 'Update Parent Models',
 		description:
-			'Add the polymorphic has_many association to Product, ProductImage, and ProductVideo.',
+			'Add the polymorphic has_many association to Product, Photo, and Video.',
 		options: PARENT_MODEL_OPTIONS,
 	},
 	4: {
@@ -529,8 +525,8 @@ end
       t.references :user, null: false, foreign_key: true
       t.timestamps
     end
-    add_index :reviews,
-      [:reviewable_type, :reviewable_id]
+    # polymorphic: true already adds the composite
+    # [reviewable_type, reviewable_id] index.
   end
 end`,
 					highlight: [5],
@@ -550,8 +546,8 @@ end`,
       t.references :user, null: false, foreign_key: true
       t.timestamps
     end
-    add_index :reviews,
-      [:reviewable_type, :reviewable_id]
+    # polymorphic: true already adds the composite
+    # [reviewable_type, reviewable_id] index.
   end
 end`,
 				},
@@ -746,6 +742,11 @@ end`,
 			filename: 'app/controllers/api/reviews_controller.rb',
 			language: 'ruby',
 			code: `class Api::ReviewsController < ApplicationController
+  # Only these types can be reviewed. Never call
+  # constantize on a raw URL segment: an attacker
+  # could name any class in the app.
+  REVIEWABLE_TYPES = %w[Product Photo Video Seller].freeze
+
   before_action :set_reviewable
 
   def create
@@ -770,8 +771,10 @@ end`,
 
   def set_reviewable
     resource, id = request.path.split("/")[3..4]
-    @reviewable = resource.singularize.classify
-      .constantize.find(id)
+    type = resource.to_s.singularize.classify
+    return head :not_found unless
+      REVIEWABLE_TYPES.include?(type)
+    @reviewable = type.constantize.find(id)
   end
 end`,
 		},
@@ -864,8 +867,8 @@ export function Level30Polymorphic({ onComplete }: LevelComponentProps) {
 		},
 		{
 			id: 4,
-			body: 'Nice analysis',
-			type: 'Article',
+			body: 'Fast shipping, thanks!',
+			type: 'Seller',
 			typeId: 2,
 			userId: 8,
 			createdAt: 'Mar 15',
@@ -899,7 +902,7 @@ export function Level30Polymorphic({ onComplete }: LevelComponentProps) {
 								: [
 										'Compare the before (3 tables) and after (1 table)',
 										'Notice the polymorphic columns replace separate foreign keys',
-										'New types like Article need zero schema changes',
+										'New types like Seller need zero schema changes',
 									]
 					}
 					scenario="Photos and Videos now need reviews alongside Products. Three separate review tables with identical schemas, duplicated validations, and scattered queries. Polymorphic associations can unify them."
@@ -909,9 +912,8 @@ export function Level30Polymorphic({ onComplete }: LevelComponentProps) {
 						{phase === 'intro' && (
 							<div className="p-4 text-xs text-muted-foreground space-y-2">
 								<p>
-									Three models need reviews: Product, ProductImage, and
-									ProductVideo. Each has its own review table with nearly
-									identical schemas.
+									Three models need reviews: Product, Photo, and Video. Each has
+									its own review table with nearly identical schemas.
 								</p>
 								<p>
 									Polymorphic associations replace all three with a single
@@ -937,7 +939,7 @@ export function Level30Polymorphic({ onComplete }: LevelComponentProps) {
 									reviewable_type and reviewable_id columns replace product_id,
 									photo_id, and video_id.
 								</p>
-								<p>Adding Article reviews required zero schema changes.</p>
+								<p>Adding Seller reviews required zero schema changes.</p>
 							</div>
 						)}
 					</div>

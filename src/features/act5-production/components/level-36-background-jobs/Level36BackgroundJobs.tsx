@@ -141,7 +141,7 @@ const PROBES: ProbeConfig[] = [
 		responseLines: [
 			{ text: 'HTTP/1.1 500 Internal Server Error', color: 'red' },
 			{
-				text: 'Net::SMTPAuthenticationError: SMTP connection refused',
+				text: 'Errno::ECONNREFUSED: Connection refused - connect(2) for smtp:587',
 				color: 'red',
 			},
 			{ text: 'Response time: 8.3s (timeout)', color: 'red' },
@@ -152,8 +152,8 @@ const PROBES: ProbeConfig[] = [
 		],
 		story: [
 			'Carol registers, but the SMTP server is down.',
-			'The controller calls deliver_now, which tries to connect for 8.3 seconds before timing out.',
-			'Net::SMTPAuthenticationError propagates up and the entire request returns a 500.',
+			'The controller calls deliver_now, which tries to connect for 8.3 seconds before the connection is refused.',
+			'Errno::ECONNREFUSED propagates up and the entire request returns a 500.',
 			'Carol\'s account was created in the database, but the response says "error." A non-critical email failure killed the registration.',
 		],
 	},
@@ -338,17 +338,22 @@ const TERMINAL_STEP_0 = {
 		},
 		{
 			id: 'solid-queue',
-			label: 'bin/rails generate solid_queue:install',
-			command: 'bin/rails generate solid_queue:install',
+			label: 'bin/rails solid_queue:install',
+			command: 'bin/rails solid_queue:install',
 			correct: true,
 		},
 	],
 	outputLines: [
 		{ text: 'create  config/queue.yml', color: 'green' as const },
+		{ text: 'create  config/recurring.yml', color: 'green' as const },
 		{ text: 'create  db/queue_schema.rb', color: 'green' as const },
-		{ text: 'insert  config/application.rb', color: 'green' as const },
+		{ text: 'create  bin/jobs', color: 'green' as const },
 		{
-			text: '  config.active_job.queue_adapter = :solid_queue',
+			text: 'insert  config/environments/production.rb',
+			color: 'green' as const,
+		},
+		{
+			text: '  config.solid_queue.connects_to = { database: { writing: :queue } }',
 			color: 'muted' as const,
 		},
 		{
@@ -511,25 +516,28 @@ const IDEMPOTENT_OPTIONS: StepOption[] = [
 	},
 ];
 
-// Step 3: Switch Service to Async
+// Step 3: Switch Service to Async.
+// The service enqueues the SendWelcomeNotificationJob the player built in
+// steps 1-2 (so its idempotency guard actually runs), plus the profile sync
+// job. Both are enqueued with perform_later, so nothing blocks the response.
 const ASYNC_OPTIONS: StepOption[] = [
 	{
 		id: 'perform-now',
-		label: `UserMailer.welcome(user).deliver_now\nSyncExternalProfileJob.perform_now(user.id)`,
+		label: `SendWelcomeNotificationJob.perform_now(user.id)\nSyncExternalProfileJob.perform_now(user.id)`,
 		correct: false,
 		feedback:
-			'deliver_now and perform_now both run synchronously. The whole point is to stop blocking the HTTP response.',
+			'perform_now runs the job inline, right now, on the request thread. The whole point is to stop blocking the HTTP response.',
 	},
 	{
 		id: 'partial-async',
-		label: `UserMailer.welcome(user).deliver_later\nSyncExternalProfileJob.perform_now(user.id)`,
+		label: `SendWelcomeNotificationJob.perform_later(user.id)\nSyncExternalProfileJob.perform_now(user.id)`,
 		correct: false,
 		feedback:
-			'The mailer is async, but the profile sync still runs inline. All side effects should be moved to the background.',
+			'The welcome job is async, but the profile sync still runs inline. All side effects should be moved to the background.',
 	},
 	{
 		id: 'full-async',
-		label: `UserMailer.welcome(user).deliver_later\nSyncExternalProfileJob.perform_later(user.id)`,
+		label: `SendWelcomeNotificationJob.perform_later(user.id)\nSyncExternalProfileJob.perform_later(user.id)`,
 		correct: true,
 	},
 ];
@@ -628,14 +636,13 @@ end
 	if (furthestStep === 0) {
 		// Step 0: Configuring Solid Queue
 		files.push({
-			filename: 'config/application.rb',
+			filename: 'config/environments/production.rb',
 			language: 'ruby',
-			code: `module MyApp
-  class Application < Rails::Application
-    # Rails 8: Solid Queue as default job backend
-    # Database-backed, no Redis needed
-    config.active_job.queue_adapter = :solid_queue
-  end
+			code: `Rails.application.configure do
+  # Rails 8: Solid Queue is the default job backend.
+  # Database-backed, no Redis needed. The installer wrote
+  # this line and created bin/jobs + config/queue.yml.
+  config.solid_queue.connects_to = { database: { writing: :queue } }
 end`,
 			highlight: [5],
 		});
@@ -721,7 +728,7 @@ end`,
     user = User.create!(@params)
 
     # All side effects are now background jobs
-    UserMailer.welcome(user).deliver_later
+    SendWelcomeNotificationJob.perform_later(user.id)
     SyncExternalProfileJob.perform_later(user.id)
 
     # Response returns instantly (< 200ms)

@@ -183,15 +183,15 @@ const V2_SERIALIZER_OPTIONS = [
 
 const DEPRECATION_OPTIONS = [
 	{
-		id: 'wrong-no-headers',
-		label: 'No deprecation signal (just update docs)',
+		id: 'wrong-bare-true',
+		label: 'response.headers["Deprecation"] = "true"',
 		correct: false,
 		feedback:
-			'Documentation alone is not enough. Partners parse response headers programmatically. Without Deprecation headers, automated migration tools cannot detect the change.',
+			'A bare "true" is not RFC-conformant. The Deprecation header (RFC 9745) carries a date value, so clients that auto-parse it to calculate "days since deprecated" get nothing useful from a boolean.',
 	},
 	{
 		id: 'correct',
-		label: 'Add Deprecation and Link headers to v1',
+		label: 'response.headers["Deprecation"] = "@1780272000" (RFC 9745 date)',
 		correct: true,
 	},
 	{
@@ -271,7 +271,10 @@ const STRESS_SCENARIOS = [
 		responseLines: [
 			{ text: '200 OK', color: 'green' },
 			{ text: '{ "total": 1999 }', color: 'green' },
-			{ text: 'Deprecation: true, Sunset: 2027-06-01', color: 'yellow' },
+			{
+				text: 'Deprecation: @1780272000, Sunset: 01 Jun 2027',
+				color: 'yellow',
+			},
 		],
 	},
 	{
@@ -283,8 +286,8 @@ const STRESS_SCENARIOS = [
 		actor: 'v1-partner',
 		expectedResult: 'allowed' as const,
 		responseLines: [
-			{ text: 'Deprecation: true', color: 'yellow' },
-			{ text: 'Sunset: Sun, 01 Jun 2027 00:00:00 GMT', color: 'yellow' },
+			{ text: 'Deprecation: @1780272000', color: 'yellow' },
+			{ text: 'Sunset: Tue, 01 Jun 2027 00:00:00 GMT', color: 'yellow' },
 			{
 				text: 'Link: </api/v2/docs>; rel="successor-version"',
 				color: 'green',
@@ -529,11 +532,39 @@ describe('Level 48: API Versioning', () => {
 			}
 		});
 
+		test('DEPRECATION correct answer uses the RFC 9745 @-timestamp, not bare true', () => {
+			const correct = DEPRECATION_OPTIONS.find((o) => o.correct);
+			expect(correct?.label).toContain('@1780272000');
+			expect(correct?.label).not.toContain('"true"');
+		});
+
+		test('DEPRECATION has a bare-true wrong option and its feedback never reveals the @-timestamp', () => {
+			const bareTrue = DEPRECATION_OPTIONS.find(
+				(o) => o.id === 'wrong-bare-true',
+			);
+			expect(bareTrue?.correct).toBe(false);
+			expect(bareTrue?.feedback ?? '').not.toContain('@1780272000');
+			expect(bareTrue?.feedback ?? '').toContain('RFC 9745');
+		});
+
 		test('SUNSET feedback does not contain "2027" or "Jun"', () => {
 			const wrong = SUNSET_OPTIONS.filter((o) => !o.correct);
 			for (const opt of wrong) {
 				expect(opt.feedback ?? '').not.toContain('2027');
 				expect(opt.feedback ?? '').not.toContain('Jun');
+			}
+		});
+
+		test('every HTTP-date shown has the correct weekday for its date', () => {
+			// 2027-06-01 is a Tuesday; 2024-01-01 is a Monday.
+			const httpDates = [
+				{ text: 'Tue, 01 Jun 2027 00:00:00 GMT', date: '2027-06-01' },
+				{ text: 'Mon, 01 Jan 2024 00:00:00 GMT', date: '2024-01-01' },
+			];
+			const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+			for (const { text, date } of httpDates) {
+				const actual = weekdays[new Date(`${date}T00:00:00Z`).getUTCDay()];
+				expect(text.startsWith(`${actual},`)).toBe(true);
 			}
 		});
 
@@ -616,7 +647,7 @@ describe('Level 48: API Versioning', () => {
 			const s = STRESS_SCENARIOS.find((s) => s.id === 'v1-format-break');
 			expect(s?.responseLines[1].text).toBe('{ "total": 1999 }');
 			expect(s?.responseLines[2].text).toBe(
-				'Deprecation: true, Sunset: 2027-06-01',
+				'Deprecation: @1780272000, Sunset: 01 Jun 2027',
 			);
 		});
 

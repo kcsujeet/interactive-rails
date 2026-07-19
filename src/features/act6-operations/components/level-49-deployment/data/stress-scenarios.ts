@@ -28,7 +28,7 @@ export const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'deploy-broken-health',
 		label: 'Ship a release that fails /up',
-		description: 'v2 boots but /up returns 500. Proxy refuses to shift.',
+		description: 'v2 boots but /up returns 503. Proxy refuses to shift.',
 		method: 'DEPLOY',
 		path: 'v2 (broken)',
 		actor: 'developer',
@@ -36,7 +36,7 @@ export const STRESS_SCENARIOS: StressScenario[] = [
 		responseLines: [
 			{ text: 'Building image my-org/my-app:v2-broken...', color: 'muted' },
 			{ text: 'Starting container v2...', color: 'muted' },
-			{ text: 'Healthcheck /up -> 500 (DB connection refused).', color: 'red' },
+			{ text: 'Healthcheck /up -> 503 (DB unreachable).', color: 'red' },
 			{ text: 'Retrying 10 times. All failed.', color: 'yellow' },
 			{ text: 'Proxy kept routing to v1.', color: 'green' },
 			{ text: '\u2713 0 failed user requests. v2 aborted.', color: 'green' },
@@ -45,9 +45,9 @@ export const STRESS_SCENARIOS: StressScenario[] = [
 			'Same kind of release where DATABASE_URL was missing.',
 			'v2 boots, so systemctl would say "OK", same as the observe probe.',
 			'This time the proxy polls `/up` before shifting any traffic.',
-			'`/up` returns 500 because the app cannot reach the DB.',
+			'The deep health check you added in L47 returns 503 (DB unreachable).',
 			'The proxy retries 10 times, then gives up.',
-			'v1 never stops serving. Users see zero 500s.',
+			'v1 never stops serving. Users see zero 503s.',
 		],
 	},
 	{

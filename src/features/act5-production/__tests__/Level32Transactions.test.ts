@@ -1,5 +1,5 @@
 /**
- * Level 33: Transactions (Atomicity) - Data Consistency Tests
+ * Level 32: Transactions (Atomicity) - Data Consistency Tests
  *
  * Tests mirror the data structures from the component to verify:
  * - Discovery definitions are complete and correctly mapped
@@ -15,7 +15,10 @@ import { describe, expect, test } from 'bun:test';
 // ── Mirror data from component ──
 
 const DISCOVERY_DEFS = [
-	{ id: 'credits-no-boost', label: 'Credits deducted but post never boosted' },
+	{
+		id: 'credits-no-boost',
+		label: 'Credits deducted but product never boosted',
+	},
 	{ id: 'orphan-boost', label: 'Product boosted without audit trail' },
 ];
 
@@ -27,7 +30,7 @@ const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
 const PROBES = [
 	{
 		id: 'boost-fail',
-		label: 'Boost post (Boost.create! fails)',
+		label: 'Boost product (Boost.create! fails)',
 		command: '# Deduct credits, then create boost (boost fails)',
 		responseLines: [
 			{
@@ -43,7 +46,7 @@ const PROBES = [
 				color: 'muted',
 			},
 			{
-				text: 'Credits deducted but post was never boosted!',
+				text: 'Credits deducted but product was never boosted!',
 				color: 'red',
 			},
 			{ text: 'No rollback. 10 credits vanished.', color: 'red' },
@@ -51,7 +54,7 @@ const PROBES = [
 	},
 	{
 		id: 'log-fail',
-		label: 'Boost post (CreditLog fails)',
+		label: 'Boost product (CreditLog fails)',
 		command: '# Deduct credits, create boost, then log (log fails)',
 		responseLines: [
 			{
@@ -141,7 +144,7 @@ const SERVICE_OPTIONS = [
 		id: 'wrong-no-contract',
 		correct: false,
 		feedback:
-			'Missing input validation via contract. Services must validate input through a Dry::Validation::Contract before executing business logic.',
+			'This runs the business logic on raw, unchecked input. Since L18, every service validates its input up front and returns structured errors before touching the database.',
 	},
 	{ id: 'correct-with-contract', correct: true },
 ];
@@ -151,32 +154,37 @@ const STRESS_SCENARIOS = [
 		id: 'valid-boost',
 		label: 'POST boost (50 credits, valid)',
 		expectedResult: 'allowed' as const,
+		statusLine: '201 Created',
 	},
 	{
 		id: 'boost-with-discount',
 		label: 'POST boost (30 credits, discount)',
 		expectedResult: 'allowed' as const,
+		statusLine: '201 Created',
+	},
+	{
+		id: 'boost-fail',
+		label: 'POST boost (Boost.create! fails)',
+		expectedResult: 'blocked' as const,
+		statusLine: '422 Unprocessable Entity',
+	},
+	{
+		id: 'log-fail',
+		label: 'POST boost (CreditLog fails)',
+		expectedResult: 'blocked' as const,
+		statusLine: '500 Internal Server Error',
 	},
 	{
 		id: 'negative-credits',
 		label: 'POST boost (-5 credits, invalid)',
 		expectedResult: 'blocked' as const,
-	},
-	{
-		id: 'boost-creation-fails',
-		label: 'POST boost (creation error)',
-		expectedResult: 'blocked' as const,
-	},
-	{
-		id: 'log-fails-rollback',
-		label: 'POST boost (log fails, rollback)',
-		expectedResult: 'blocked' as const,
+		statusLine: '422 Unprocessable Entity',
 	},
 ];
 
 // ── Tests ──
 
-describe('Level 33: Transactions (Atomicity)', () => {
+describe('Level 32: Transactions (Atomicity)', () => {
 	describe('Discovery definitions', () => {
 		test('has exactly 2 discoveries', () => {
 			expect(DISCOVERY_DEFS).toHaveLength(2);
@@ -396,12 +404,8 @@ describe('Level 33: Transactions (Atomicity)', () => {
 		});
 
 		test('includes rollback scenarios that mirror observe failures', () => {
-			const boostFail = STRESS_SCENARIOS.find(
-				(s) => s.id === 'boost-creation-fails',
-			);
-			const logFail = STRESS_SCENARIOS.find(
-				(s) => s.id === 'log-fails-rollback',
-			);
+			const boostFail = STRESS_SCENARIOS.find((s) => s.id === 'boost-fail');
+			const logFail = STRESS_SCENARIOS.find((s) => s.id === 'log-fail');
 			expect(boostFail).toBeDefined();
 			expect(boostFail?.expectedResult).toBe('blocked');
 			expect(logFail).toBeDefined();
@@ -412,6 +416,29 @@ describe('Level 33: Transactions (Atomicity)', () => {
 			const invalid = STRESS_SCENARIOS.find((s) => s.id === 'negative-credits');
 			expect(invalid).toBeDefined();
 			expect(invalid?.expectedResult).toBe('blocked');
+		});
+
+		test('no duplicate rollback scenarios (deduped)', () => {
+			expect(
+				STRESS_SCENARIOS.find((s) => s.id === 'boost-creation-fails'),
+			).toBeUndefined();
+			expect(
+				STRESS_SCENARIOS.find((s) => s.id === 'log-fails-rollback'),
+			).toBeUndefined();
+		});
+
+		test('dropped-connection log failure maps to 500, not 422', () => {
+			const logFail = STRESS_SCENARIOS.find((s) => s.id === 'log-fail');
+			expect(logFail?.statusLine).toBe('500 Internal Server Error');
+		});
+
+		test('validation and record failures map to 422', () => {
+			const boostFail = STRESS_SCENARIOS.find((s) => s.id === 'boost-fail');
+			const negative = STRESS_SCENARIOS.find(
+				(s) => s.id === 'negative-credits',
+			);
+			expect(boostFail?.statusLine).toBe('422 Unprocessable Entity');
+			expect(negative?.statusLine).toBe('422 Unprocessable Entity');
 		});
 	});
 
@@ -428,7 +455,7 @@ describe('Level 33: Transactions (Atomicity)', () => {
 		test('partial failure appears in both observe and reward', () => {
 			const observeProbe = PROBES.find((p) => p.id === 'boost-fail');
 			const rewardScenario = STRESS_SCENARIOS.find(
-				(s) => s.id === 'boost-creation-fails',
+				(s) => s.id === 'boost-fail',
 			);
 			expect(observeProbe).toBeDefined();
 			expect(rewardScenario).toBeDefined();
@@ -436,9 +463,7 @@ describe('Level 33: Transactions (Atomicity)', () => {
 
 		test('log failure appears in both observe and reward', () => {
 			const observeProbe = PROBES.find((p) => p.id === 'log-fail');
-			const rewardScenario = STRESS_SCENARIOS.find(
-				(s) => s.id === 'log-fails-rollback',
-			);
+			const rewardScenario = STRESS_SCENARIOS.find((s) => s.id === 'log-fail');
 			expect(observeProbe).toBeDefined();
 			expect(rewardScenario).toBeDefined();
 		});
@@ -450,12 +475,12 @@ describe('Level 33: Transactions (Atomicity)', () => {
 			expect(correct?.id).toBe('correct-with-contract');
 		});
 
-		test('wrong service option explains contract requirement', () => {
+		test('wrong service option explains missing up-front validation', () => {
 			const noContract = SERVICE_OPTIONS.find(
 				(o) => o.id === 'wrong-no-contract',
 			);
-			expect(noContract?.feedback).toContain('contract');
-			expect(noContract?.feedback).toContain('Dry::Validation::Contract');
+			expect(noContract?.feedback).toContain('unchecked input');
+			expect(noContract?.feedback).toContain('validates its input');
 		});
 	});
 

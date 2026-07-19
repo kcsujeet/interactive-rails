@@ -1,5 +1,5 @@
 /**
- * Level 32: Polymorphic Associations - Data Consistency Tests
+ * Level 30: Polymorphic Associations - Data Consistency Tests
  *
  * Type 2 static intro, static before/after reward (no probes, no stress test).
  *
@@ -48,8 +48,8 @@ const UNIFIED_ROWS = [
 	},
 	{
 		id: 4,
-		body: 'Nice analysis',
-		type: 'Article',
+		body: 'Fast shipping, thanks!',
+		type: 'Seller',
 		typeId: 2,
 		userId: 8,
 		createdAt: 'Mar 15',
@@ -75,7 +75,8 @@ const MIGRATION_COMMANDS = [
 	},
 	{
 		id: 'correct-polymorphic',
-		label: 'rails g model Review body:text reviewable:references{polymorphic}',
+		label:
+			'rails g model Review body:text reviewable:references{polymorphic} user:references',
 		correct: true,
 	},
 	{
@@ -84,7 +85,7 @@ const MIGRATION_COMMANDS = [
 			'rails g model Review body:text reviewable_type:string reviewable_id:integer',
 		correct: false,
 		feedback:
-			'Adding columns manually works but misses the composite index, so every lookup by parent scans the whole table. The generator shorthand creates the columns and the index together.',
+			'Typing the two columns out by hand works, but it is verbose and easy to get subtly wrong. There is a shorthand that declares both columns as a single polymorphic reference and wires up the matching index for you.',
 	},
 ];
 
@@ -154,6 +155,29 @@ const SERVICE_OPTIONS = [
 	},
 ];
 
+// Mirror of RUN_MIGRATION_OUTPUT (component) to fence the
+// "no redundant add_index" fact.
+const RUN_MIGRATION_OUTPUT_TEXT = [
+	'== CreateReviews: migrating ====',
+	'-- create_table(:reviews)',
+	'   -> 0.0045s',
+	'== CreateReviews: migrated (0.0045s) ====',
+];
+
+// Mirror of the reward controller set_reviewable body to fence
+// the allowlist check (commonMistake: validate reviewable_type).
+const REWARD_CONTROLLER_CODE = `class Api::ReviewsController < ApplicationController
+  REVIEWABLE_TYPES = %w[Product Photo Video Seller].freeze
+  before_action :set_reviewable
+  def set_reviewable
+    resource, id = request.path.split("/")[3..4]
+    type = resource.to_s.singularize.classify
+    return head :not_found unless
+      REVIEWABLE_TYPES.include?(type)
+    @reviewable = type.constantize.find(id)
+  end
+end`;
+
 const CONTROLLER_OPTIONS = [
 	{
 		id: 'wrong-direct-create',
@@ -166,7 +190,7 @@ const CONTROLLER_OPTIONS = [
 
 // ── Tests ──
 
-describe('Level 32: Polymorphic Associations', () => {
+describe('Level 30: Polymorphic Associations', () => {
 	describe('Static intro (Type 2)', () => {
 		test('has exactly 3 duplicate tables', () => {
 			expect(DUPLICATE_TABLES).toHaveLength(3);
@@ -307,9 +331,9 @@ describe('Level 32: Polymorphic Associations', () => {
 			}
 		});
 
-		test('reward table includes extensibility type (Article)', () => {
-			const articleRow = UNIFIED_ROWS.find((r) => r.type === 'Article');
-			expect(articleRow).toBeDefined();
+		test('reward table includes extensibility type (Seller)', () => {
+			const sellerRow = UNIFIED_ROWS.find((r) => r.type === 'Seller');
+			expect(sellerRow).toBeDefined();
 		});
 
 		test('reward rows all have complete data', () => {
@@ -366,6 +390,44 @@ describe('Level 32: Polymorphic Associations', () => {
 			expect(STEP_DEFS[5].id).toBe('wire-controller');
 		});
 
+		test('migration output has no redundant add_index line', () => {
+			const joined = RUN_MIGRATION_OUTPUT_TEXT.join('\n');
+			expect(joined).not.toContain('add_index');
+			expect(joined).toContain('-- create_table(:reviews)');
+		});
+
+		test('correct migration command includes user:references', () => {
+			const correct = MIGRATION_COMMANDS.find((c) => c.correct);
+			expect(correct?.label).toContain('user:references');
+			expect(correct?.label).toContain('reviewable:references{polymorphic}');
+		});
+
+		test('string-columns feedback does not claim missing composite index', () => {
+			const opt = MIGRATION_COMMANDS.find(
+				(c) => c.id === 'wrong-string-columns',
+			);
+			expect(opt?.feedback).not.toContain('composite index');
+			expect(opt?.feedback).not.toContain('scans the whole table');
+		});
+
+		test('reward controller validates reviewable_type against an allowlist', () => {
+			expect(REWARD_CONTROLLER_CODE).toContain('REVIEWABLE_TYPES');
+			expect(REWARD_CONTROLLER_CODE).toContain(
+				'REVIEWABLE_TYPES.include?(type)',
+			);
+			// constantize must only run after the allowlist check
+			const guardIdx = REWARD_CONTROLLER_CODE.indexOf(
+				'REVIEWABLE_TYPES.include?(type)',
+			);
+			const constIdx = REWARD_CONTROLLER_CODE.indexOf(
+				'type.constantize.find(id)',
+			);
+			expect(guardIdx).toBeGreaterThan(0);
+			expect(constIdx).toBeGreaterThan(guardIdx);
+		});
+	});
+
+	describe('Data consistency (extra)', () => {
 		test('all option step IDs match expected config keys', () => {
 			const expectedOptions = [
 				COMMENT_MODEL_OPTIONS,

@@ -1,5 +1,5 @@
 /**
- * Level 35: Active Storage - Data Consistency Tests
+ * Level 34: Active Storage - Data Consistency Tests
  *
  * Tests mirror the data structures from the component to verify:
  * - Discovery definitions are complete and correctly mapped
@@ -18,14 +18,10 @@ const DISCOVERY_DEFS = [
 	{ id: 'memory-spike', label: 'File buffers in app server RAM' },
 	{ id: 'no-variants', label: 'No thumbnails, serving 5MB originals' },
 	{ id: 'serving-through-rails', label: 'Downloads block Rails workers' },
-	{
-		id: 'no-direct-upload',
-		label: 'No presigned URL, all traffic through app',
-	},
 ];
 
 const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
-	'upload-photo': ['memory-spike', 'no-direct-upload'],
+	'upload-photo': ['memory-spike'],
 	'request-avatar': ['serving-through-rails'],
 	'list-avatars': ['no-variants'],
 };
@@ -37,8 +33,11 @@ const PROBES = [
 		command: 'curl -X POST /api/users/1/avatar -F "file=@photo.jpg"',
 		responseLines: [
 			{ text: 'Uploading 5MB through Rails process...', color: 'yellow' },
-			{ text: 'Memory: 45MB -> 95MB (+50MB buffering file!)', color: 'red' },
-			{ text: '10 concurrent uploads = 500MB memory spike', color: 'red' },
+			{ text: 'Memory: 45MB -> 50MB (+5MB buffering the file)', color: 'red' },
+			{
+				text: '10 concurrent uploads = +50MB spike (peak ~95MB)',
+				color: 'red',
+			},
 			{
 				text: 'No presigned URL configured. File routes through app.',
 				color: 'red',
@@ -161,7 +160,7 @@ const SERVICE_OPTIONS = [
 		id: 'wrong-no-contract',
 		correct: false,
 		feedback:
-			'Missing input validation via contract. Services must validate input through a Dry::Validation::Contract before executing business logic.',
+			'This runs the business logic on raw, unchecked input. Since L18, every service validates its input up front and returns structured errors before touching the database.',
 	},
 	{ id: 'correct-with-contract', correct: true },
 ];
@@ -253,13 +252,13 @@ const UPLOAD_PROBE_FRAMES: AnimationFrame[] = [
 		client: { label: '', flash: 'idle' },
 		connA: { active: false, label: '' },
 		app: { label: 'Buffering 5MB...', flash: 'red' },
-		memoryMB: 95,
+		memoryMB: 50,
 	},
 	{ app: { label: 'File.binwrite to disk...', flash: 'amber' } },
 	{
 		app: { label: 'Saved to local disk', flash: 'amber' },
 		warningMessage:
-			'The entire 5MB file was buffered in Rails process memory. 10 concurrent uploads = 500MB memory spike. Files saved to local disk (lost on deploy, no CDN).',
+			'The entire 5MB file was buffered in Rails process memory (45MB -> 50MB). Ten concurrent uploads spike memory by about 50MB (peak ~95MB). Files saved to local disk (lost on deploy, no CDN).',
 	},
 ];
 
@@ -268,7 +267,7 @@ const DOWNLOAD_PROBE_FRAMES: AnimationFrame[] = [
 		client: { label: 'Requesting avatar...', flash: 'blue' },
 		app: { label: 'send_file avatar_path', flash: 'amber' },
 	},
-	{ app: { label: 'Reading 5MB from disk...', flash: 'red' }, memoryMB: 95 },
+	{ app: { label: 'Reading 5MB from disk...', flash: 'red' }, memoryMB: 50 },
 	{
 		connA: {
 			active: true,
@@ -361,7 +360,7 @@ const CODE_PREVIEW_FILES: Record<
 	],
 	0: [
 		{
-			filename: 'db/migrate/..._create_active_storage_tables.rb',
+			filename: 'db/migrate/..._create_active_storage_tables.active_storage.rb',
 			containsSnippet: 'create_table :active_storage_blobs',
 		},
 	],
@@ -408,12 +407,47 @@ const CODE_PREVIEW_FILES: Record<
 	],
 };
 
+// Mirror of INSTALL_OUTPUT (fence real active_storage:install suffix).
+const INSTALL_OUTPUT_TEXT = [
+	'       copy  db/migrate/..._create_active_storage_tables.active_storage.rb',
+];
+
+// Mirror of the blocked reward frames: validation now happens at
+// ATTACH time (the file reaches S3 first). Key ordered app labels.
+const BLOCKED_CONTENT_APP_LABELS = [
+	'Blob record created (local DB)',
+	'UploadAvatar rejects at attach',
+];
+const BLOCKED_CONTENT_S3_LABEL = 'File on S3 (not attached yet)';
+const BLOCKED_OVERSIZED_S3_LABEL = '50MB on S3 (not attached yet)';
+
+// Mirror of the shipped UploadAvatar service: validators are DEFINED,
+// not just called.
+const UPLOAD_SERVICE_CODE = `class UploadAvatar < ApplicationService
+  InvalidUpload = Class.new(StandardError)
+  ALLOWED = %w[image/jpeg image/png image/webp].freeze
+  MAX_BYTES = 10.megabytes
+  def call
+    validate_content_type!(blob)
+    validate_file_size!(blob)
+  end
+  private
+  def validate_content_type!(blob)
+    return if ALLOWED.include?(blob.content_type)
+    raise InvalidUpload, "content type not allowed"
+  end
+  def validate_file_size!(blob)
+    return if blob.byte_size <= MAX_BYTES
+    raise InvalidUpload, "file exceeds 10MB"
+  end
+end`;
+
 // ── Tests ──
 
-describe('Level 35: Active Storage', () => {
+describe('Level 34: Active Storage', () => {
 	describe('Discovery definitions', () => {
-		test('has exactly 4 discoveries', () => {
-			expect(DISCOVERY_DEFS).toHaveLength(4);
+		test('has exactly 3 discoveries', () => {
+			expect(DISCOVERY_DEFS).toHaveLength(3);
 		});
 
 		test('all discovery IDs are unique', () => {
@@ -638,7 +672,7 @@ describe('Level 35: Active Storage', () => {
 			expect(blocked.length).toBeGreaterThan(0);
 		});
 
-		test('has 3 allowed and 2 blocked scenarios', () => {
+		test('has 4 allowed and 2 blocked scenarios', () => {
 			const allowed = STRESS_SCENARIOS.filter(
 				(s) => s.expectedResult === 'allowed',
 			);
@@ -729,12 +763,12 @@ describe('Level 35: Active Storage', () => {
 			expect(correct?.id).toBe('correct-with-contract');
 		});
 
-		test('wrong service option explains contract requirement', () => {
+		test('wrong service option explains missing up-front validation', () => {
 			const noContract = SERVICE_OPTIONS.find(
 				(o) => o.id === 'wrong-no-contract',
 			);
-			expect(noContract?.feedback).toContain('contract');
-			expect(noContract?.feedback).toContain('Dry::Validation::Contract');
+			expect(noContract?.feedback).toContain('unchecked input');
+			expect(noContract?.feedback).toContain('validates its input');
 		});
 
 		test('direct upload wrong option explains why file-through-rails is bad', () => {
@@ -751,8 +785,8 @@ describe('Level 35: Active Storage', () => {
 	});
 
 	describe('Data consistency', () => {
-		test('minRequired (4) matches total discoveries', () => {
-			expect(DISCOVERY_DEFS.length).toBe(4);
+		test('minRequired (3) matches total discoveries', () => {
+			expect(DISCOVERY_DEFS.length).toBe(3);
 		});
 
 		test('all option step arrays have at least 2 options', () => {
@@ -894,6 +928,67 @@ describe('Level 35: Active Storage', () => {
 					expect(file.containsSnippet.length).toBeGreaterThan(0);
 				}
 			}
+		});
+	});
+
+	describe('active_storage:install output honesty', () => {
+		test('output uses the real .active_storage.rb migration suffix', () => {
+			const joined = INSTALL_OUTPUT_TEXT.join('\n');
+			expect(joined).toContain('.active_storage.rb');
+		});
+
+		test('output does not fabricate a "Copied migration ...migration" line', () => {
+			const joined = INSTALL_OUTPUT_TEXT.join('\n');
+			expect(joined).not.toContain('Copied migration');
+			expect(joined).not.toContain('.migration"');
+			expect(joined).not.toContain('_create_active_storage_tables.migration');
+		});
+	});
+
+	describe('Validation happens at attach time (matches built code)', () => {
+		test('blocked .exe file reaches S3 before rejection', () => {
+			// The direct-upload controller does no validation, so the file
+			// lands on S3 first; UploadAvatar refuses it at attach time.
+			const contentIdx = BLOCKED_CONTENT_APP_LABELS.indexOf(
+				'Blob record created (local DB)',
+			);
+			const rejectIdx = BLOCKED_CONTENT_APP_LABELS.indexOf(
+				'UploadAvatar rejects at attach',
+			);
+			expect(contentIdx).toBe(0);
+			expect(rejectIdx).toBe(1);
+			expect(BLOCKED_CONTENT_S3_LABEL).toContain('on S3 (not attached yet)');
+			expect(BLOCKED_OVERSIZED_S3_LABEL).toContain('on S3 (not attached yet)');
+		});
+
+		test('blocked frames never claim validate_content_type! at presigned-URL time', () => {
+			// The old bug labelled the presigned-URL step with the validator.
+			expect(BLOCKED_CONTENT_APP_LABELS).not.toContain(
+				'UploadAvatar: validate_content_type!',
+			);
+		});
+
+		test('shipped UploadAvatar defines the validators it calls', () => {
+			expect(UPLOAD_SERVICE_CODE).toContain('def validate_content_type!(blob)');
+			expect(UPLOAD_SERVICE_CODE).toContain('def validate_file_size!(blob)');
+			expect(UPLOAD_SERVICE_CODE).toContain('InvalidUpload = Class.new');
+		});
+	});
+
+	describe('Memory numbers are physically grounded', () => {
+		test('single 5MB upload probe does not claim +50MB or 500MB', () => {
+			const probe = PROBES.find((p) => p.id === 'upload-photo');
+			const texts = probe?.responseLines.map((l) => l.text).join(' ') ?? '';
+			expect(texts).not.toContain('500MB');
+			expect(texts).not.toContain('+50MB buffering file');
+			expect(texts).toContain('+5MB');
+		});
+
+		test('single-upload observe frame peaks at 50MB, not 95MB', () => {
+			const bufferFrame = UPLOAD_PROBE_FRAMES.find(
+				(f) => f.app?.label === 'Buffering 5MB...',
+			);
+			expect(bufferFrame?.memoryMB).toBe(50);
 		});
 	});
 });

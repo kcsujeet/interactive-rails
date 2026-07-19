@@ -4,9 +4,9 @@ export const STRESS_SCENARIOS: StressScenario[] = [
 	// Probe-matched scenarios (one per probe, same id and label)
 	{
 		id: 'rollout-everyone',
-		label: 'Customer pays during peak (3% drop, instant rollback)',
+		label: 'Customer pays during peak (one-feature flag flip)',
 		description:
-			'Same customer paying $87 at 4:23pm. Edge case still hits 3%, but now: oncall flips the flag in <1s, traffic shifts back to legacy. Total customer impact ~3% for ~10 seconds, not 30 minutes.',
+			'Same customer paying $87 at 4:23pm. Edge case still hits 3%, but now: oncall flips this ONE flag off in <1s, traffic shifts back to legacy, and every other change in the release stays live. No full rollback needed.',
 		method: 'POST',
 		path: '/api/v1/payments',
 		actor: 'customer_peak_4_23pm',

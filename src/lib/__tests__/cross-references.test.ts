@@ -95,6 +95,7 @@ const CROSS_REFERENCES: Record<string, string[]> = {
 		'HTTP Caching & CDNs',
 	],
 	'act5-production/content/level-31-soft-deletes.ts': ['Service Objects'],
+	'act5-production/content/level-33-locking.ts': ['Transactions'],
 	'act5-production/content/level-36-background-jobs.ts': ['Action Mailer'],
 	'act5-production/components/level-32-transactions/Level32Transactions.tsx': [
 		'Validation Contracts',
@@ -135,9 +136,16 @@ const CROSS_REFERENCES: Record<string, string[]> = {
 	'act6-operations/components/level-49-deployment/data/content.ts': [
 		'Safe Migrations',
 	],
+	'act6-operations/components/level-49-deployment/data/stress-scenarios.ts': [
+		'Observability',
+	],
 	'act6-operations/components/level-50-feature-flags/data/content.ts': [
 		'Structured Error Monitoring',
 		'Observability',
+		'Deployment',
+	],
+	'act6-operations/components/level-50-feature-flags/data/probes.ts': [
+		'Deployment',
 	],
 	'act7-scale/content/level-52-multi-tenancy.ts': ['Observability'],
 	'act7-scale/content/level-53-sharding.ts': ['Multi-Tenancy'],

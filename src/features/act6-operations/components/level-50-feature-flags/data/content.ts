@@ -9,14 +9,14 @@ export const level50FeatureFlags: Level = {
 	trigger: {
 		type: 'new_feature',
 		description:
-			'A new payment processor is half-built. Marketing wants the launch next Tuesday at 9am sharp; engineering needs to ship the code now and turn it on then. And a third-party integration occasionally goes flaky and needs a kill switch faster than a redeploy.',
+			'A new payment processor is half-built. Marketing wants the launch next Tuesday at 9am sharp; engineering needs to ship the code now and turn it on then. And a third-party integration occasionally goes flaky and needs a per-feature kill switch, not a full-release rollback.',
 	},
 	startingPipeline: { nodes: [], connections: [] },
 	problem: {
 		observation:
-			'Every release is a deploy. Toggling a feature off means redeploying the previous version, ~30 minutes of downtime per cycle. Marketing cannot pin a feature to a launch time. There is no kill switch for a misbehaving vendor integration.',
+			'Every release is a deploy. Turning one misbehaving feature off means kamal rollback, which reverts the whole release (every change since the last deploy), not just that feature. Marketing cannot pin a feature to a launch time. There is no per-feature kill switch.',
 		rootCause:
-			'Deploy and release are coupled. The only way to change what users see is to ship code. There is no runtime toggle.',
+			'Deploy and release are coupled. The only way to change what users see is to ship code, and the only way to undo one feature is to roll the entire release back. There is no per-feature runtime toggle.',
 		codeExample: `# Current: deploy = release. There is no toggle.
 class PaymentsController < ApplicationController
   def create
@@ -27,7 +27,8 @@ class PaymentsController < ApplicationController
 end
 
 # Vendor integration starts misbehaving in production.
-# Only fix: revert the commit, redeploy. ~30 min of impact.
+# Only fix: kamal rollback, which reverts the ENTIRE release,
+# not just this one feature. Everything else you shipped goes too.
 
 # Marketing schedules launch for Tuesday 9:00am.
 # Engineering can land the code Monday but has no way to
@@ -49,7 +50,7 @@ Once you have flags in place, you stop being scared of deploys. Three concrete c
 
 **2. Gradual rollout.** Turn the new feature on for 5% of users. Wait an hour. If error rates and latency look fine, ramp to 25%. Then 50%. Then 100%. If something breaks at 5%, only 5% of users are affected, not 100%, and the fix is a flag flip, not a redeploy.
 
-**3. Kill switch.** A third-party vendor starts returning 500s. With flags, you flip the gate to off and the request immediately routes to the legacy code path that does not call the vendor. Mean time to recovery is seconds, not the 20 to 30 minutes a Kamal redeploy takes.
+**3. Kill switch.** A third-party vendor starts returning 500s. With flags, you flip the gate to off and the request immediately routes to the legacy code path that does not call the vendor. The alternative is \`kamal rollback\` (L49), which is fast (about 2 seconds, no rebuild) but reverts the ENTIRE release: every change since the last deploy goes back, not just the one misbehaving feature. A flag turns off exactly one feature and leaves everything else you shipped in place. That surgical scope, not raw speed, is why you reach for a flag here.
 
 **Flipper (the de facto Ruby gem):**
 
@@ -77,7 +78,7 @@ These are not the same thing.
 
 Flipper ships an admin UI you can mount at \`/flipper\`. It is the operational tool your oncall uses during an incident. Two things to get right:
 
-1. **Auth.** Mount it inside an \`authenticate\` block that gates on \`current_user.admin?\`. An unauthenticated \`/flipper\` route is the same as printing your kill switches on a billboard.
+1. **Auth.** Mount it inside a route \`constraints\` block whose constraint object reads the session and checks the current user is an admin. (This app is on the Rails 8 built-in auth generator, so there is no Devise \`authenticate\` helper.) An unauthenticated \`/flipper\` route is the same as printing your kill switches on a billboard.
 2. **Audit log.** Every flag flip should produce a log line you can correlate with incident timelines: who flipped what, when. The default Flipper instrumentation hooks into ActiveSupport::Notifications and you can pipe that to your APM (L47) or your structured error monitoring (L46).
 
 **Flag debt:**
@@ -118,9 +119,21 @@ class PaymentsController < ApplicationController
   end
 end
 
+# lib/admin_constraint.rb
+# Route constraint for the Rails 8 built-in auth generator (no Devise).
+# It reads the signed session cookie, looks the Session up, and checks admin.
+class AdminConstraint
+  def matches?(request)
+    token = request.cookie_jar.signed[:session_token]
+    Session.find_by(token: token)&.user&.admin?
+  end
+end
+
 # config/routes.rb
+require "admin_constraint"
+
 Rails.application.routes.draw do
-  authenticate :user, ->(user) { user.admin? } do
+  constraints(AdminConstraint.new) do
     mount Flipper::UI.app(Flipper) => "/flipper"
   end
 
@@ -175,8 +188,8 @@ end`,
 				url: 'https://github.com/jnunemaker/flipper/tree/main/lib/flipper/ui',
 			},
 			{
-				title: 'GitHub: How we ship features',
-				url: 'https://github.blog/engineering/scaling-the-github-api-with-a-sharded-replicated-rate-limiter-in-redis/',
+				title: 'Martin Fowler: Feature Toggles (Feature Flags)',
+				url: 'https://martinfowler.com/articles/feature-toggles.html',
 			},
 		],
 		homework: [

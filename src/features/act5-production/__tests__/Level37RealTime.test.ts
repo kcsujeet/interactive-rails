@@ -7,75 +7,82 @@
  * - Stress scenario coverage and consistency
  * - Cross-phase consistency between observe and reward
  * - Cumulative pattern compliance (service objects, contracts, error handling)
+ * - Session-based WebSocket connection auth (matches the L9 auth generator)
  */
 
 import { describe, expect, test } from 'bun:test';
 
-// ── Mirrored data from Level36RealTime.tsx ──
+// ── Mirrored data from Level37RealTime.tsx ──
 
 const DISCOVERY_DEFS = [
-	{ id: 'polling-waste', label: 'Polling returns 99% empty responses' },
-	{ id: 'cpu-spike', label: '25K req/sec exhausts server CPU' },
 	{ id: 'no-push', label: 'No server-push mechanism exists' },
-	{ id: 'latency-delay', label: 'Notifications delayed by poll interval' },
+	{ id: 'polling-waste', label: 'Order status refreshes are 99% empty' },
+	{
+		id: 'cpu-spike',
+		label: 'Polling traffic crashes the site on Black Friday',
+	},
 ];
 
 const PROBES = [
-	{
-		id: 'check-polling',
-		label: 'GET notifications (poll)',
-		command: 'curl -s localhost:3000/api/notifications | jq',
-		responseLines: [
-			{ text: '200 OK', color: 'cyan' },
-			{ text: '{ "notifications": [] }', color: 'amber' },
-			{ text: '# Empty. 99% of polls return nothing.', color: 'red' },
-			{
-				text: '# 50K users x 0.5 req/sec = 25,000 requests/sec wasted',
-				color: 'red',
-			},
-		],
-	},
-	{
-		id: 'check-cpu',
-		label: 'GET server stats',
-		command: 'curl -s localhost:3000/api/health | jq .server',
-		responseLines: [
-			{
-				text: '{ "cpu": "94%", "connections": 847, "pool_exhausted": true }',
-				color: 'red',
-			},
-			{
-				text: '# Database connection pool exhausted from polling load',
-				color: 'red',
-			},
-			{
-				text: '# Each poll hits: authenticate -> query -> serialize -> respond',
-				color: 'amber',
-			},
-		],
-	},
 	{
 		id: 'trigger-event',
 		label: 'POST create payment',
 		command:
 			'curl -X POST localhost:3000/api/payments -d \'{"amount": 99.99}\'',
 		responseLines: [
-			{ text: '201 Created', color: 'cyan' },
+			{ text: '202 Accepted (processing asynchronously)', color: 'cyan' },
+			{ text: '# Stripe confirms payment on the server side.', color: 'green' },
 			{
-				text: '{ "payment": { "id": 42, "status": "completed" } }',
-				color: 'green',
+				text: '# Notification created. But no push mechanism!',
+				color: 'yellow',
 			},
 			{
-				text: '# Payment completed... but how does the user find out?',
-				color: 'amber',
+				text: '# Client waits up to 2 seconds for next poll to find out.',
+				color: 'red',
 			},
+		],
+	},
+	{
+		id: 'check-polling',
+		label: 'Customer checks order status',
+		command: 'curl -s localhost:3000/api/notifications | jq',
+		responseLines: [
+			{ text: '200 OK', color: 'cyan' },
+			{ text: '{ "data": [] }', color: 'yellow' },
 			{
-				text: '# They must wait for their next poll cycle (up to 2 seconds)',
+				text: '# Customer refreshed order page. No updates yet.',
 				color: 'red',
 			},
 			{
-				text: '# No server-push mechanism to notify them instantly',
+				text: '# 50K customers doing this every 2 seconds = 25K req/sec',
 				color: 'red',
+			},
+			{
+				text: '# Server ran full pipeline for nothing: auth -> query -> serialize',
+				color: 'red',
+			},
+		],
+	},
+	{
+		id: 'check-cpu',
+		label: 'Black Friday traffic spike',
+		command: 'curl -s localhost:3000/api/health | jq .server',
+		responseLines: [
+			{
+				text: '{ "cpu": "95%", "connections": 847, "pool_exhausted": true }',
+				color: 'red',
+			},
+			{
+				text: '# Black Friday: 50K customers refreshing order status',
+				color: 'red',
+			},
+			{
+				text: '# Polling killed the server. New customers get 503.',
+				color: 'red',
+			},
+			{
+				text: '# Site is effectively down because of status refreshes.',
+				color: 'yellow',
 			},
 		],
 	},
@@ -84,16 +91,16 @@ const PROBES = [
 const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
 	'check-polling': ['polling-waste'],
 	'check-cpu': ['cpu-spike'],
-	'trigger-event': ['no-push', 'latency-delay'],
+	'trigger-event': ['no-push'],
 };
 
 const STEP_DEFS = [
-	{ id: 'install-cable', label: 'Install Cable Adapter' },
-	{ id: 'run-install', label: 'Run Installer' },
-	{ id: 'configure-adapter', label: 'Configure Adapter' },
-	{ id: 'generate-channel', label: 'Generate Channel' },
-	{ id: 'authenticate-connection', label: 'Authenticate Connection' },
-	{ id: 'build-broadcast-service', label: 'Build Broadcast Service' },
+	{ id: 'install-cable', title: 'Install Cable Adapter' },
+	{ id: 'run-install', title: 'Run Installer' },
+	{ id: 'configure-adapter', title: 'Configure Adapter' },
+	{ id: 'generate-channel', title: 'Generate Channel' },
+	{ id: 'authenticate-connection', title: 'Authenticate Connection' },
+	{ id: 'build-broadcast-service', title: 'Build Broadcast Service' },
 ];
 
 const INSTALL_CABLE_COMMANDS = [
@@ -148,33 +155,21 @@ const RUN_INSTALL_COMMANDS = [
 const CONFIGURE_ADAPTER_OPTIONS = [
 	{
 		id: 'wrong-redis-adapter',
-		label: 'adapter: redis',
-		code: `# config/cable.yml
-production:
-  adapter: redis
-  url: redis://localhost:6379/1`,
+		label: `# config/cable.yml\nproduction:\n  adapter: redis\n  url: redis://localhost:6379/1`,
 		correct: false,
 		feedback:
 			'This requires a running Redis instance. The whole point is to eliminate external dependencies.',
 	},
 	{
 		id: 'wrong-async',
-		label: 'adapter: async',
-		code: `# config/cable.yml
-production:
-  adapter: async`,
+		label: `# config/cable.yml\nproduction:\n  adapter: async`,
 		correct: false,
 		feedback:
 			'The async adapter is for development only. It does not persist messages or work across processes.',
 	},
 	{
 		id: 'correct',
-		label: 'adapter: solid_cable',
-		code: `# config/cable.yml
-production:
-  adapter: solid_cable
-  polling_interval: 0.1.seconds
-  message_retention: 1.day`,
+		label: `# config/cable.yml\nproduction:\n  adapter: solid_cable\n  polling_interval: 0.1.seconds\n  message_retention: 1.day`,
 		correct: true,
 	},
 ];
@@ -207,49 +202,19 @@ const GENERATE_CHANNEL_COMMANDS = [
 const AUTHENTICATE_CONNECTION_OPTIONS = [
 	{
 		id: 'wrong-no-auth',
-		label: 'Skip authentication',
-		code: `module ApplicationCable
-  class Connection < ActionCable::Connection::Base
-    # No authentication needed for WebSockets
-  end
-end`,
+		label: `module ApplicationCable\n  class Connection < ActionCable::Connection::Base\n    # No authentication needed\n  end\nend`,
 		correct: false,
 		feedback:
 			'Unauthenticated WebSocket connections let anyone subscribe to private channels. Every connection must verify the user.',
 	},
 	{
 		id: 'correct',
-		label: 'Verify via encrypted cookies',
-		code: `module ApplicationCable
-  class Connection < ActionCable::Connection::Base
-    identified_by :current_user
-
-    def connect
-      self.current_user = find_verified_user
-    end
-
-    private
-
-    def find_verified_user
-      verified = User.find_by(id: cookies.encrypted[:user_id])
-      verified || reject_unauthorized_connection
-    end
-  end
-end`,
+		label: `module ApplicationCable\n  class Connection < ActionCable::Connection::Base\n    identified_by :current_user\n\n    def connect\n      self.current_user = find_verified_user\n    end\n\n    private\n\n    def find_verified_user\n      if session = Session.find_by(id: cookies.signed[:session_id])\n        session.user\n      else\n        reject_unauthorized_connection\n      end\n    end\n  end\nend`,
 		correct: true,
 	},
 	{
 		id: 'wrong-session',
-		label: 'Use session directly',
-		code: `module ApplicationCable
-  class Connection < ActionCable::Connection::Base
-    identified_by :current_user
-
-    def connect
-      self.current_user = User.find(session[:user_id])
-    end
-  end
-end`,
+		label: `module ApplicationCable\n  class Connection < ActionCable::Connection::Base\n    identified_by :current_user\n\n    def connect\n      self.current_user = User.find(session[:user_id])\n    end\n  end\nend`,
 		correct: false,
 		feedback:
 			'WebSocket connections do not have direct access to the session store. You need a different mechanism that persists across requests.',
@@ -259,74 +224,19 @@ end`,
 const BROADCAST_SERVICE_OPTIONS = [
 	{
 		id: 'wrong-inline',
-		label: 'Broadcast inline in controller',
-		code: `class Api::PaymentsController < ApplicationController
-  def create
-    result = ProcessPayment.call(user: Current.user, params:)
-    if result.success?
-      NotificationsChannel.broadcast_to(
-        Current.user,
-        { type: "payment", data: result.payment }
-      )
-      render json: result.payment, status: :created
-    end
-  end
-end`,
+		label: `class Api::PaymentsController < ApplicationController\n  def create\n    result = ProcessPayment.call(user: Current.user, params:)\n    if result.success?\n      NotificationsChannel.broadcast_to(\n        Current.user, { type: "payment" })\n      render json: result.payment, status: :created\n    end\n  end\nend`,
 		correct: false,
 		feedback:
-			'Broadcasting in the request cycle blocks the response. Notifications should be triggered by model callbacks or background jobs.',
+			'Broadcasting lives inline in one controller here. Every code path that creates the record has to remember to broadcast, so some will forget and updates go missing. Broadcasting belongs with the record itself so it happens consistently for every caller.',
 	},
 	{
 		id: 'correct',
-		label: 'Service with after_create_commit broadcast',
-		code: `class BroadcastNotification < ApplicationService
-  Result = Data.define(:success?, :notification, :errors)
-
-  def initialize(user:, title:, body:)
-    @user = user
-    @title = title
-    @body = body
-  end
-
-  def call
-    validation = NotificationContract.new.call(
-      title: @title, body: @body
-    )
-    if validation.failure?
-      return Result.new(
-        success?: false, notification: nil,
-        errors: validation.errors.to_h
-      )
-    end
-
-    notification = @user.notifications.create!(
-      title: @title, body: @body
-    )
-    # after_create_commit on Notification broadcasts automatically
-    Result.new(success?: true, notification:, errors: {})
-  end
-end`,
+		label: `class BroadcastNotification < ApplicationService\n  Result = Data.define(:success?, :notification, :errors)\n\n  def initialize(user:, title:, body:)\n    @user = user; @title = title; @body = body\n  end\n\n  def call\n    v = NotificationContract.new.call(title: @title, body: @body)\n    return Result.new(success?: false, notification: nil,\n      errors: v.errors.to_h) if v.failure?\n    notification = @user.notifications.create!(\n      title: @title, body: @body)\n    # after_create_commit broadcasts automatically\n    Result.new(success?: true, notification:, errors: {})\n  end\nend`,
 		correct: true,
 	},
 	{
-		id: 'wrong-direct-broadcast',
-		label: 'Call broadcast_to directly in service',
-		code: `class BroadcastNotification < ApplicationService
-  Result = Data.define(:success?, :notification, :errors)
-
-  def initialize(user:, title:, body:)
-    @user = user
-    @title = title
-    @body = body
-  end
-
-  def call
-    NotificationsChannel.broadcast_to(
-      @user, { title: @title, body: @body }
-    )
-    Result.new(success?: true, notification: nil, errors: {})
-  end
-end`,
+		id: 'wrong-direct',
+		label: `class BroadcastNotification < ApplicationService\n  Result = Data.define(:success?, :notification, :errors)\n\n  def initialize(user:, title:, body:)\n    @user = user; @title = title; @body = body\n  end\n\n  def call\n    NotificationsChannel.broadcast_to(\n      @user, { title: @title, body: @body })\n    Result.new(success?: true, notification: nil, errors: {})\n  end\nend`,
 		correct: false,
 		feedback:
 			'This skips persistence entirely. No notification record is created. Use model callbacks to broadcast after the record is saved.',
@@ -335,36 +245,9 @@ end`,
 
 const STRESS_SCENARIOS = [
 	{
-		id: 'payment-notification',
-		label: 'Payment completed (push)',
-		description: 'WebSocket pushes payment confirmation instantly',
-		method: 'WS',
-		path: '/cable',
-		actor: 'server',
-		expectedResult: 'allowed',
-	},
-	{
-		id: 'message-received',
-		label: 'New message (push)',
-		description: 'Direct message pushed to recipient channel',
-		method: 'WS',
-		path: '/cable',
-		actor: 'server',
-		expectedResult: 'allowed',
-	},
-	{
-		id: 'activity-feed',
-		label: 'Activity update (push)',
-		description: 'Activity feed item broadcast to followers',
-		method: 'WS',
-		path: '/cable',
-		actor: 'server',
-		expectedResult: 'allowed',
-	},
-	{
 		id: 'unauthenticated',
 		label: 'Anonymous connect',
-		description: 'Connection attempt without authentication',
+		description: 'No authentication cookies',
 		method: 'WS',
 		path: '/cable',
 		actor: 'anonymous',
@@ -373,17 +256,34 @@ const STRESS_SCENARIOS = [
 	{
 		id: 'wrong-user',
 		label: 'Subscribe to other user',
-		description:
-			'Authenticated user tries to subscribe to another user channel',
+		description: 'Try to eavesdrop on another channel',
 		method: 'WS',
 		path: '/cable',
 		actor: 'attacker',
 		expectedResult: 'blocked',
 	},
 	{
-		id: 'batch-broadcast',
-		label: 'Batch broadcast (1000 users)',
-		description: 'Server pushes to 1000 connected users simultaneously',
+		id: 'trigger-event',
+		label: 'POST create payment (with push)',
+		description: 'Payment created, server pushes notification instantly',
+		method: 'WS',
+		path: '/cable -> NotificationsChannel',
+		actor: 'server',
+		expectedResult: 'allowed',
+	},
+	{
+		id: 'check-polling',
+		label: 'Customer checks order status (with push)',
+		description: 'No polling needed, server pushes updates',
+		method: 'WS',
+		path: '/cable',
+		actor: 'server',
+		expectedResult: 'allowed',
+	},
+	{
+		id: 'check-cpu',
+		label: 'Black Friday traffic (with WebSocket)',
+		description: 'Same traffic spike, no polling overhead',
 		method: 'WS',
 		path: '/cable',
 		actor: 'server',
@@ -395,8 +295,16 @@ const STRESS_SCENARIOS = [
 
 describe('Level 37: Real-Time (Action Cable + Solid Cable)', () => {
 	describe('Discovery definitions', () => {
-		test('has exactly 4 discoveries', () => {
-			expect(DISCOVERY_DEFS).toHaveLength(4);
+		test('has exactly 3 discoveries', () => {
+			expect(DISCOVERY_DEFS).toHaveLength(3);
+		});
+
+		test('discovery IDs match the component exactly', () => {
+			expect(DISCOVERY_DEFS.map((d) => d.id)).toEqual([
+				'no-push',
+				'polling-waste',
+				'cpu-spike',
+			]);
 		});
 
 		test('all discovery IDs are unique', () => {
@@ -415,23 +323,43 @@ describe('Level 37: Real-Time (Action Cable + Solid Cable)', () => {
 			expect(PROBES).toHaveLength(3);
 		});
 
+		test('probe IDs match the component exactly', () => {
+			expect(PROBES.map((p) => p.id)).toEqual([
+				'trigger-event',
+				'check-polling',
+				'check-cpu',
+			]);
+		});
+
+		test('probe labels match the component exactly', () => {
+			expect(PROBES.map((p) => p.label)).toEqual([
+				'POST create payment',
+				'Customer checks order status',
+				'Black Friday traffic spike',
+			]);
+		});
+
 		test('all probe IDs are unique', () => {
 			const ids = PROBES.map((p) => p.id);
 			expect(new Set(ids).size).toBe(ids.length);
 		});
 
-		test('every probe has response lines', () => {
+		test('every probe has at least 4 response lines', () => {
 			for (const probe of PROBES) {
-				expect(probe.responseLines.length).toBeGreaterThan(0);
+				expect(probe.responseLines.length).toBeGreaterThanOrEqual(4);
 			}
 		});
 
-		test('every probe maps to at least one discovery', () => {
+		test('PROBE_DISCOVERY_MAP is 1:1 (each probe unlocks exactly one)', () => {
 			for (const probe of PROBES) {
-				const discoveries = PROBE_DISCOVERY_MAP[probe.id];
-				expect(discoveries).toBeDefined();
-				expect(discoveries.length).toBeGreaterThan(0);
+				expect(PROBE_DISCOVERY_MAP[probe.id]).toHaveLength(1);
 			}
+		});
+
+		test('each discovery is unlocked by exactly one probe', () => {
+			const unlocked = Object.values(PROBE_DISCOVERY_MAP).flat();
+			expect(unlocked).toHaveLength(DISCOVERY_DEFS.length);
+			expect(new Set(unlocked).size).toBe(unlocked.length);
 		});
 
 		test('all mapped discoveries exist in DISCOVERY_DEFS', () => {
@@ -443,7 +371,7 @@ describe('Level 37: Real-Time (Action Cable + Solid Cable)', () => {
 			}
 		});
 
-		test('every discovery is reachable via at least one probe', () => {
+		test('every discovery is reachable via exactly one probe', () => {
 			const reachable = new Set(Object.values(PROBE_DISCOVERY_MAP).flat());
 			for (const def of DISCOVERY_DEFS) {
 				expect(reachable.has(def.id)).toBe(true);
@@ -478,6 +406,17 @@ describe('Level 37: Real-Time (Action Cable + Solid Cable)', () => {
 			expect(STEP_DEFS).toHaveLength(6);
 		});
 
+		test('step IDs match the component exactly', () => {
+			expect(STEP_DEFS.map((s) => s.id)).toEqual([
+				'install-cable',
+				'run-install',
+				'configure-adapter',
+				'generate-channel',
+				'authenticate-connection',
+				'build-broadcast-service',
+			]);
+		});
+
 		test('all step IDs are unique', () => {
 			const ids = STEP_DEFS.map((s) => s.id);
 			expect(new Set(ids).size).toBe(ids.length);
@@ -493,7 +432,7 @@ describe('Level 37: Real-Time (Action Cable + Solid Cable)', () => {
 				expect(options[0].correct).toBe(false);
 			});
 
-			test(`${name}: every wrong option has feedback`, () => {
+			test(`${name}: every wrong option has substantive feedback`, () => {
 				for (const opt of options) {
 					if (!opt.correct) {
 						expect(opt.feedback).toBeDefined();
@@ -505,13 +444,12 @@ describe('Level 37: Real-Time (Action Cable + Solid Cable)', () => {
 			test(`${name}: feedback does not reveal correct answer`, () => {
 				for (const opt of options) {
 					if (!opt.correct && opt.feedback) {
-						expect(opt.feedback.toLowerCase()).not.toContain('solid_cable');
-						expect(opt.feedback.toLowerCase()).not.toContain(
-							'encrypted cookies',
-						);
-						expect(opt.feedback.toLowerCase()).not.toContain(
-							'after_create_commit',
-						);
+						const fb = opt.feedback.toLowerCase();
+						expect(fb).not.toContain('solid_cable');
+						expect(fb).not.toContain('encrypted cookies');
+						expect(fb).not.toContain('after_create_commit');
+						expect(fb).not.toContain('cookies.signed');
+						expect(fb).not.toContain('session.find_by');
 					}
 				}
 			});
@@ -522,17 +460,87 @@ describe('Level 37: Real-Time (Action Cable + Solid Cable)', () => {
 			});
 		}
 
-		test('step labels do not reveal specific answers', () => {
+		test('step titles do not reveal specific answers', () => {
 			for (const step of STEP_DEFS) {
-				expect(step.label.toLowerCase()).not.toContain('solid_cable');
-				expect(step.label.toLowerCase()).not.toContain('solid cable');
+				expect(step.title.toLowerCase()).not.toContain('solid_cable');
+				expect(step.title.toLowerCase()).not.toContain('solid cable');
+			}
+		});
+	});
+
+	describe('Connection authentication (session-based, matches L9 auth)', () => {
+		const correct = AUTHENTICATE_CONNECTION_OPTIONS.find((o) => o.correct);
+
+		test('correct auth option uses the signed session cookie lookup', () => {
+			expect(correct?.label).toContain('cookies.signed[:session_id]');
+			expect(correct?.label).toContain('Session.find_by');
+			expect(correct?.label).toContain('reject_unauthorized_connection');
+		});
+
+		test('correct auth option does NOT use encrypted user cookie', () => {
+			expect(correct?.label).not.toContain('cookies.encrypted');
+			expect(correct?.label).not.toContain('User.find_by(id: cookies');
+		});
+
+		test('the session distractor still uses the session store directly', () => {
+			const distractor = AUTHENTICATE_CONNECTION_OPTIONS.find(
+				(o) => o.id === 'wrong-session',
+			);
+			expect(distractor?.label).toContain('User.find(session[:user_id])');
+			expect(distractor?.label).not.toContain('cookies.signed');
+			expect(distractor?.label).not.toContain('Session.find_by');
+		});
+
+		test('no wrong option leaks the correct auth mechanism', () => {
+			for (const opt of AUTHENTICATE_CONNECTION_OPTIONS) {
+				if (opt.correct) continue;
+				expect(opt.feedback ?? '').not.toContain('cookies.signed');
+				expect(opt.feedback ?? '').not.toContain('Session.find_by');
+			}
+		});
+	});
+
+	describe('Broadcast tension reconciled with callbacks lesson', () => {
+		test('wrong-inline feedback does not prescribe model callbacks', () => {
+			const inline = BROADCAST_SERVICE_OPTIONS.find(
+				(o) => o.id === 'wrong-inline',
+			);
+			expect(inline?.feedback?.toLowerCase()).not.toContain('model callback');
+			expect(inline?.feedback?.toLowerCase()).not.toContain('background job');
+		});
+
+		test('wrong-inline feedback does not reveal after_create_commit', () => {
+			const inline = BROADCAST_SERVICE_OPTIONS.find(
+				(o) => o.id === 'wrong-inline',
+			);
+			expect(inline?.feedback?.toLowerCase()).not.toContain(
+				'after_create_commit',
+			);
+		});
+
+		test('no wrong broadcast option leaks after_create_commit', () => {
+			for (const opt of BROADCAST_SERVICE_OPTIONS) {
+				if (opt.correct) continue;
+				expect(opt.feedback?.toLowerCase() ?? '').not.toContain(
+					'after_create_commit',
+				);
 			}
 		});
 	});
 
 	describe('Stress scenarios', () => {
-		test('has exactly 6 scenarios', () => {
-			expect(STRESS_SCENARIOS).toHaveLength(6);
+		test('has exactly 5 scenarios', () => {
+			expect(STRESS_SCENARIOS).toHaveLength(5);
+		});
+
+		test('scenario IDs match the component exactly', () => {
+			expect(STRESS_SCENARIOS.map((s) => s.id)).toEqual([
+				'unauthenticated',
+				'wrong-user',
+				'trigger-event',
+				'check-polling',
+				'check-cpu',
+			]);
 		});
 
 		test('all scenario IDs are unique', () => {
@@ -545,29 +553,18 @@ describe('Level 37: Real-Time (Action Cable + Solid Cable)', () => {
 			expect(new Set(labels).size).toBe(labels.length);
 		});
 
-		test('mix of allowed and blocked results', () => {
+		test('has 3 allowed and 2 blocked scenarios', () => {
 			const allowed = STRESS_SCENARIOS.filter(
 				(s) => s.expectedResult === 'allowed',
 			);
 			const blocked = STRESS_SCENARIOS.filter(
 				(s) => s.expectedResult === 'blocked',
 			);
-			expect(allowed.length).toBeGreaterThan(0);
-			expect(blocked.length).toBeGreaterThan(0);
-		});
-
-		test('has 4 allowed and 2 blocked scenarios', () => {
-			const allowed = STRESS_SCENARIOS.filter(
-				(s) => s.expectedResult === 'allowed',
-			);
-			const blocked = STRESS_SCENARIOS.filter(
-				(s) => s.expectedResult === 'blocked',
-			);
-			expect(allowed).toHaveLength(4);
+			expect(allowed).toHaveLength(3);
 			expect(blocked).toHaveLength(2);
 		});
 
-		test('every scenario has a description', () => {
+		test('every scenario has a description longer than 10 chars', () => {
 			for (const scenario of STRESS_SCENARIOS) {
 				expect(scenario.description.length).toBeGreaterThan(10);
 			}
@@ -583,118 +580,78 @@ describe('Level 37: Real-Time (Action Cable + Solid Cable)', () => {
 		});
 	});
 
-	describe('Cross-phase consistency', () => {
-		test('observe probes and reward scenarios both cover notifications', () => {
-			const probeLabels = PROBES.map((p) => p.label.toLowerCase());
-			expect(
-				probeLabels.some(
-					(l) => l.includes('notification') || l.includes('poll'),
-				),
-			).toBe(true);
-
-			const scenarioLabels = STRESS_SCENARIOS.map((s) => s.label.toLowerCase());
-			expect(
-				scenarioLabels.some(
-					(l) => l.includes('push') || l.includes('broadcast'),
-				),
-			).toBe(true);
+	describe('Cross-phase consistency (probes paired with scenarios)', () => {
+		test('every probe id has a matching scenario id', () => {
+			const scenarioIds = new Set(STRESS_SCENARIOS.map((s) => s.id));
+			for (const probe of PROBES) {
+				expect(scenarioIds.has(probe.id)).toBe(true);
+			}
 		});
 
-		test('observe probes cover the polling problem', () => {
-			const probeLabels = PROBES.map((p) => p.label.toLowerCase());
-			expect(probeLabels.some((l) => l.includes('poll'))).toBe(true);
-		});
-
-		test('reward scenarios cover the WebSocket solution', () => {
-			const scenarioLabels = STRESS_SCENARIOS.map((s) => s.label.toLowerCase());
-			expect(scenarioLabels.some((l) => l.includes('push'))).toBe(true);
-		});
-
-		test('reward blocked scenarios cover security (auth)', () => {
-			const blocked = STRESS_SCENARIOS.filter(
-				(s) => s.expectedResult === 'blocked',
-			);
-			const labels = blocked.map((s) => s.label.toLowerCase());
-			expect(
-				labels.some((l) => l.includes('anonymous') || l.includes('other user')),
-			).toBe(true);
+		test('reward adds exactly two blocked security scenarios', () => {
+			const probeIds = new Set(PROBES.map((p) => p.id));
+			const rewardOnly = STRESS_SCENARIOS.filter((s) => !probeIds.has(s.id));
+			expect(rewardOnly.map((s) => s.id).sort()).toEqual([
+				'unauthenticated',
+				'wrong-user',
+			]);
 		});
 	});
 
 	describe('Cumulative pattern compliance', () => {
+		const correctOption = BROADCAST_SERVICE_OPTIONS.find((o) => o.correct);
+
 		test('broadcast service uses ApplicationService base class', () => {
-			const correctOption = BROADCAST_SERVICE_OPTIONS.find((o) => o.correct);
-			expect(correctOption?.code).toContain('< ApplicationService');
+			expect(correctOption?.label).toContain('< ApplicationService');
 		});
 
 		test('broadcast service uses Result = Data.define pattern', () => {
-			const correctOption = BROADCAST_SERVICE_OPTIONS.find((o) => o.correct);
-			expect(correctOption?.code).toContain('Result = Data.define');
-			expect(correctOption?.code).toContain(':success?');
-			expect(correctOption?.code).toContain(':errors');
+			expect(correctOption?.label).toContain('Result = Data.define');
+			expect(correctOption?.label).toContain(':success?');
+			expect(correctOption?.label).toContain(':errors');
 		});
 
 		test('broadcast service uses Dry::Validation contract', () => {
-			const correctOption = BROADCAST_SERVICE_OPTIONS.find((o) => o.correct);
-			expect(correctOption?.code).toContain('NotificationContract.new.call');
-			expect(correctOption?.code).toContain('validation.failure?');
+			expect(correctOption?.label).toContain('NotificationContract.new.call');
+			expect(correctOption?.label).toContain('v.failure?');
 		});
 
 		test('broadcast service returns Result on failure', () => {
-			const correctOption = BROADCAST_SERVICE_OPTIONS.find((o) => o.correct);
-			expect(correctOption?.code).toContain('Result.new');
-			expect(correctOption?.code).toContain('success?: false');
+			expect(correctOption?.label).toContain('Result.new');
+			expect(correctOption?.label).toContain('success?: false');
 		});
 
-		test('connection authentication uses encrypted cookies (not session)', () => {
-			const correctOption = AUTHENTICATE_CONNECTION_OPTIONS.find(
-				(o) => o.correct,
-			);
-			expect(correctOption?.code).toContain('cookies.encrypted');
-			expect(correctOption?.code).toContain('reject_unauthorized_connection');
-			expect(correctOption?.code).not.toContain('session[');
-		});
-
-		test('wrong options still follow cumulative patterns (service base)', () => {
-			// The wrong "direct broadcast" option still uses ApplicationService
+		test('wrong direct-broadcast option still follows service patterns', () => {
 			const wrongDirect = BROADCAST_SERVICE_OPTIONS.find(
-				(o) => o.id === 'wrong-direct-broadcast',
+				(o) => o.id === 'wrong-direct',
 			);
-			expect(wrongDirect?.code).toContain('< ApplicationService');
-			expect(wrongDirect?.code).toContain('Result = Data.define');
+			expect(wrongDirect?.label).toContain('< ApplicationService');
+			expect(wrongDirect?.label).toContain('Result = Data.define');
 		});
 	});
 
 	describe('Data consistency', () => {
+		const allText = [
+			...DISCOVERY_DEFS.map((d) => d.label),
+			...PROBES.flatMap((p) => [
+				p.label,
+				p.command,
+				...p.responseLines.map((r) => r.text),
+			]),
+			...STEP_DEFS.map((s) => s.title),
+			...STRESS_SCENARIOS.flatMap((s) => [s.label, s.description]),
+			...INSTALL_CABLE_COMMANDS.flatMap((c) => [c.label, c.feedback ?? '']),
+			...RUN_INSTALL_COMMANDS.flatMap((c) => [c.label, c.feedback ?? '']),
+			...CONFIGURE_ADAPTER_OPTIONS.flatMap((o) => [o.label, o.feedback ?? '']),
+			...GENERATE_CHANNEL_COMMANDS.flatMap((c) => [c.label, c.feedback ?? '']),
+			...AUTHENTICATE_CONNECTION_OPTIONS.flatMap((o) => [
+				o.label,
+				o.feedback ?? '',
+			]),
+			...BROADCAST_SERVICE_OPTIONS.flatMap((o) => [o.label, o.feedback ?? '']),
+		];
+
 		test('no em dashes in any text content', () => {
-			const allText = [
-				...DISCOVERY_DEFS.map((d) => d.label),
-				...PROBES.flatMap((p) => [
-					p.label,
-					p.command,
-					...p.responseLines.map((r) => r.text),
-				]),
-				...STEP_DEFS.map((s) => s.label),
-				...STRESS_SCENARIOS.flatMap((s) => [s.label, s.description]),
-				...INSTALL_CABLE_COMMANDS.flatMap((c) => [c.label, c.feedback ?? '']),
-				...RUN_INSTALL_COMMANDS.flatMap((c) => [c.label, c.feedback ?? '']),
-				...CONFIGURE_ADAPTER_OPTIONS.flatMap((o) => [
-					o.label,
-					o.feedback ?? '',
-				]),
-				...GENERATE_CHANNEL_COMMANDS.flatMap((c) => [
-					c.label,
-					c.feedback ?? '',
-				]),
-				...AUTHENTICATE_CONNECTION_OPTIONS.flatMap((o) => [
-					o.label,
-					o.feedback ?? '',
-				]),
-				...BROADCAST_SERVICE_OPTIONS.flatMap((o) => [
-					o.label,
-					o.feedback ?? '',
-				]),
-			];
 			for (const text of allText) {
 				expect(text).not.toContain('\u2014'); // em dash
 			}
@@ -702,7 +659,7 @@ describe('Level 37: Real-Time (Action Cable + Solid Cable)', () => {
 
 		test('adapter is solid_cable in correct configure option', () => {
 			const correct = CONFIGURE_ADAPTER_OPTIONS.find((o) => o.correct);
-			expect(correct?.code).toContain('adapter: solid_cable');
+			expect(correct?.label).toContain('adapter: solid_cable');
 		});
 
 		test('channel generation creates NotificationsChannel', () => {
@@ -710,8 +667,8 @@ describe('Level 37: Real-Time (Action Cable + Solid Cable)', () => {
 			expect(correct?.command).toContain('channel Notifications');
 		});
 
-		test('all response line colors are valid', () => {
-			const validColors = ['cyan', 'amber', 'red', 'green'];
+		test('all probe response line colors are valid', () => {
+			const validColors = ['cyan', 'yellow', 'red', 'green'];
 			for (const probe of PROBES) {
 				for (const line of probe.responseLines) {
 					expect(validColors).toContain(line.color);
@@ -759,5 +716,15 @@ describe('Level 37: reward wiring', () => {
 		for (const probe of WIRED_PROBES) {
 			expect(ids.has(probe.id), `probe "${probe.id}" unpaired`).toBe(true);
 		}
+	});
+
+	test('mirrored scenario ids match the wired scenario ids', () => {
+		expect(WIRED_SCENARIOS.map((s) => s.id)).toEqual(
+			STRESS_SCENARIOS.map((s) => s.id),
+		);
+	});
+
+	test('mirrored probe ids match the wired probe ids', () => {
+		expect(WIRED_PROBES.map((p) => p.id)).toEqual(PROBES.map((p) => p.id));
 	});
 });
