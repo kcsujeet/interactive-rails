@@ -1200,12 +1200,15 @@ Started GET "/products/9" for 10.0.0.4 at 14:22:31
   Order Load (1.2ms)  SELECT "orders".* FROM ...
 Processing by ProductsController#show as JSON
 Completed 200 OK in 3214ms (Views: 11.4ms | ActiveRecord: 68.2ms)
+{"method":"POST","path":"/checkout","status":200,"duration_ms":3214,"request_id":"f3a91c"}
 Completed 200 OK in 187ms (Views: 9.8ms | ActiveRecord: 3.1ms)
 
-# Five lines of prose per request, interleaved across
-# concurrent requests. Which "Completed" belongs to which
-# "Started"? Whose checkout took 3214ms? grep cannot say.`,
-				highlight: [6],
+# The middleware level's JSON summary line (line 7) is good, but
+# Rails' OWN default logging still writes the prose lines around
+# it for every request, interleaved. The SQL, view, and render
+# timings only live in that prose, so there is no single
+# structured line per request you can sort, filter, or correlate.`,
+				highlight: [7],
 			},
 			{
 				filename: 'app/middleware/request_logger.rb',
@@ -1216,37 +1219,59 @@ Completed 200 OK in 187ms (Views: 9.8ms | ActiveRecord: 3.1ms)
   end
 
   def call(env)
-    start = Time.now
+    start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
     status, headers, body = @app.call(env)
-    duration = ((Time.now - start) * 1000).round(1)
+    duration = Process.clock_gettime(Process::CLOCK_MONOTONIC) - start
 
-    Rails.logger.info(
-      "method=#{env['REQUEST_METHOD']} " \\
-      "path=#{env['PATH_INFO']} " \\
-      "status=#{status} duration=#{duration}ms"
-    )
+    Rails.logger.info({
+      method: env['REQUEST_METHOD'],
+      path: env['PATH_INFO'],
+      status: status,
+      duration_ms: (duration * 1000).round(2),
+      request_id: env['HTTP_X_REQUEST_ID']
+    }.to_json)
 
     [status, headers, body]
   end
 end
 
-# The middleware from the middleware level adds one summary
-# line, but it is one more text line in the same braid:
-# nothing ties it to the other lines of its request, and
-# slowness still raises nothing for the error tracker.`,
-				highlight: [11, 12, 13, 14, 15],
+# The middleware level added ONE good JSON summary line per
+# request (with request_id). But Rails' OWN default logging
+# still emits the five prose lines above for every request,
+# interleaved, and that is where the SQL, view, and render
+# timings live. The whole request needs to become one
+# structured line instead of a summary plus five prose lines.`,
+				highlight: [11, 12, 13, 14, 15, 16, 17],
 			},
 		];
 	}
 
 	const files = [];
 
-	files.push({
-		filename: 'config/environments/production.rb',
-		language: 'ruby',
-		code:
-			completedStep >= 2
-				? `# Structured request logging
+	// Working on step 0 (the install step): the player has not added the
+	// structured-logging gem yet, so the right panel shows the before-state
+	// prose log, not a config file that names the tool they are about to pick.
+	if (completedStep < 0) {
+		files.push({
+			filename: 'log/production.log',
+			language: 'text',
+			code: `Started GET "/products/9" for 10.0.0.4 at 14:22:31
+  Product Load (2.1ms)  SELECT "products".* FROM ...
+Processing by ProductsController#show as JSON
+Completed 200 OK in 187ms (Views: 9.8ms | ActiveRecord: 3.1ms)
+
+# Five prose lines per request, interleaved across requests.
+# The SQL, view, and render timings are trapped in that prose,
+# so there is no one structured line per request to sort or filter.`,
+			highlight: [],
+		});
+	} else {
+		files.push({
+			filename: 'config/environments/production.rb',
+			language: 'ruby',
+			code:
+				completedStep >= 2
+					? `# Structured request logging
 config.lograge.enabled = true
 config.lograge.formatter = Lograge::Formatters::Json.new
 
@@ -1256,19 +1281,24 @@ config.lograge.custom_payload do |controller|
     user_id: Current.user&.id
   }
 end`
-				: completedStep >= 1
-					? `# Structured request logging
+					: completedStep >= 1
+						? `# Structured request logging
 config.lograge.enabled = true
 config.lograge.formatter = Lograge::Formatters::Json.new
 
 # Each line still answers "what happened" but not
 # "whose request" or "which request".`
-					: `# lograge installed (Gemfile).
+						: `# Structured logging gem installed (Gemfile).
 # Each request still logs five lines of prose;
 # the formatter decides what replaces them.`,
-		highlight:
-			completedStep >= 2 ? [5, 6, 7, 8, 9] : completedStep >= 1 ? [2, 3] : [3],
-	});
+			highlight:
+				completedStep >= 2
+					? [5, 6, 7, 8, 9]
+					: completedStep >= 1
+						? [2, 3]
+						: [3],
+		});
+	}
 
 	if (completedStep >= 3) {
 		files.push({

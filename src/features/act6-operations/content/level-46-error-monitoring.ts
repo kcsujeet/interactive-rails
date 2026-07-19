@@ -17,22 +17,23 @@ export const level46ErrorMonitoring: Level = {
 			'Request logging from L40 captures requests, but when exceptions occur, they are written to the log with no error-specific context. The team only finds out about 500 errors when users tweet about it.',
 		rootCause:
 			'No structured error monitoring. Exceptions are logged but not captured with user context, grouped by type, or alerted on. Request logging shows what happened, but not why it failed.',
-		codeExample: `# Current error handling: nothing
-class Api::ProductsController < Api::BaseController
-  def show
-    result = FetchProduct.call(id: params[:id])
-    if result.success?
-      render json: Api::ProductSerializer
-        .new(result.resource).serializable_hash
-    end
+		codeExample: `# The problem is NOT wrong status codes. Rails already maps
+# common exceptions sensibly (RecordNotFound -> 404). The problem is
+# that when a REAL bug throws (a 500), nobody is told, and the log
+# line has no context to debug from.
+class Api::PaymentsController < Api::BaseController
+  def create
+    charge = gateway.charge(order.total_cents) # can raise
+    render json: { id: charge.id }, status: :created
   end
-  # ActiveRecord::RecordNotFound => 500 Internal Server Error
-  # No context, no alert, no grouping
+  # A NoMethodError here => 500 Internal Server Error
+  # No report to anyone, no user context, no grouping
 end
 
 # Production log:
-# [ERROR] ActiveRecord::RecordNotFound: Couldn't find Product with 'id'=999
-# ...and that's it. No user context, no request ID, no breadcrumbs.
+# [ERROR] NoMethodError: undefined method 'total_cents' for nil
+# ...and that's it. No user context, no request ID, no breadcrumbs,
+# and no alert. The team learns about it from Twitter.
 
 # Questions we can't answer:
 # - How many users are affected?
@@ -78,13 +79,13 @@ You know what to fix, who to apologize to, and which release introduced it.
 - **Trends:** "Is this error getting worse or better?" The dashboard answers in seconds.
 
 **Error-rate SLO (the budget that gates risky deploys):**
-An SLO is a goal you commit to. The simplest one is "99.9% of requests succeed." That gives you a 0.1% **error budget**: room for failures before you've broken your promise. The budget is the link between reliability and feature work:
+An SLO is a goal you commit to. In this level we use "99% of requests succeed." That gives you a 1% **error budget**: room for failures before you've broken your promise. (Bigger apps often set a stricter 99.9%; the mechanism is identical, just a smaller budget.) The budget is the link between reliability and feature work:
 
 \`\`\`
-Error-rate SLO: 99.9% of requests succeed (30-day rolling window)
-Budget:         0.1% errors per month (~43 minutes of full outage equivalent)
-Today:          0.06% error rate, 60% budget remaining -> ship freely
-Tomorrow:       0.18% error rate, budget exhausted -> freeze risky deploys until you fix
+Error-rate SLO: 99% of requests succeed (30-day rolling window)
+Budget:         1% errors per month
+Today:          0.6% error rate, 40% budget remaining -> ship freely
+Tomorrow:       1.5% error rate, budget exhausted -> freeze risky deploys until you fix
 \`\`\`
 
 The error budget turns "should we deploy this risky change?" from a gut call into a measurement. If budget is healthy, ship; if exhausted, fix reliability first.
@@ -198,8 +199,8 @@ end
 
 # app/jobs/error_budget_check_job.rb
 class ErrorBudgetCheckJob < ApplicationJob
-  # SLO: 99.9% success rate (0.1% error budget)
-  ERROR_BUDGET = 0.001
+  # SLO: 99% success rate (1% error budget)
+  ERROR_BUDGET = 0.01
 
   def perform
     window = 1.hour.ago..Time.current

@@ -140,7 +140,7 @@ const DEFAULT_EDGE: EdgeVizState = {
 // ─── Discovery definitions ─────────────────────────────────────────────
 
 const DISCOVERY_DEFS = [
-	{ id: 'slow-recent', label: 'Recent order queries scan 50M rows' },
+	{ id: 'slow-recent', label: 'Indexes are bloated by 50M rows nobody reads' },
 	{ id: 'slow-old', label: 'Old order lookups scan entire table' },
 	{ id: 'slow-backup', label: 'Daily backup takes 8 hours' },
 ];
@@ -150,25 +150,29 @@ const DISCOVERY_DEFS = [
 const PROBES = [
 	{
 		id: 'recent-orders',
-		label: 'Customer views recent orders (slow)',
-		command: 'Order.where(customer_id: 42).order(created_at: :desc).limit(10)',
+		label: 'Inspect the customer_id index size',
+		command:
+			"SELECT pg_size_pretty(pg_relation_size('index_orders_on_customer_id'))",
 		responseLines: [
 			{
-				text: 'Seq Scan on orders (rows=50,000,000)',
+				text: 'Index Scan using index_orders_on_customer_id (fast for lookups)',
+				color: 'yellow' as const,
+			},
+			{ text: 'index_orders_on_customer_id: 4.1 GB', color: 'red' as const },
+			{
+				text: '# The index covers all 50M rows, even the 95% nobody reads',
 				color: 'red' as const,
 			},
-			{ text: 'Planning time: 12ms', color: 'yellow' as const },
-			{ text: 'Execution time: 3,200ms', color: 'red' as const },
 			{
-				text: '# 3 second response for 10 recent orders',
+				text: '# Every write updates it, every backup copies it, and it barely fits in memory',
 				color: 'red' as const,
 			},
 		],
 		story: [
-			'A customer opens their order history page.',
-			'The query needs just 10 recent orders from today.',
-			'But Postgres must scan through 50M rows to find them.',
-			'3 seconds to load a page that should be instant.',
+			'The customer_id index makes recent-order lookups fast, so the query itself is fine.',
+			'But the index covers all 50M rows, so it has grown to 4.1 GB.',
+			'95% of those rows are old orders nobody reads, yet they bloat the index.',
+			'Every insert has to update this giant index, and it no longer fits comfortably in memory.',
 		],
 	},
 	{
@@ -213,7 +217,7 @@ const PROBES = [
 				color: 'red' as const,
 			},
 			{
-				text: '# Migration ALTER TABLE takes 4+ hours (table lock)',
+				text: '# A row-rewriting migration (L43) takes 4+ hours on 50M rows',
 				color: 'red' as const,
 			},
 		],
@@ -221,7 +225,7 @@ const PROBES = [
 			'The nightly pg_dump backup starts at midnight.',
 			'It takes 8 hours to dump 50M rows of order data.',
 			'The backup overlaps with morning peak traffic.',
-			'Any ALTER TABLE migration locks the table for hours.',
+			'The migrations that DO rewrite rows (the unsafe ones from L43) now take hours instead of minutes on a table this big.',
 		],
 	},
 ];
@@ -238,48 +242,60 @@ const PROBE_FRAMES: Record<string, AnimFrame[]> = {
 	'recent-orders': [
 		{
 			customer: {
-				label: 'GET /orders',
-				sublabel: 'Recent orders page',
+				label: 'Inspect index size',
+				sublabel: 'index_orders_on_customer_id',
 				flash: 'idle',
 			},
 			edge1: {
 				active: true,
 				reverse: false,
-				label: 'GET /orders',
+				label: 'pg_relation_size(index)',
 				dotColor: 'bg-cyan-500',
 			},
 		},
 		{
 			edge1: { active: false },
-			app: { label: 'Order.limit(10)', sublabel: 'Querying...', flash: 'idle' },
+			app: {
+				label: 'Index Scan (lookups are fast)',
+				sublabel: 'the query is fine',
+				flash: 'idle',
+			},
 			edge2: {
 				active: true,
 				reverse: false,
-				label: 'SELECT * FROM orders',
+				label: 'measure index on 50M rows',
 				dotColor: 'bg-cyan-500',
 			},
 		},
 		{
-			db: { label: 'Seq Scan 50M rows', sublabel: '3,200ms', flash: 'red' },
+			db: {
+				label: 'Index bloated to 4.1 GB',
+				sublabel: 'covers 50M rows, 95% never read',
+				flash: 'red',
+			},
 			edge2: {
 				active: true,
 				reverse: true,
-				label: '10 rows (3.2s)',
+				label: '4.1 GB index',
 				dotColor: 'bg-red-500',
 			},
 		},
 		{
 			edge2: { active: false },
-			app: { label: '3.2s response', sublabel: 'Too slow', flash: 'red' },
+			app: {
+				label: 'Every write updates 4.1 GB',
+				sublabel: 'and it barely fits in memory',
+				flash: 'red',
+			},
 			edge1: {
 				active: true,
 				reverse: true,
-				label: '200 OK (3.2s)',
+				label: 'index no longer fits in RAM',
 				dotColor: 'bg-red-500',
 			},
 			customer: {
-				label: 'Page loaded (3.2s)',
-				sublabel: 'Terrible UX',
+				label: 'Slower writes for everyone',
+				sublabel: 'old rows tax every insert',
 				flash: 'red',
 			},
 		},
@@ -287,35 +303,35 @@ const PROBE_FRAMES: Record<string, AnimFrame[]> = {
 	'old-order': [
 		{
 			customer: {
-				label: 'GET /orders/12345',
-				sublabel: 'Order from 2023',
+				label: 'GET /orders/lookup',
+				sublabel: 'Order number from 2023',
 				flash: 'idle',
 			},
 			edge1: {
 				active: true,
 				reverse: false,
-				label: 'GET /orders/12345',
+				label: 'order_number: ORD-2023-88112',
 				dotColor: 'bg-cyan-500',
 			},
 		},
 		{
 			edge1: { active: false },
 			app: {
-				label: 'Order.find(12345)',
-				sublabel: 'Querying...',
+				label: 'find_by(order_number:)',
+				sublabel: 'No index on order_number',
 				flash: 'idle',
 			},
 			edge2: {
 				active: true,
 				reverse: false,
-				label: 'SELECT * FROM orders WHERE id=12345',
+				label: "SELECT * FROM orders WHERE order_number = 'ORD-2023-88112'",
 				dotColor: 'bg-cyan-500',
 			},
 		},
 		{
 			db: {
 				label: 'Seq Scan 50M rows',
-				sublabel: '4,100ms for 1 row',
+				sublabel: '4,100ms (no index on order_number)',
 				flash: 'red',
 			},
 			edge2: {
@@ -387,7 +403,7 @@ const PROBE_FRAMES: Record<string, AnimFrame[]> = {
 			edge2: { active: false },
 			app: {
 				label: 'Backup overlaps traffic',
-				sublabel: 'ALTER TABLE = hours of lock',
+				sublabel: 'row-rewriting migrations lock for hours',
 				flash: 'red',
 			},
 		},
@@ -400,56 +416,60 @@ const REWARD_FRAMES: Record<string, AnimFrame[]> = {
 	'recent-orders': [
 		{
 			customer: {
-				label: 'GET /orders',
-				sublabel: 'Recent orders page',
+				label: 'Inspect index size',
+				sublabel: 'index_orders_on_customer_id',
 				flash: 'idle',
 			},
 			edge1: {
 				active: true,
 				reverse: false,
-				label: 'GET /orders',
+				label: 'pg_relation_size(index)',
 				dotColor: 'bg-cyan-500',
 			},
 		},
 		{
 			edge1: { active: false },
 			app: {
-				label: 'Order.limit(10)',
-				sublabel: 'Hot table query',
+				label: 'Hot table now holds 2.5M rows',
+				sublabel: 'old orders moved to archive',
 				flash: 'idle',
 			},
 			edge2: {
 				active: true,
 				reverse: false,
-				label: 'SELECT FROM orders (2.5M)',
+				label: 'measure index on 2.5M rows',
 				dotColor: 'bg-emerald-500',
 			},
 		},
 		{
 			hotDb: {
-				label: 'Index scan 2.5M rows',
-				sublabel: '50ms',
+				label: 'Index shrunk to ~200 MB',
+				sublabel: 'covers only rows people read',
 				flash: 'green',
 			},
 			edge2: {
 				active: true,
 				reverse: true,
-				label: '10 rows (50ms)',
+				label: '200 MB index',
 				dotColor: 'bg-emerald-500',
 			},
 		},
 		{
 			edge2: { active: false },
-			app: { label: '50ms response', sublabel: '64x faster', flash: 'green' },
+			app: {
+				label: 'Index fits in memory again',
+				sublabel: 'writes and lookups stay fast',
+				flash: 'green',
+			},
 			edge1: {
 				active: true,
 				reverse: true,
-				label: '200 OK (50ms)',
+				label: 'small index, cheap writes',
 				dotColor: 'bg-emerald-500',
 			},
 			customer: {
-				label: 'Instant load (50ms)',
-				sublabel: 'Great UX',
+				label: 'Fast writes for everyone',
+				sublabel: 'no dead rows taxing inserts',
 				flash: 'green',
 			},
 		},
@@ -457,14 +477,14 @@ const REWARD_FRAMES: Record<string, AnimFrame[]> = {
 	'old-order': [
 		{
 			customer: {
-				label: 'GET /orders/12345',
-				sublabel: 'Order from 2023',
+				label: 'GET /orders/lookup',
+				sublabel: 'order_number from 2023',
 				flash: 'idle',
 			},
 			edge1: {
 				active: true,
 				reverse: false,
-				label: 'GET /orders/12345',
+				label: 'order_number: ORD-2023-88112',
 				dotColor: 'bg-cyan-500',
 			},
 		},
@@ -685,6 +705,8 @@ end`,
   def perform
     Order.where("created_at < ?", 90.days.ago)
          .find_in_batches(batch_size: 1_000) do |batch|
+      # Works because archived_orders mirrors the orders columns.
+      # If the schemas ever diverge, map explicit columns instead.
       ArchivedOrder.insert_all(batch.map(&:attributes))
       Order.where(id: batch.map(&:id)).delete_all
     end
@@ -746,9 +768,11 @@ class Order < ApplicationRecord
   end
 
   def self.for_customer(customer_id)
-    recent = where(customer_id: customer_id)
-    return recent if recent.exists?
-    ArchivedOrder.where(customer_id: customer_id)
+    # Always merge both tables so a customer with recent AND
+    # archived orders sees their full history, not just the hot rows.
+    recent = where(customer_id: customer_id).to_a
+    archived = ArchivedOrder.where(customer_id: customer_id).to_a
+    (recent + archived).sort_by(&:created_at).reverse
   end
 end`,
 		correct: true,
@@ -875,22 +899,25 @@ const TERMINAL_STEP_MAP: (TerminalStepData | null)[] = [
 const STRESS_SCENARIOS = [
 	{
 		id: 'recent-orders',
-		label: 'Customer views recent orders (hot table)',
-		description: 'Query hits hot table with 2.5M rows instead of 50M',
-		method: 'GET' as const,
-		path: '/api/orders',
-		actor: 'customer',
+		label: 'Inspect the customer_id index size (after archiving)',
+		description: 'Index now covers 2.5M hot rows instead of 50M',
+		method: 'MIGRATE' as const,
+		path: 'pg_relation_size(index_orders_on_customer_id)',
+		actor: 'developer',
 		expectedResult: 'allowed' as const,
 		responseLines: [
-			{ text: '200 OK', color: 'green' },
-			{ text: 'Index Scan on orders (rows=2,500,000)', color: 'green' },
-			{ text: 'Execution time: 50ms (was 3,200ms)', color: 'green' },
+			{ text: 'index_orders_on_customer_id: ~200 MB', color: 'green' },
+			{ text: '# Index covers only the 2.5M rows people read', color: 'green' },
+			{
+				text: '# Fits in memory again; writes and lookups stay fast',
+				color: 'green',
+			},
 		],
 		story: [
-			'Same customer, same recent orders page.',
-			'But now the hot table has only 2.5M rows.',
-			'Index scan finds 10 orders in 50ms.',
-			'64x faster than before.',
+			'Same index, but the hot table now holds only 2.5M rows.',
+			'Old orders moved to the archive, so the index shrank from 4.1 GB to ~200 MB.',
+			'It fits comfortably in memory again.',
+			'Every insert updates a small index, so writes stay fast for everyone.',
 		],
 	},
 	{

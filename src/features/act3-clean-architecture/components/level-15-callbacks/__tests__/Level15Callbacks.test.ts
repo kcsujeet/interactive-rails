@@ -537,6 +537,24 @@ describe('Level 15: Callbacks & Normalizations', () => {
 			}
 		});
 
+		test('no player-visible string promises a casing fix (the accepted answer only strips whitespace)', () => {
+			// The correct step 0 answer is a strip-only lambda. Mentioning "odd
+			// casing" or a lowercase "ceramic mug" variant promises a fix the
+			// build phase never delivers.
+			for (const s of allPlayerVisibleStrings()) {
+				expect(
+					s.toLowerCase(),
+					`player-visible string promises a casing fix: "${s}"`,
+				).not.toContain('casing');
+				// Raw (non-lowercased) scan: a literal lowercase "ceramic mug"
+				// only appears if the text itself dramatizes a casing problem.
+				expect(
+					s,
+					`player-visible string shows a lowercase casing variant: "${s}"`,
+				).not.toContain('ceramic mug');
+			}
+		});
+
 		test('no player-visible string mentions the dropped enum / sync concepts', () => {
 			// Status enum + sync_to_accounting were dropped during tightening.
 			// No player-visible text should reference them anymore.

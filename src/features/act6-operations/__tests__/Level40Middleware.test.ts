@@ -191,14 +191,14 @@ const ORDERING_OPTIONS = [
 		label: 'Add all middleware with config.middleware.use (default order)',
 		correct: false,
 		feedback:
-			'Default append order means BotDetector runs after RequestIdTracker. But if a bot is rejected, the logger never sees it. Order matters: detect bots first, then ID, then log.',
+			'The request ID is injected first here, but the bot check sits above the logger, so a rejected bot is thrown away before it is ever logged. Think about which check wastes the least work: what should see the request before anything else runs?',
 	},
 	{
 		id: 'wrong-logger-first',
 		label: 'Logger first, then bot detector, then request ID',
 		correct: false,
 		feedback:
-			'If the logger runs before the request ID is injected, logs will have no request_id field. Request ID must be injected before logging.',
+			'The logger sits at the top of these three, so it runs before the request ID is injected below it. Its log lines will have no request_id to correlate on. Which piece has to run before the logger can use it?',
 	},
 	{
 		id: 'correct',
@@ -264,17 +264,20 @@ const STRESS_SCENARIOS = [
 	},
 	{
 		id: 'health-check',
-		label: 'Health check (full pipeline working)',
-		description: 'All three middleware layers process the request',
+		label: 'Load balancer pings /up every 2 seconds',
+		description: 'Health check skips the logger so pings do not flood the log',
 		method: 'GET',
-		path: '/health',
-		actor: 'monitoring',
+		path: '/up',
+		actor: 'load balancer',
 		expectedResult: 'allowed' as const,
 		responseLines: [
 			{ text: '200 OK', color: 'green' },
-			{ text: 'X-Request-Id: present', color: 'green' },
-			{ text: 'Structured log: written', color: 'green' },
-			{ text: 'Bot check: passed (legitimate)', color: 'green' },
+			{ text: '# PATH_INFO is /up: middleware returns early', color: 'green' },
+			{ text: '# No structured log line written', color: 'green' },
+			{
+				text: '# Log stays clean; real traffic is easy to read',
+				color: 'green',
+			},
 		],
 	},
 ];
@@ -491,6 +494,30 @@ describe('Level 41: Middleware & Rack', () => {
 			expect(STRESS_SCENARIOS[2].expectedResult).toBe('allowed');
 			expect(STRESS_SCENARIOS[3].id).toBe('health-check');
 			expect(STRESS_SCENARIOS[3].expectedResult).toBe('allowed');
+		});
+
+		test('health-check exercises the Rails 8 /up path, not /health', () => {
+			const hc = STRESS_SCENARIOS.find((s) => s.id === 'health-check');
+			expect(hc?.path).toBe('/up');
+		});
+
+		test('health-check celebrates NOT logging the ping (early return)', () => {
+			const hc = STRESS_SCENARIOS.find((s) => s.id === 'health-check');
+			const joined = (hc?.responseLines ?? []).map((l) => l.text).join(' ');
+			expect(joined.includes('returns early')).toBe(true);
+			expect(joined.includes('No structured log line written')).toBe(true);
+		});
+	});
+
+	describe('Ordering feedback truthfulness', () => {
+		test('wrong-random feedback does not claim BotDetector runs last', () => {
+			const opt = ORDERING_OPTIONS.find((o) => o.id === 'wrong-random');
+			expect(opt?.feedback?.includes('BotDetector runs last')).toBe(false);
+		});
+
+		test('wrong-logger-first feedback places the logger at the top, not before ID by running order confusion', () => {
+			const opt = ORDERING_OPTIONS.find((o) => o.id === 'wrong-logger-first');
+			expect(opt?.feedback?.includes('top of these three')).toBe(true);
 		});
 	});
 

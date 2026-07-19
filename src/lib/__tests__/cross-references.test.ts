@@ -54,6 +54,7 @@ const CROSS_REFERENCES: Record<string, string[]> = {
 	'act2-users-security/content/level-11-authorization.ts': ['Authentication'],
 	'act2-users-security/content/level-13-strong-params.ts': ['The Controller'],
 	'act2-users-security/components/level-10-encryption/Level10Encryption.tsx': [
+		'Authentication',
 		'Validations',
 		'Service Objects',
 		'Validation Contracts',
@@ -110,8 +111,9 @@ const CROSS_REFERENCES: Record<string, string[]> = {
 		'External APIs',
 	],
 	'act6-operations/content/level-44-recurring-jobs.ts': ['Background Jobs'],
+	'act6-operations/content/level-45-data-lifecycle.ts': ['Safe Migrations'],
 	'act6-operations/components/level-45-data-lifecycle/Level45DataLifecycle.tsx':
-		['Recurring Jobs & Scheduling'],
+		['Recurring Jobs & Scheduling', 'Safe Migrations'],
 	'act6-operations/content/level-46-error-monitoring.ts': [
 		'Middleware & Rack',
 		'Observability',
@@ -122,7 +124,7 @@ const CROSS_REFERENCES: Record<string, string[]> = {
 	'act6-operations/components/level-44-recurring-jobs/Level44RecurringJobs.tsx':
 		['Background Jobs'],
 	'act6-operations/components/level-46-error-monitoring/Level46ErrorMonitoring.tsx':
-		['Middleware & Rack'],
+		['Middleware & Rack', 'Recurring Jobs & Scheduling'],
 	'act6-operations/components/level-48-api-versioning/Level48APIVersioning.tsx':
 		[
 			'Routes & Request Lifecycle',

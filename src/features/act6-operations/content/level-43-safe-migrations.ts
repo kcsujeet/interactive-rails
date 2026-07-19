@@ -185,16 +185,21 @@ end
 # $ bin/rails db:migrate
 #
 # === Dangerous migration detected ===
-# Adding a column with a non-null default blocks reads and writes
-# while the entire table is rewritten.
+# Adding a column with a volatile default value (like gen_random_uuid())
+# rewrites the entire table. Reads and writes are blocked while it runs.
+# (A CONSTANT default such as false is metadata-only and safe on
+#  PostgreSQL 11+, so strong_migrations does not flag it.)
 #
-# Instead, add the column without a default value, then change
-# the default.
+# Instead, add the column without a default, then change the default.
 #
-# class AddAdminToUsers < ActiveRecord::Migration[8.0]
-#   def change
-#     add_column :users, :admin, :boolean
-#     change_column_default :users, :admin, false
+# class AddReferenceCodeToOrders < ActiveRecord::Migration[8.0]
+#   def up
+#     add_column :orders, :reference_code, :uuid
+#     change_column_default :orders, :reference_code, -> { "gen_random_uuid()" }
+#   end
+#
+#   def down
+#     remove_column :orders, :reference_code
 #   end
 # end`,
 		commonMistakes: [

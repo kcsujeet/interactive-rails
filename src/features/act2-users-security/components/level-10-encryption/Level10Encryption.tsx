@@ -1,8 +1,9 @@
 /**
  * Level 10: Encrypted Attributes
  *
- * Aligned with myapp at the level-10 git tag: User has email_address (deterministic
- * + downcase), phone (deterministic), address (default/non-deterministic).
+ * Final model state: User has email_address (deterministic; casing is handled
+ * by the normalizes declaration from L9's auth generator), phone
+ * (deterministic), address (default/non-deterministic).
  *
  * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
@@ -17,8 +18,8 @@
  * Phase 2 (HOW - build): 4 steps (1 terminal + 3 OptionCard)
  *   Step 0: Generate encryption keys (terminal)
  *   Step 1: Add keys to Rails credentials (OptionCard)
- *   Step 2: Encrypt email_address with the right options for case-insensitive
- *           login lookups (OptionCard)
+ *   Step 2: Encrypt email_address with deterministic mode so login
+ *           lookups keep working (OptionCard)
  *   Step 3: Encrypt phone (queryable for support) and address with the right
  *           mode for each (OptionCard)
  *
@@ -149,7 +150,7 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'sql-injection',
 		label: 'Exploit SQL injection on the search endpoint',
-		command: "SELECT email_address, phone FROM users WHERE id = '1 OR 1=1'",
+		command: 'SELECT email_address, phone FROM users WHERE id = 1 OR 1=1',
 		responseLines: [
 			{ text: 'alice@example.com  | +1-555-0123', color: 'red' },
 			{ text: 'bob@corp.io        | +1-555-0456', color: 'red' },
@@ -158,7 +159,7 @@ const PROBES: ProbeConfig[] = [
 		],
 		story: [
 			'An attacker finds a SQL injection vulnerability in the search endpoint.',
-			"They craft a query that bypasses the WHERE clause: id = '1 OR 1=1'.",
+			'The endpoint interpolates ?id= straight into SQL, so id=1 OR 1=1 makes the WHERE clause always true.',
 			'The database returns every row in the users table.',
 			'All emails and phone numbers are stored in plaintext.',
 			'The attacker now has the full customer PII dump.',

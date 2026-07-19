@@ -27,11 +27,14 @@ export const level42RateLimiting: Level = {
 # Meanwhile, real users:
 # 203.0.113.5 - GET /api/products - 504 Gateway Timeout
 
-# Rails 8 has a built-in rate_limit macro:
+# Nothing counts how often one IP or one user calls us.
+# Every controller action runs for every request, no matter
+# how fast they arrive:
 module Api
   class SessionsController < Api::BaseController
-    rate_limit to: 10, within: 3.minutes, only: :create
-    # But we also need IP-level and user-level throttling
+    def create
+      # ... authenticates on every single attempt, no ceiling
+    end
   end
 end
 
@@ -153,8 +156,12 @@ class Rack::Attack
 
   # Custom throttled response with Retry-After header
   self.throttled_responder = lambda do |env|
-    match_data = env["rack.attack.match_data"]
-    retry_after = (match_data || {})[:period]
+    match_data = env["rack.attack.match_data"] || {}
+    # :period is the full window length. Retry-After should be the
+    # seconds LEFT in the current window, not the whole window.
+    period = match_data[:period].to_i
+    now = match_data[:epoch_time].to_i
+    retry_after = period.zero? ? 0 : period - (now % period)
 
     [
       429,

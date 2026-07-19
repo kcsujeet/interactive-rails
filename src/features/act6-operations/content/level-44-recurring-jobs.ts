@@ -37,7 +37,7 @@ export const level44RecurringJobs: Level = {
 	},
 	problem: {
 		observation:
-			'Database has 2M expired session tokens, 500K orphaned records, and 100K stale cache entries. Storage growing 5% per week. Nobody cleans up because there is no automated maintenance.',
+			'Database has 2M expired session tokens, 500K stale carts abandoned mid-checkout, and 100K stale cache entries. Storage growing 5% per week. Nobody cleans up because there is no automated maintenance.',
 		rootCause:
 			'No scheduled recurring jobs for data maintenance. Cleanup is manual and forgotten.',
 		codeExample: `# The database is full of expired data:
@@ -80,15 +80,15 @@ AuditLog.where("created_at < ?", 1.year.ago).count
 **Solid Queue recurring tasks vs cron:**
 - Defined in YAML, version-controlled
 - Runs inside your Rails app (access to models, mailers, etc.)
-- Visible in the Solid Queue dashboard
 - No external cron daemon to manage
-- Automatic leader election (only one instance runs the task)
+- Safe to run the scheduler on more than one server without double-firing a task
 
 **Key concepts:**
 - \`config/recurring.yml\` defines the schedule
 - Jobs inherit from \`ApplicationJob\` as normal
 - Schedule uses cron syntax or human-readable intervals
-- Solid Queue handles leader election (no duplicate runs in multi-process)`,
+- No duplicate runs across servers: each due task writes a row to \`solid_queue_recurring_executions\` in the same transaction as the enqueue, and a unique index on \`(task_key, run_at)\` means only one scheduler can enqueue a given task for a given time
+- To view and retry jobs in a browser, add the separate \`mission_control-jobs\` gem. Solid Queue itself ships no dashboard`,
 		railsCodeExample: `# ============================
 # config/recurring.yml
 # ============================

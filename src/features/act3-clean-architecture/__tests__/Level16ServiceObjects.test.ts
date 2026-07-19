@@ -112,6 +112,19 @@ describe('Level 16: the token regression is fixed', () => {
 		expect(service?.code.includes('request.')).toBe(false);
 	});
 
+	test('apply_default_preferences acknowledges the update!-raises tradeoff', () => {
+		// This level introduces Result as the error channel, yet the private
+		// helper uses update! (raises). The code owns that mixed-channel
+		// tradeoff with an honest comment instead of hiding it.
+		const done = getCodeFiles('build', STEP_DEFS.length);
+		const service = done.find((f) =>
+			f.filename.includes('user_registration.rb'),
+		);
+		expect(service?.code).toContain(
+			'Tradeoff: update! raises instead of returning a Result.',
+		);
+	});
+
 	test('the final service uses the canonical verified Result shape', () => {
 		const done = getCodeFiles('build', STEP_DEFS.length);
 		const service = done.find((f) =>
@@ -145,6 +158,21 @@ describe('Level 16: build steps', () => {
 				options: config.options,
 			});
 		}
+	});
+
+	test('background-job feedback gives the honest reason (no job infrastructure yet), not a false timing claim', () => {
+		// deliver_later IS the production pattern (taught at the background
+		// jobs level). The only honest objection at this curriculum point is
+		// that no job backend exists yet. The old feedback claimed the work
+		// "has to be done before the response renders", which is false.
+		const option = OPTION_STEP_CONFIG[2].options.find(
+			(o) => o.id === 'background-job',
+		);
+		expect(option?.feedback).toContain('no job backend yet');
+		expect(option?.feedback?.includes('half-registered')).toBe(false);
+		expect(option?.feedback?.includes('before the response renders')).toBe(
+			false,
+		);
 	});
 
 	test('wrong-option feedback never contains that step answer tokens', () => {

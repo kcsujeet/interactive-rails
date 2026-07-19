@@ -92,7 +92,7 @@ const SCENARIO_IDS = [
 	'delete-no-token',
 	'create-no-token',
 	'check-identity',
-	'expired-token',
+	'revoked-token',
 	'valid-delete',
 ] as const;
 
@@ -102,7 +102,7 @@ const SCENARIO_LABELS: Record<string, string> = {
 	'delete-no-token': 'DELETE without token',
 	'create-no-token': 'POST without token',
 	'check-identity': 'Check current_user',
-	'expired-token': 'PATCH with expired token',
+	'revoked-token': 'PATCH with revoked token',
 	'valid-delete': 'DELETE with valid token',
 };
 
@@ -112,7 +112,7 @@ const SCENARIO_RESULTS: Record<string, 'allowed' | 'blocked'> = {
 	'delete-no-token': 'blocked',
 	'create-no-token': 'blocked',
 	'check-identity': 'blocked',
-	'expired-token': 'blocked',
+	'revoked-token': 'blocked',
 	'valid-delete': 'allowed',
 };
 
@@ -211,7 +211,7 @@ const CREATE_SESSION_OPTIONS: OptionShape[] = [
 		label: 'JWT.encode({ user_id: user.id }, secret)',
 		correct: false,
 		feedback:
-			'JWTs are stateless and hard to revoke. Rails 8 auth uses server-side sessions stored in the database.',
+			'JWTs are stateless: once issued, a stolen token stays valid until it expires. There is no way to revoke a single credential when a user logs out or a token leaks.',
 	},
 ];
 
@@ -228,7 +228,7 @@ const PROTECT_OPTIONS: OptionShape[] = [
 		label: 'if current_user.nil? then head :unauthorized end',
 		correct: false,
 		feedback:
-			'Manual nil checks in every action are repetitive. Use a before_action to protect all endpoints at once.',
+			'Repeating a nil check inside every action is easy to forget the moment someone adds a new action. The Authentication concern ships a single declaration that guards the whole controller.',
 	},
 	{
 		id: 'before-action',
@@ -259,8 +259,29 @@ const CORRECT_ANSWER_KEYWORDS: Record<string, string[]> = {
 		'before_action :require_authentication',
 		':require_authentication',
 		'require_authentication',
+		'before_action',
 	],
 };
+
+// ─────────────────────────────────────────────
+// Terminal output / stress-scenario narrative fences
+// ─────────────────────────────────────────────
+
+// Mirrored from runMigrationsOutput: the sessions migration is edited to add
+// a token:string column (unique index) BEFORE it runs, so the token used by
+// the Session model in step 3 visibly exists.
+const RUN_MIGRATIONS_OUTPUT_TEXT: string[] = [
+	'== <timestamp> CreateUsers: migrating ===========================',
+	'-- create_table(:users)',
+	'   -> 0.0152s',
+	'-- add_index(:users, :email_address, {unique: true})',
+	'   -> 0.0026s',
+	'== <timestamp> CreateSessions: migrating ========================',
+	'-- create_table(:sessions)',
+	'   -> 0.0135s',
+	'-- add_index(:sessions, :token, {unique: true})',
+	'   -> 0.0021s',
+];
 
 // ─────────────────────────────────────────────
 // Tests
@@ -454,5 +475,23 @@ describe('Level 9: Authentication: narrative consistency', () => {
 		// Must not be Devise's authenticate_user! or a manual nil-check.
 		expect(correct?.label).not.toContain('authenticate_user!');
 		expect(correct?.label).not.toContain('current_user.nil?');
+	});
+
+	test('migration output creates the sessions token column index before step 3 uses it', () => {
+		// Step 3's console output shows a Session with a token filled by
+		// before_create. That column must visibly exist: the migrate step
+		// output includes the unique token index on sessions.
+		expect(RUN_MIGRATIONS_OUTPUT_TEXT).toContain(
+			'-- add_index(:sessions, :token, {unique: true})',
+		);
+		expect(RUN_MIGRATIONS_OUTPUT_TEXT).toContain('-- create_table(:sessions)');
+	});
+
+	test('reward scenario claims revocation (built), not expiry (not built)', () => {
+		// The built system has no token expiry. It DOES support revocation:
+		// destroying a session row invalidates its token.
+		expect(SCENARIO_LABELS['revoked-token']).toBe('PATCH with revoked token');
+		const labels = Object.values(SCENARIO_LABELS).join(' ');
+		expect(labels).not.toContain('expired');
 	});
 });

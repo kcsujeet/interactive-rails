@@ -555,6 +555,12 @@ export const REWARD_PROBE_FRAMES: Record<string, AnimFrame[]> = {
 			res: { active: false },
 		},
 	],
+	// rack-cors answers EVERY OPTIONS-with-Access-Control-Request-Method with
+	// [200, headers, []] (cyu/rack-cors lib/rack/cors.rb call, return
+	// [200, headers, []]). When no origin/resource rule matches, process_preflight
+	// returns {} (empty headers), so the reply is 200 with NO
+	// Access-Control-Allow-Origin. The browser sees the missing permission
+	// header and never sends the real DELETE. It does not fall through to a 404.
 	'evil-delete': [
 		{
 			client: {

@@ -204,7 +204,7 @@ const SIDE_EFFECTS_OPTIONS: StepOption[] = [
 		label: 'Enqueue each one as a background job',
 		correct: false,
 		feedback:
-			'The app has no job infrastructure yet, and this work has to be done before the response renders. Deferring it means half-registered users.',
+			'The app has no job backend yet: nothing stores queued work and no worker process runs it, so an enqueued job would sit unprocessed forever. Deferring work like this is a real production pattern, but it needs infrastructure this app has not built.',
 	},
 	{
 		id: 'inline-in-call',
@@ -650,6 +650,10 @@ const SERVICE_COMPLETE = `class UserRegistration
   end
 
   def apply_default_preferences(user)
+    # Tradeoff: update! raises instead of returning a Result.
+    # The user just passed validation, so a failure here is a
+    # bug, and bugs should blow up loudly instead of hiding
+    # inside a failure Result.
     user.update!(
       locale: "en",
       timezone: "UTC",

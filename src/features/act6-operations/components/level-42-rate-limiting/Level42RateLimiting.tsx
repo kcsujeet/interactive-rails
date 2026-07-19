@@ -154,28 +154,29 @@ const DISCOVERY_DEFS = [
 const PROBES = [
 	{
 		id: 'bot-flood',
-		label: 'Bot floods API (10K req/sec from one IP)',
-		command: 'for i in {1..10000}; do curl localhost:3000/api/products; done',
+		label: 'One IP floods API 10K req/sec with a real browser user-agent',
+		command:
+			'for i in {1..10000}; do curl -A "Mozilla/5.0" localhost:3000/api/products; done',
 		responseLines: [
 			{
-				text: '# 10,000 requests from 1.2.3.4',
+				text: '# 10,000 requests from 1.2.3.4, User-Agent: Mozilla/5.0',
+				color: 'yellow' as const,
+			},
+			{
+				text: '# Bot filter (L40): user-agent looks like a real browser, allowed',
 				color: 'yellow' as const,
 			},
 			{ text: '200 OK (x10,000)', color: 'green' as const },
 			{
-				text: '# All served. Server CPU: 98%',
-				color: 'red' as const,
-			},
-			{
-				text: '# No throttle. Every request hits full stack.',
+				text: '# All served. Server CPU: 98%. Nothing counts requests per IP.',
 				color: 'red' as const,
 			},
 		],
 		story: [
-			'A bot sends 10,000 GET /api/products per second from one IP.',
-			'Every request is served. No throttling.',
-			'Server CPU hits 98%. Response times spike to 5 seconds.',
-			'The entire app slows down for everyone.',
+			'One IP sends 10,000 GET /api/products per second.',
+			'Each request carries a normal browser user-agent, so the L40 bot filter allows it.',
+			'Nothing counts how many requests one IP makes, so all 10,000 are served.',
+			'Server CPU hits 98%. Response times spike to 5 seconds for everyone.',
 		],
 	},
 	{
@@ -283,7 +284,7 @@ const PROBE_FRAMES: Record<string, AnimFrame[]> = {
 		},
 		{
 			edge1: { active: false },
-			app: { label: 'No throttle, no protection', flash: 'red' },
+			app: { label: 'Nothing counts requests per IP', flash: 'red' },
 		},
 	],
 	'brute-force': [
@@ -425,20 +426,20 @@ const REWARD_FRAMES: Record<string, AnimFrame[]> = {
 				dotColor: 'bg-red-500',
 			},
 			app: {
-				label: 'Login rate limit...',
+				label: 'Rack::Attack checks the IP...',
 				flash: 'idle',
 				badge: null,
 				requestCount: null,
-				userLimitLabel: 'Login check...',
+				userLimitLabel: 'login/ip check...',
 				userLimitFlash: 'amber',
 			},
 		},
 		{
 			edge1: { active: false },
 			app: {
-				label: 'Login limit: 5/min!',
+				label: 'Middleware: 5 login tries used up',
 				flash: 'amber',
-				userLimitLabel: 'Login: 5/5 BLOCKED',
+				userLimitLabel: 'login/ip: 5/5 BLOCKED',
 				userLimitFlash: 'red',
 			},
 		},
@@ -446,10 +447,10 @@ const REWARD_FRAMES: Record<string, AnimFrame[]> = {
 			edge1: {
 				active: true,
 				reverse: true,
-				label: '429 + Retry-After: 60',
+				label: '429 + Retry-After',
 				dotColor: 'bg-red-500',
 			},
-			bot: { label: 'Blocked after 5 tries', flash: 'red' },
+			bot: { label: 'Blocked before Rails routes it', flash: 'red' },
 			app: { label: 'Account safe', flash: 'green', badge: 'PROTECTED' },
 		},
 	],
@@ -628,7 +629,7 @@ const IP_THROTTLE_OPTIONS = [
 end`,
 		correct: false,
 		feedback:
-			'10,000 requests per minute is too high. A bot sending 167 req/sec would still get through. A reasonable limit is 100-300 per minute.',
+			'This ceiling is so high that a bot sending well over a hundred requests a second still slips under it. The limit has to be low enough that normal users never notice it but a flood trips it fast.',
 	},
 	{
 		id: 'wrong-global',
@@ -742,7 +743,10 @@ end`,
 		id: 'correct',
 		label: '429 with Retry-After header',
 		code: `Rack::Attack.throttled_responder = lambda do |request|
-  retry_after = request.env['rack.attack.match_data'][:period]
+  data = request.env['rack.attack.match_data']
+  # :period is the full window; seconds LEFT in it is what the client waits.
+  now = data[:epoch_time]
+  retry_after = data[:period] - (now % data[:period])
   [429,
    { 'Content-Type' => 'application/json',
      'Retry-After' => retry_after.to_s },
@@ -810,13 +814,20 @@ const STRESS_SCENARIOS = [
 		expectedResult: 'blocked' as const,
 		responseLines: [
 			{ text: '429 Too Many Requests', color: 'red' },
-			{ text: '# Only 5 login attempts per minute', color: 'green' },
-			{ text: '# Brute force infeasible at this rate', color: 'green' },
+			{
+				text: '# Rack::Attack (middleware) blocks the flood before Rails',
+				color: 'green',
+			},
+			{
+				text: '# controller rate_limit is the per-account backstop',
+				color: 'green',
+			},
 		],
 		story: [
 			'Same attacker, same 1000 password guesses.',
-			'rate_limit allows only 5 per minute.',
-			'After 5 attempts: 429. Must wait 60 seconds.',
+			'Rack::Attack runs first (middleware), so once the IP passes 5 attempts a minute it is rejected before Rails even routes the request.',
+			'If a request ever gets past the middleware, the controller rate_limit is the second, per-account line of defense.',
+			'After 5 attempts: 429. Must wait until the window resets.',
 			'1000 guesses would take over 3 hours.',
 		],
 	},
@@ -946,7 +957,10 @@ end`
 						? `
 
 Rack::Attack.throttled_responder = lambda do |request|
-  retry_after = request.env['rack.attack.match_data'][:period]
+  data = request.env['rack.attack.match_data']
+  # :period is the full window; seconds LEFT in it is what the client waits.
+  now = data[:epoch_time]
+  retry_after = data[:period] - (now % data[:period])
   [429,
    { 'Content-Type' => 'application/json',
      'Retry-After' => retry_after.to_s },
@@ -1010,7 +1024,10 @@ Rack::Attack.safelist("internal") do |req|
 end
 
 Rack::Attack.throttled_responder = lambda do |request|
-  retry_after = request.env['rack.attack.match_data'][:period]
+  data = request.env['rack.attack.match_data']
+  # :period is the full window; seconds LEFT in it is what the client waits.
+  now = data[:epoch_time]
+  retry_after = data[:period] - (now % data[:period])
   [429,
    { 'Content-Type' => 'application/json',
      'Retry-After' => retry_after.to_s },
@@ -1454,13 +1471,16 @@ export function Level42RateLimiting({ onComplete }: LevelComponentProps) {
 							Scenario
 						</h3>
 						<p className="text-sm text-muted-foreground mb-2">
-							In Level 40, you added middleware to intercept requests before
-							Rails. Now a bot is sending 10,000 requests per second from a
-							single IP, and the login endpoint is being brute-forced.
+							In Level 40, your bot filter blocks requests with obvious scraper
+							user-agents. But this attack sends a normal browser user-agent on
+							every request, so the filter waves it through. Nothing here counts
+							how OFTEN one IP calls you.
 						</p>
 						<p className="text-sm text-muted-foreground">
-							Every request hits the full stack. No throttling, no protection.
-							Legitimate users are locked out because the server is overloaded.
+							One IP is now sending 10,000 requests per second, and the login
+							endpoint is being brute-forced. Every request looks legitimate on
+							its own, so it all hits the full stack. Legitimate users are
+							locked out because the server is overloaded.
 						</p>
 					</div>
 					<DiscoveryChecklist

@@ -66,7 +66,7 @@ export const OPTION_STEP_CONFIG: Record<
 	0: {
 		title: 'Normalize the Product Name',
 		description:
-			'Sellers submit product names with extra whitespace and inconsistent casing ("  Ceramic Mug  ", "ceramic mug"). When buyers search the storefront for "Ceramic Mug" the dirty stored value does not match. Pick the way to clean the name field so writes AND finder queries are both consistent.',
+			'Sellers submit product names with extra whitespace ("  Ceramic Mug  "). When buyers search the storefront for "Ceramic Mug" the dirty stored value does not match. Pick the way to clean the name field so writes AND finder queries are both consistent.',
 		options: NORMALIZATION_OPTIONS,
 	},
 	1: {

@@ -114,7 +114,7 @@ curl -X POST /api/products       # Created! By who? Nobody knows.
 
 - Cookies → Bearer tokens. Add a \`token:string\` column to the \`Session\` migration. Look up sessions by token, not by signed-cookie id.
 - HTML redirects → JSON responses. Replace \`redirect_to\` with \`render json:\`.
-- The generator pre-fills \`User.authenticate_by(params.permit(:email_address, :password))\`. The level uses the simpler \`email:\` column name; you can rename in the migration if you prefer.
+- The generator pre-fills \`User.authenticate_by(params.permit(:email_address, :password))\`. The column name is \`email_address\` (not \`email\`), and this level keeps the generator's name everywhere.
 
 **The build steps walk through the customizations.** When you read the resulting \`authentication.rb\` concern in the right panel, that is YOUR customized code, not the generator's output verbatim.
 
@@ -124,7 +124,7 @@ The naive login flow is "find the user by email, then check the password." That 
 
 A wrong-password attempt for a real account takes longer than a "no such email" response, because Rails actually runs the password check in the first case. By trying lots of emails and watching how long the response takes, an attacker can build a list of which emails belong to real customers, without ever guessing a single password. That is called an *enumeration attack*.
 
-\`User.authenticate_by(email: ..., password: ...)\` does both lookups in one call and is built to take the same time whether the email exists or not. Returns the user on success, or \`nil\` on failure. Use this in production. The legacy two-step \`find_by + authenticate\` pattern is fine for a tutorial but leaks timing information once your login endpoint is on the open internet.
+\`User.authenticate_by(email_address: ..., password: ...)\` does both lookups in one call and is built to take the same time whether the email exists or not. Returns the user on success, or \`nil\` on failure. Use this in production. The legacy two-step \`find_by + authenticate\` pattern is fine for a tutorial but leaks timing information once your login endpoint is on the open internet.
 
 **\`has_secure_password\` (how passwords are stored):**
 
@@ -144,7 +144,7 @@ Adding \`has_secure_password\` to a User model wires this up: setting \`user.pas
 - The auth generator wires up an automatic check that runs before every action: "are you logged in?" If not, Rails returns \`401 Unauthorized\`
 - That default is exactly what you want for protected endpoints. But it creates a chicken-and-egg problem: how does anyone log in for the first time if logging in requires being logged in?
 - \`allow_unauthenticated_access only: [:create]\` is how you opt out. It tells Rails: "the create action on this controller (the login action) is the exception. Anyone can hit it without being authenticated"
-- Same idea for signup: put \`allow_unauthenticated_access only: [:new, :create]\` on \`UsersController\` so people can register without already having an account
+- Same idea for signup: put \`allow_unauthenticated_access only: [:create]\` on \`UsersController\` so people can register without already having an account (an API-only app has no \`new\` action; signup is a single POST)
 - Forget this and your login endpoint returns \`401\` before any user can ever log in, the most common Rails 8 auth bug
 - The pattern is: block everyone by default, then carve out specific exceptions for the few public endpoints. Much safer than "let everyone through, then remember to lock down every new controller"`,
 		railsCodeExample: `# Generate auth scaffolding (Rails 8)
@@ -191,7 +191,7 @@ class SessionsController < ApplicationController
   def create
     # Rails 8: authenticate_by (timing-safe login)
     user = User.authenticate_by(
-      email: params[:email],
+      email_address: params[:email_address],
       password: params[:password]
     )
     if user
@@ -209,7 +209,7 @@ class SessionsController < ApplicationController
 end
 
 # Client usage:
-# POST /sessions { email: "...", password: "..." }
+# POST /sessions { email_address: "...", password: "..." }
 # => { "token": "abc123..." }
 #
 # GET /api/products -H "Authorization: Bearer abc123..."`,

@@ -8,7 +8,7 @@ export const level15Callbacks: Level = {
 	trigger: {
 		type: 'incident',
 		description:
-			'Sellers submit product names with extra whitespace and odd casing, so buyers cannot find listings on the storefront. New users sign up but receive no welcome email and create duplicate accounts. Both failures point at the same question: what does the model lifecycle belong to, and what does it not?',
+			'Sellers submit product names with extra whitespace, so buyers cannot find listings on the storefront. New users sign up but receive no welcome email and create duplicate accounts. Both failures point at the same question: what does the model lifecycle belong to, and what does it not?',
 	},
 	startingPipeline: {
 		nodes: [

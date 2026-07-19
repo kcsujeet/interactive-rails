@@ -14,20 +14,21 @@ const DISCOVERY_DEFS = [
 const PROBES = [
 	{
 		id: 'bot-flood',
-		label: 'Bot floods API (10K req/sec from one IP)',
-		command: 'for i in {1..10000}; do curl localhost:3000/api/products; done',
+		label: 'One IP floods API 10K req/sec with a real browser user-agent',
+		command:
+			'for i in {1..10000}; do curl -A "Mozilla/5.0" localhost:3000/api/products; done',
 		responseLines: [
 			{
-				text: '# 10,000 requests from 1.2.3.4',
+				text: '# 10,000 requests from 1.2.3.4, User-Agent: Mozilla/5.0',
+				color: 'yellow',
+			},
+			{
+				text: '# Bot filter (L40): user-agent looks like a real browser, allowed',
 				color: 'yellow',
 			},
 			{ text: '200 OK (x10,000)', color: 'green' },
 			{
-				text: '# All served. Server CPU: 98%',
-				color: 'red',
-			},
-			{
-				text: '# No throttle. Every request hits full stack.',
+				text: '# All served. Server CPU: 98%. Nothing counts requests per IP.',
 				color: 'red',
 			},
 		],
@@ -133,7 +134,7 @@ const IP_THROTTLE_OPTIONS = [
 		label: 'Throttle at 10,000 requests per minute',
 		correct: false,
 		feedback:
-			'10,000 requests per minute is too high. A bot sending 167 req/sec would still get through. A reasonable limit is 100-300 per minute.',
+			'This ceiling is so high that a bot sending well over a hundred requests a second still slips under it. The limit has to be low enough that normal users never notice it but a flood trips it fast.',
 	},
 	{
 		id: 'wrong-global',
@@ -249,8 +250,14 @@ const STRESS_SCENARIOS = [
 		expectedResult: 'blocked' as const,
 		responseLines: [
 			{ text: '429 Too Many Requests', color: 'red' },
-			{ text: '# Only 5 login attempts per minute', color: 'green' },
-			{ text: '# Brute force infeasible at this rate', color: 'green' },
+			{
+				text: '# Rack::Attack (middleware) blocks the flood before Rails',
+				color: 'green',
+			},
+			{
+				text: '# controller rate_limit is the per-account backstop',
+				color: 'green',
+			},
 		],
 	},
 	{
@@ -469,6 +476,27 @@ describe('Level 42: Rate Limiting', () => {
 			for (const probe of PROBES) {
 				expect(probe.id in PROBE_DISCOVERY_MAP).toBe(true);
 			}
+		});
+	});
+
+	describe('Answer leaks and cross-level consistency', () => {
+		test('IP throttle feedback does not name the correct limit number', () => {
+			const opt = IP_THROTTLE_OPTIONS.find((o) => o.id === 'wrong-no-limit');
+			expect(opt?.feedback?.includes('100-300')).toBe(false);
+			expect(opt?.feedback?.includes('100 per minute')).toBe(false);
+		});
+
+		test('bot-flood probe uses a real browser user-agent (not caught by L40 filter)', () => {
+			const probe = PROBES.find((p) => p.id === 'bot-flood');
+			expect(probe?.command?.includes('Mozilla/5.0')).toBe(true);
+			const joined = (probe?.responseLines ?? []).map((l) => l.text).join(' ');
+			expect(joined.includes('looks like a real browser')).toBe(true);
+		});
+
+		test('brute-force reward names the middleware layer as first line of defense', () => {
+			const s = STRESS_SCENARIOS.find((sc) => sc.id === 'brute-force');
+			const joined = (s?.responseLines ?? []).map((l) => l.text).join(' ');
+			expect(joined.includes('Rack::Attack (middleware)')).toBe(true);
 		});
 	});
 });

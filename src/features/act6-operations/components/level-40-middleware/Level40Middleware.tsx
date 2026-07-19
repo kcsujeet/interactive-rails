@@ -508,20 +508,20 @@ const REWARD_FRAMES: Record<string, AnimFrame[]> = {
 	],
 	'health-check': [
 		{
-			client: { label: 'GET /health', flash: 'idle' },
+			client: { label: 'Load balancer: GET /up', flash: 'idle' },
 			edge1: {
 				active: true,
 				reverse: false,
-				label: 'GET /health',
+				label: 'GET /up (x1000/hr)',
 				dotColor: 'bg-cyan-500',
 			},
 			middleware: {
-				label: 'All layers active',
+				label: 'Path is /up: return early',
 				flash: 'green',
 				requestIdLabel: 'Request ID',
 				requestIdFlash: 'green',
-				loggerLabel: 'Logger',
-				loggerFlash: 'green',
+				loggerLabel: 'Logger skipped',
+				loggerFlash: 'idle',
 				botLabel: 'Bot Filter',
 				botFlash: 'green',
 			},
@@ -531,10 +531,10 @@ const REWARD_FRAMES: Record<string, AnimFrame[]> = {
 			edge2: {
 				active: true,
 				reverse: false,
-				label: 'Enriched request',
+				label: 'Passed through (not logged)',
 				dotColor: 'bg-emerald-500',
 			},
-			app: { label: 'Processing...', flash: 'idle' },
+			app: { label: 'Health check OK', flash: 'idle' },
 		},
 		{
 			edge2: {
@@ -550,10 +550,11 @@ const REWARD_FRAMES: Record<string, AnimFrame[]> = {
 			edge1: {
 				active: true,
 				reverse: true,
-				label: '200 + headers + logged',
+				label: '200 OK (no log line)',
 				dotColor: 'bg-emerald-500',
 			},
-			client: { label: 'Full pipeline working', flash: 'green' },
+			client: { label: 'Log stays clean', flash: 'green' },
+			middleware: { label: 'No log line written for /up', flash: 'green' },
 		},
 	],
 };
@@ -777,6 +778,7 @@ end`,
 		label: 'Middleware that rejects bots before Rails',
 		code: `class BotDetector
   BOT_PATTERNS = /bot|crawler|spider|scraper/i
+  SEARCH_ENGINES = /Googlebot|Bingbot|Slurp/i
 
   def initialize(app)
     @app = app
@@ -784,7 +786,7 @@ end`,
 
   def call(env)
     user_agent = env['HTTP_USER_AGENT'] || ''
-    if user_agent.match?(BOT_PATTERNS)
+    if user_agent.match?(BOT_PATTERNS) && !SEARCH_ENGINES.match?(user_agent)
       [403, { 'Content-Type' => 'application/json' },
        ['{"error":{"code":"FORBIDDEN","message":"Bot detected"}}']]
     else
@@ -825,7 +827,7 @@ config.middleware.use BotDetector
 config.middleware.use RequestLogger`,
 		correct: false,
 		feedback:
-			'Default append order means BotDetector runs last. A rejected bot request would already have been logged and tagged, wasted work for traffic you are about to throw away. Think about which check should see the request first.',
+			'The request ID is injected first here, but the bot check sits above the logger, so a rejected bot is thrown away before it is ever logged. Think about which check wastes the least work: what should see the request before anything else runs?',
 	},
 	{
 		id: 'wrong-logger-first',
@@ -836,7 +838,7 @@ config.middleware.use BotDetector
 config.middleware.use RequestIdTracker`,
 		correct: false,
 		feedback:
-			'If the logger runs before the request ID is injected, logs will have no request_id field. Request ID must be injected before logging.',
+			'The logger sits at the top of these three, so it runs before the request ID is injected below it. Its log lines will have no request_id to correlate on. Which piece has to run before the logger can use it?',
 	},
 	{
 		id: 'correct',
@@ -847,7 +849,8 @@ config.middleware.use BotDetector
 # 2. Inject request ID (needed by logger)
 config.middleware.use RequestIdTracker
 # 3. Log with request ID and timing
-config.middleware.use RequestLogger`,
+config.middleware.use RequestLogger
+# (require each class from lib/middleware first; lib/ is not autoloaded)`,
 		correct: true,
 	},
 ];
@@ -945,24 +948,27 @@ const STRESS_SCENARIOS = [
 	},
 	{
 		id: 'health-check',
-		label: 'Health check (full pipeline working)',
-		description: 'All three middleware layers process the request',
+		label: 'Load balancer pings /up every 2 seconds',
+		description: 'Health check skips the logger so pings do not flood the log',
 		method: 'GET' as const,
-		path: '/health',
-		actor: 'monitoring',
+		path: '/up',
+		actor: 'load balancer',
 		expectedResult: 'allowed' as const,
 		responseLines: [
 			{ text: '200 OK', color: 'green' },
-			{ text: 'X-Request-Id: present', color: 'green' },
-			{ text: 'Structured log: written', color: 'green' },
-			{ text: 'Bot check: passed (legitimate)', color: 'green' },
+			{ text: '# PATH_INFO is /up: middleware returns early', color: 'green' },
+			{ text: '# No structured log line written', color: 'green' },
+			{
+				text: '# Log stays clean; real traffic is easy to read',
+				color: 'green',
+			},
 		],
 		story: [
-			'Monitoring service sends a health check.',
-			'BotDetector: not a bot, pass through.',
-			'RequestIdTracker: ID injected.',
-			'RequestLogger: structured log written.',
-			'Full middleware pipeline working.',
+			'The load balancer pings /up (Rails 8 health check) every 2 seconds.',
+			'That is thousands of identical hits per hour.',
+			'The middleware sees PATH_INFO is /up and returns early.',
+			'No log line is written for the ping, so the log is not flooded.',
+			'Real request logs stay readable amid the health-check noise.',
 		],
 	},
 ];
@@ -1007,7 +1013,8 @@ function getCodeFiles(
 			files.push({
 				filename: 'config/application.rb',
 				language: 'ruby',
-				code: `# Middleware registered
+				code: `# Middleware registered (lib/ is not autoloaded, so require it)
+require Rails.root.join("lib/middleware/request_id_tracker")
 config.middleware.use RequestIdTracker${completedStep >= 2 ? '' : '\n# Next: implement the class'}`,
 			});
 		}
@@ -1069,6 +1076,7 @@ end`,
 				language: 'ruby',
 				code: `class BotDetector
   BOT_PATTERNS = /bot|crawler|spider|scraper/i
+  SEARCH_ENGINES = /Googlebot|Bingbot|Slurp/i
 
   def initialize(app)
     @app = app
@@ -1076,7 +1084,7 @@ end`,
 
   def call(env)
     user_agent = env['HTTP_USER_AGENT'] || ''
-    if user_agent.match?(BOT_PATTERNS)
+    if user_agent.match?(BOT_PATTERNS) && !SEARCH_ENGINES.match?(user_agent)
       [403, { 'Content-Type' => 'application/json' },
        ['{"error":{"code":"FORBIDDEN","message":"Bot detected"}}']]
     else
@@ -1092,6 +1100,10 @@ end`,
 				filename: 'config/application.rb',
 				language: 'ruby',
 				code: `# Middleware ordered: bot -> id -> logger
+require Rails.root.join("lib/middleware/bot_detector")
+require Rails.root.join("lib/middleware/request_id_tracker")
+require Rails.root.join("lib/middleware/request_logger")
+
 config.middleware.use BotDetector
 config.middleware.use RequestIdTracker
 config.middleware.use RequestLogger`,
@@ -1114,7 +1126,11 @@ config.middleware.use RequestLogger`,
 		{
 			filename: 'config/application.rb',
 			language: 'ruby',
-			code: `# Middleware stack (ordered)
+			code: `# Middleware stack (ordered). lib/ is not autoloaded, so require first.
+require Rails.root.join("lib/middleware/bot_detector")
+require Rails.root.join("lib/middleware/request_id_tracker")
+require Rails.root.join("lib/middleware/request_logger")
+
 config.middleware.use BotDetector
 config.middleware.use RequestIdTracker
 config.middleware.use RequestLogger`,
@@ -1169,6 +1185,7 @@ end`,
 			language: 'ruby',
 			code: `class BotDetector
   BOT_PATTERNS = /bot|crawler|spider|scraper/i
+  SEARCH_ENGINES = /Googlebot|Bingbot|Slurp/i
 
   def initialize(app)
     @app = app
@@ -1176,7 +1193,7 @@ end`,
 
   def call(env)
     user_agent = env['HTTP_USER_AGENT'] || ''
-    if user_agent.match?(BOT_PATTERNS)
+    if user_agent.match?(BOT_PATTERNS) && !SEARCH_ENGINES.match?(user_agent)
       [403, { 'Content-Type' => 'application/json' },
        ['{"error":{"code":"FORBIDDEN","message":"Bot detected"}}']]
     else

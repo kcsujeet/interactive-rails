@@ -11,15 +11,15 @@ const DISCOVERY_DEFS = [
 const PROBES = [
 	{
 		id: 'unnoticed-500',
-		label: 'Customer hits 500 error (unnoticed)',
-		command: 'curl -X GET localhost:3000/api/products/999',
+		label: 'Customer hits a 500 during checkout (unnoticed)',
+		command: 'curl -X POST localhost:3000/api/checkout',
 		responseLines: [
 			{
-				text: '# ActiveRecord::RecordNotFound in ProductsController#show',
+				text: '# NoMethodError in CheckoutController#create (a real bug)',
 				color: 'red',
 			},
 			{
-				text: '# Request logged (L41), but exception not captured',
+				text: '# Request logged (L40), but the exception is not captured',
 				color: 'yellow',
 			},
 			{
@@ -32,20 +32,21 @@ const PROBES = [
 			},
 		],
 		story: [
-			'Customer browses your store, clicks on product #999.',
-			'Product was deleted last week. Rails raises RecordNotFound.',
-			'L41 request logger captures the request, but not the exception itself.',
+			'Customer clicks "Place order" during checkout.',
+			'A code bug raises NoMethodError, so Rails returns a 500.',
+			'L40 request logger captures the request, but not the exception itself.',
 			'No error context: no user_id, no breadcrumbs, no stack trace captured.',
 			'The team finds out when the customer tweets about it.',
 		],
 	},
 	{
 		id: 'duplicate-errors',
-		label: 'Same error happens 50 times',
-		command: 'for i in {1..50}; do curl localhost:3000/api/products/999; done',
+		label: 'Same 500 happens 50 times',
+		command:
+			'for i in {1..50}; do curl -X POST localhost:3000/api/checkout; done',
 		responseLines: [
 			{
-				text: '# 50 identical RecordNotFound errors in logs',
+				text: '# 50 identical NoMethodError 500s in the logs',
 				color: 'yellow',
 			},
 			{
@@ -62,8 +63,8 @@ const PROBES = [
 			},
 		],
 		story: [
-			'50 customers all hit the same deleted product.',
-			'50 identical RecordNotFound errors flood the logs.',
+			'50 customers all hit the same checkout bug.',
+			'50 identical NoMethodError 500s flood the logs.',
 			'Without grouping, each looks like a separate problem.',
 			'A developer scanning logs sees 50 "different" errors.',
 			'They waste time investigating each one individually.',
@@ -114,7 +115,7 @@ const STEP_DEFS = [
 	{ id: 'error-grouping', title: 'Configure Error Grouping' },
 	{ id: 'alerting', title: 'Set Up Alerting Thresholds' },
 	{ id: 'error-budgets', title: 'Implement Error Budgets' },
-	{ id: 'wire-middleware', title: 'Wire Into Middleware Stack' },
+	{ id: 'wire-middleware', title: 'Register the Error Subscriber' },
 ];
 
 const ERROR_HANDLER_OPTIONS = [
@@ -124,7 +125,7 @@ const ERROR_HANDLER_OPTIONS = [
 		description: 'Catch errors in the controller layer only',
 		correct: false,
 		feedback:
-			'rescue_from only catches controller-level errors. Errors in middleware, background jobs, and services are invisible to this approach.',
+			'rescue_from only catches controller-level errors. Errors in background jobs and services never reach it. You need one reporting layer the whole app shares.',
 	},
 	{
 		id: 'wrong-begin-rescue',
@@ -166,7 +167,7 @@ const ERROR_CONTEXT_OPTIONS = [
 		description: 'Store context in thread-local storage',
 		correct: false,
 		feedback:
-			'Thread-local storage is fragile and leaks between requests in threaded servers. The framework provides a proper context API for this.',
+			'Thread-local (like the request id in L40) is fine for a single value with careful cleanup, but here you would have to read each key back and hand-attach it to every report yourself. The error reporter has its own context API that carries the whole bag into every report automatically.',
 	},
 ];
 
@@ -251,27 +252,28 @@ const ERROR_BUDGET_OPTIONS = [
 
 const WIRE_MIDDLEWARE_OPTIONS = [
 	{
-		id: 'wrong-after-routing',
-		name: 'config.middleware.use ErrorReporter',
-		description: 'Append error reporter to end of middleware stack',
+		id: 'wrong-middleware',
+		name: 'config.middleware.insert_before 0, ErrorSubscriber',
+		description: 'Insert the subscriber as a Rack middleware at the top',
 		correct: false,
 		feedback:
-			'Appending to the end means errors in earlier middleware are missed. The error reporter must wrap the entire stack to catch everything.',
+			'A subscriber is not middleware, and a middleware at position 0 sits ABOVE the layer that rescues app exceptions, so it never sees them. Rails already reports unhandled exceptions to Rails.error; you just have to attach your subscriber to it.',
 	},
 	{
 		id: 'correct',
-		name: 'config.middleware.insert_before 0, ErrorReporter',
-		description: 'Insert at the top to wrap all other middleware',
+		name: 'Rails.error.subscribe(ErrorSubscriber.new) in an initializer',
+		description:
+			'Register the subscriber once at boot so every Rails.error report reaches it',
 		correct: true,
 		feedback: '',
 	},
 	{
-		id: 'wrong-initializer',
-		name: 'Rails.application.config.after_initialize { ErrorReporter.start }',
-		description: 'Start the reporter in an initializer',
+		id: 'wrong-per-controller',
+		name: 'Call ErrorSubscriber.new.report in each rescue_from block',
+		description: 'Report manually from every controller rescue',
 		correct: false,
 		feedback:
-			'An initializer starts the reporter but does not insert it into the middleware stack. Without middleware wrapping, errors in the Rack pipeline are invisible.',
+			'Wiring the reporter into every controller by hand misses background jobs, services, and framework code, and it is easy to forget. Register it once so the whole app shares it.',
 	},
 ];
 
@@ -281,21 +283,21 @@ const ALL_OPTION_SETS = [
 	{ step: 2, name: 'Error Grouping', options: ERROR_GROUPING_OPTIONS },
 	{ step: 3, name: 'Alerting', options: ALERTING_OPTIONS },
 	{ step: 4, name: 'Error Budgets', options: ERROR_BUDGET_OPTIONS },
-	{ step: 5, name: 'Wire Middleware', options: WIRE_MIDDLEWARE_OPTIONS },
+	{ step: 5, name: 'Register Subscriber', options: WIRE_MIDDLEWARE_OPTIONS },
 ];
 
 const STRESS_SCENARIOS = [
 	{
 		id: 'unnoticed-500',
-		label: 'Customer hits 500 error (unnoticed)',
-		description: 'Same 500 error, now captured with full context and alert',
-		method: 'GET',
-		path: '/api/products/999',
+		label: 'Customer hits a 500 during checkout (unnoticed)',
+		description: 'Same 500, now captured with full context and alert',
+		method: 'POST',
+		path: '/api/checkout',
 		actor: 'customer',
 		expectedResult: 'blocked',
 		responseLines: [
 			{
-				text: 'GET /api/products/999 -> RecordNotFound',
+				text: 'POST /api/checkout -> NoMethodError (500)',
 				color: 'cyan',
 			},
 			{
@@ -303,7 +305,7 @@ const STRESS_SCENARIOS = [
 				color: 'green',
 			},
 			{
-				text: 'Grouped: RecordNotFound in ProductsController#show',
+				text: 'Grouped: NoMethodError in CheckoutController#create',
 				color: 'green',
 			},
 			{
@@ -312,28 +314,28 @@ const STRESS_SCENARIOS = [
 			},
 		],
 		story: [
-			'Same customer, same deleted product, same RecordNotFound.',
+			'Same customer, same checkout bug, same NoMethodError 500.',
 			'But now the error is captured with user_id and request_id.',
-			'Grouped into "RecordNotFound in ProductsController#show".',
+			'Grouped into "NoMethodError in CheckoutController#create".',
 			'Team gets a Slack alert within 30 seconds.',
-			'Customer gets a clean 404 instead of a cryptic 500.',
+			'They fix the bug before most customers ever see it.',
 		],
 	},
 	{
 		id: 'duplicate-errors',
-		label: 'Same error happens 50 times',
+		label: 'Same 500 happens 50 times',
 		description: 'Same 50 errors, now grouped into 1 entry with count',
-		method: 'GET',
-		path: '/api/products/999',
+		method: 'POST',
+		path: '/api/checkout',
 		actor: 'customer',
 		expectedResult: 'blocked',
 		responseLines: [
 			{
-				text: '50x RecordNotFound -> 1 error group',
+				text: '50x NoMethodError -> 1 error group',
 				color: 'cyan',
 			},
 			{
-				text: 'Group: RecordNotFound (50 occurrences)',
+				text: 'Group: NoMethodError (50 occurrences)',
 				color: 'green',
 			},
 			{
@@ -346,11 +348,11 @@ const STRESS_SCENARIOS = [
 			},
 		],
 		story: [
-			'Same 50 customers, same deleted product.',
+			'Same 50 customers, same checkout bug.',
 			'But now all 50 errors collapse into a single group.',
-			'Dashboard shows: "RecordNotFound, 50 occurrences, 50 users."',
+			'Dashboard shows: "NoMethodError, 50 occurrences, 50 users."',
 			'Developer sees one issue to fix, not 50 mysterious log lines.',
-			'Fix the deleted product reference, resolve 50 errors at once.',
+			'Fix the checkout bug once, resolve 50 errors at once.',
 		],
 	},
 	{
@@ -462,8 +464,10 @@ describe('Level 47: Error Monitoring', () => {
 		});
 
 		test('exact probe labels', () => {
-			expect(PROBES[0].label).toBe('Customer hits 500 error (unnoticed)');
-			expect(PROBES[1].label).toBe('Same error happens 50 times');
+			expect(PROBES[0].label).toBe(
+				'Customer hits a 500 during checkout (unnoticed)',
+			);
+			expect(PROBES[1].label).toBe('Same 500 happens 50 times');
 			expect(PROBES[2].label).toBe('Error rate crosses 1% (no alert)');
 		});
 
@@ -528,7 +532,7 @@ describe('Level 47: Error Monitoring', () => {
 			expect(STEP_DEFS[2].title).toBe('Configure Error Grouping');
 			expect(STEP_DEFS[3].title).toBe('Set Up Alerting Thresholds');
 			expect(STEP_DEFS[4].title).toBe('Implement Error Budgets');
-			expect(STEP_DEFS[5].title).toBe('Wire Into Middleware Stack');
+			expect(STEP_DEFS[5].title).toBe('Register the Error Subscriber');
 		});
 	});
 
@@ -634,10 +638,10 @@ describe('Level 47: Error Monitoring', () => {
 			const scenarioMap = new Map(STRESS_SCENARIOS.map((s) => [s.id, s.label]));
 			// unnoticed-500 and duplicate-errors have same labels in both phases
 			expect(scenarioMap.get('unnoticed-500')).toBe(
-				'Customer hits 500 error (unnoticed)',
+				'Customer hits a 500 during checkout (unnoticed)',
 			);
 			expect(scenarioMap.get('duplicate-errors')).toBe(
-				'Same error happens 50 times',
+				'Same 500 happens 50 times',
 			);
 		});
 

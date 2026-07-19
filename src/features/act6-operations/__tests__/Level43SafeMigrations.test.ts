@@ -291,10 +291,10 @@ const STRESS_SCENARIOS = [
 				color: 'green',
 			},
 			{
-				text: '# No SHARE lock. Reads and writes continue.',
+				text: '# Only a light lock (SHARE UPDATE EXCLUSIVE): reads and writes continue',
 				color: 'green',
 			},
-			{ text: '# Index built in background', color: 'green' },
+			{ text: '# Index built in the background', color: 'green' },
 		],
 	},
 	{
@@ -316,6 +316,29 @@ const STRESS_SCENARIOS = [
 			},
 			{
 				text: '# Two-step approach avoids ACCESS EXCLUSIVE lock',
+				color: 'green',
+			},
+		],
+	},
+	{
+		id: 'unsafe-blocked',
+		label: 'Ship an unsafe migration (gem catches it)',
+		description: 'strong_migrations refuses the volatile default before deploy',
+		method: 'MIGRATE',
+		path: 'add_column :orders, :reference_code, default: uuid()',
+		actor: 'developer',
+		expectedResult: 'blocked' as const,
+		responseLines: [
+			{
+				text: 'add_column :orders, :reference_code, :uuid, default: "gen_random_uuid()"',
+				color: 'red',
+			},
+			{
+				text: 'StrongMigrations::UnsafeMigration raised, migration aborted',
+				color: 'red',
+			},
+			{
+				text: '# The gem stops it before it can lock the table in production',
 				color: 'green',
 			},
 		],
@@ -486,8 +509,8 @@ describe('Level 44: Safe Migrations', () => {
 	});
 
 	describe('Stress scenarios', () => {
-		test('has exactly 4 scenarios', () => {
-			expect(STRESS_SCENARIOS).toHaveLength(4);
+		test('has exactly 5 scenarios', () => {
+			expect(STRESS_SCENARIOS).toHaveLength(5);
 		});
 
 		test('all IDs unique', () => {
@@ -509,10 +532,16 @@ describe('Level 44: Safe Migrations', () => {
 			}
 		});
 
-		test('all scenarios are allowed (safe patterns succeed)', () => {
-			for (const s of STRESS_SCENARIOS) {
-				expect(s.expectedResult).toBe('allowed');
-			}
+		test('mix of allowed and blocked (gem visibly blocks an unsafe migration)', () => {
+			const allowed = STRESS_SCENARIOS.filter(
+				(s) => s.expectedResult === 'allowed',
+			);
+			const blocked = STRESS_SCENARIOS.filter(
+				(s) => s.expectedResult === 'blocked',
+			);
+			expect(allowed.length).toBe(4);
+			expect(blocked.length).toBe(1);
+			expect(blocked[0].id).toBe('unsafe-blocked');
 		});
 
 		test('exact scenario IDs', () => {
@@ -520,6 +549,7 @@ describe('Level 44: Safe Migrations', () => {
 			expect(STRESS_SCENARIOS[1].id).toBe('change-column-type');
 			expect(STRESS_SCENARIOS[2].id).toBe('add-index-blocking');
 			expect(STRESS_SCENARIOS[3].id).toBe('validate-constraint');
+			expect(STRESS_SCENARIOS[4].id).toBe('unsafe-blocked');
 		});
 
 		test('exact scenario labels', () => {
@@ -546,6 +576,25 @@ describe('Level 44: Safe Migrations', () => {
 			for (const probe of PROBES) {
 				expect(probe.id in PROBE_DISCOVERY_MAP).toBe(true);
 			}
+		});
+	});
+
+	describe('Technical accuracy', () => {
+		test('add-column probe is about a volatile default, not a constant', () => {
+			const probe = PROBES.find((p) => p.id === 'add-column-default');
+			expect(probe?.command?.includes('gen_random_uuid()')).toBe(true);
+			// A constant default like DEFAULT 0 is safe on PG11+ and must not be
+			// what the probe animates as locking the table.
+			expect(probe?.command?.includes('DEFAULT 0')).toBe(false);
+		});
+
+		test('CIC scenario does not claim zero lock (it takes a light lock)', () => {
+			const s = STRESS_SCENARIOS.find((sc) => sc.id === 'add-index-blocking');
+			const joined = (s?.responseLines ?? []).map((l) => l.text).join(' ');
+			expect(joined.includes('SHARE UPDATE EXCLUSIVE')).toBe(true);
+			expect(joined.includes('No SHARE lock. Reads and writes continue.')).toBe(
+				false,
+			);
 		});
 	});
 });

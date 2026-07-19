@@ -206,7 +206,7 @@ const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 		title: 'ProductsController',
 		description:
 			'The controller processes every request blindly. It cannot tell if the requester is a logged-in user, an admin, or a random stranger. current_user is always nil.',
-		code: `class ProductsController < ApplicationController
+		code: `class Api::ProductsController < ApplicationController
   def destroy
     product = Product.find(params[:id])
     product.destroy  # Who deleted this? No idea.
@@ -281,12 +281,12 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		expectedResult: 'blocked',
 	},
 	{
-		id: 'expired-token',
-		label: 'PATCH with expired token',
-		description: 'Revoked session token tries to update',
+		id: 'revoked-token',
+		label: 'PATCH with revoked token',
+		description: 'Token from a destroyed session (logged out) tries to update',
 		method: 'PATCH',
 		path: '/api/products/1',
-		actor: 'user_2 (expired token)',
+		actor: 'user_2 (revoked token)',
 		expectedResult: 'blocked',
 	},
 	{
@@ -404,6 +404,10 @@ const runMigrationsCommands: TerminalCommand[] = [
 	},
 ];
 
+// The CreateSessions migration was edited before running: this level adds a
+// `token:string` column (with a unique index) to the generator's sessions
+// migration so the API can look sessions up by Bearer token. The generator's
+// default Session has no token column (cookie-based lookup by id).
 const runMigrationsOutput: TerminalOutputLine[] = [
 	{
 		text: '== <timestamp> CreateUsers: migrating ===========================',
@@ -428,6 +432,11 @@ const runMigrationsOutput: TerminalOutputLine[] = [
 		color: 'muted',
 	},
 	{ text: '   -> 0.0135s', color: 'muted' },
+	{
+		text: '-- add_index(:sessions, :token, {unique: true})',
+		color: 'muted',
+	},
+	{ text: '   -> 0.0021s', color: 'muted' },
 ];
 
 // ──────────────────────────────────────────────
@@ -493,7 +502,7 @@ const createSessionCommands: TerminalCommand[] = [
 		command: 'JWT.encode({ user_id: user.id }, secret)',
 		correct: false,
 		feedback:
-			'JWTs are stateless and hard to revoke. Rails 8 auth uses server-side sessions stored in the database.',
+			'JWTs are stateless: once issued, a stolen token stays valid until it expires. There is no way to revoke a single credential when a user logs out or a token leaks.',
 	},
 ];
 
@@ -544,7 +553,7 @@ const PROTECT_OPTIONS: ProtectOption[] = [
 		description: 'Manually check for a user in each action',
 		correct: false,
 		feedback:
-			'Manual nil checks in every action are repetitive. Use a before_action to protect all endpoints at once.',
+			'Repeating a nil check inside every action is easy to forget the moment someone adds a new action. The Authentication concern ships a single declaration that guards the whole controller.',
 	},
 	{
 		id: 'before-action',
@@ -605,9 +614,9 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
 	// Observe phase: show the unprotected controller
 	if (phase === 'observe') {
 		files.push({
-			filename: 'app/controllers/products_controller.rb',
+			filename: 'app/controllers/api/products_controller.rb',
 			language: 'ruby',
-			code: `class ProductsController < ApplicationController
+			code: `class Api::ProductsController < ApplicationController
   # No authentication. Anyone can do anything.
 
   def create
@@ -628,9 +637,9 @@ end`,
 	// Build / reward phases: evolving code
 	if (furthestStep <= 1) {
 		files.push({
-			filename: 'app/controllers/products_controller.rb',
+			filename: 'app/controllers/api/products_controller.rb',
 			language: 'ruby',
-			code: `class ProductsController < ApplicationController
+			code: `class Api::ProductsController < ApplicationController
   # No authentication. Anyone can do anything.
 
   def create
@@ -651,6 +660,8 @@ end`,
 	// generator already includes has_secure_password (it adds bcrypt to the
 	// Gemfile and the model line in one shot), plus a normalizes call on
 	// email_address and the has_many :sessions association.
+	// Also show the edited sessions migration so the token:string column
+	// visibly exists before the Session model uses it in step 3.
 	if (furthestStep >= 2) {
 		files.push({
 			filename: 'app/models/user.rb',
@@ -662,6 +673,27 @@ end`,
   normalizes :email_address, with: ->(e) { e.strip.downcase }
 end`,
 			highlight: [2],
+		});
+
+		files.push({
+			filename: 'db/migrate/<timestamp>_create_sessions.rb',
+			language: 'ruby',
+			code: `class CreateSessions < ActiveRecord::Migration[8.0]
+  def change
+    create_table :sessions do |t|
+      t.references :user, null: false, foreign_key: true
+      # Added for the API: sessions are looked up by Bearer token,
+      # not by a signed cookie. The generator does not include this.
+      t.string :token, null: false
+      t.string :ip_address
+      t.string :user_agent
+
+      t.timestamps
+    end
+    add_index :sessions, :token, unique: true
+  end
+end`,
+			highlight: [7, 13],
 		});
 	}
 
@@ -1208,7 +1240,10 @@ export function Level9Authentication({ onComplete }: LevelComponentProps) {
 										description={
 											<p className="text-sm text-muted-foreground">
 												The generator created migration files for the users and
-												sessions tables. The tables do not exist in the database
+												sessions tables. Because this is an API app, you edited
+												the sessions migration to add a token string column
+												(with a unique index) so sessions can be looked up by
+												Bearer token. The tables do not exist in the database
 												yet. Run the migrations.
 											</p>
 										}

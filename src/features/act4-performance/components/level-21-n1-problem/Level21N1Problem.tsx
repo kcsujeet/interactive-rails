@@ -154,14 +154,19 @@ const PROBES: ProbeConfig[] = [
 			{ text: '  SELECT * FROM users WHERE id = ... (x100)', color: 'red' },
 			{ text: '', color: 'muted' },
 			{
-				text: '101 queries, 850ms. Each product.user call fires a query.',
+				text: '101 queries, one at a time. Each round trip to the database costs ~8ms.',
+				color: 'red',
+			},
+			{
+				text: '101 round trips x ~8ms = 850ms. Each product.user call fires a query.',
 				color: 'red',
 			},
 		],
 		story: [
 			'The product catalog grows to 100 items.',
 			'Same endpoint, same code. Now 101 queries fire on every request.',
-			'Response time jumps to 850ms as the database handles 100 individual lookups.',
+			'Each query pays a full ~8ms network round trip before the next one can start.',
+			'101 round trips, one at a time, add up to 850ms.',
 			'The N+1 pattern scales linearly: more products means more queries.',
 		],
 	},
@@ -170,22 +175,22 @@ const PROBES: ProbeConfig[] = [
 		label: 'GET /products (1000 products)',
 		command: 'GET /api/products (1000 products in DB)',
 		responseLines: [
-			{ text: 'HTTP/1.1 200 OK (4873ms)', color: 'red' },
+			{ text: 'HTTP/1.1 200 OK (8412ms)', color: 'red' },
 			{ text: '', color: 'muted' },
 			{ text: 'SQL queries executed: 1001', color: 'red' },
 			{
-				text: '1001 queries, 4.9 seconds. The page is unusable.',
+				text: '1001 round trips x ~8ms = 8.4 seconds. The page is unusable.',
 				color: 'red',
 			},
 			{
-				text: 'Memory: 1,564 MB | Objects allocated: 5,301,574',
+				text: 'Memory: 48 MB | Objects allocated: 361,042',
 				color: 'red',
 			},
 		],
 		story: [
 			'Production traffic hits the endpoint with 1,000 products in the database.',
-			'1,001 queries fire, taking nearly 5 seconds to complete.',
-			'Memory spikes to 1.5 GB as Rails allocates millions of objects.',
+			'1,001 queries fire, taking over 8 seconds to complete.',
+			'Memory climbs to nearly 50 MB for a single request as Rails allocates hundreds of thousands of objects.',
 			'The page is completely unusable. The N+1 problem has become a crisis.',
 		],
 	},
@@ -210,11 +215,13 @@ interface ProbeZoneData {
 }
 
 const PROBE_ZONE_MAP: Record<string, ProbeZoneData> = {
+	// Timing model: each query pays a ~8ms network round trip,
+	// so total time ~= query count x 8ms on every surface.
 	'get-products-5': {
 		controllerBadge: '1 query',
 		serializerCount: 5,
 		dbTotalQueries: 6,
-		dbTime: '~2.4ms',
+		dbTime: '~50ms',
 	},
 	'get-products-100': {
 		controllerBadge: '1 query',
@@ -226,7 +233,7 @@ const PROBE_ZONE_MAP: Record<string, ProbeZoneData> = {
 		controllerBadge: '1 query',
 		serializerCount: 1000,
 		dbTotalQueries: 1001,
-		dbTime: '~4.9s',
+		dbTime: '~8.4s',
 	},
 };
 
@@ -277,10 +284,12 @@ end`,
 	},
 };
 
-// Map stage IDs to discovery IDs they trigger
+// Map stage IDs to discovery IDs they trigger.
+// 'no-eager-load' belongs to the 1000-product probe alone
+// (PROBE_DISCOVERY_MAP must stay 1:1), so the database zone
+// click opens its inspector without unlocking a discovery.
 const STAGE_DISCOVERY_MAP: Record<string, string> = {
 	serializer: 'hidden-in-serializer',
-	database: 'no-eager-load',
 };
 
 // ──────────────────────────────────────────────
@@ -416,27 +425,33 @@ const SHELL_STEP_MAP: (TerminalStepData | null)[] = [
 // Steps 1, 3, 4: OptionCard data
 // ──────────────────────────────────────────────
 
+// Setup verified against the Prosopite README
+// (https://github.com/charkost/prosopite): configuration only
+// controls reporting. Prosopite watches nothing until each
+// request is wrapped in Prosopite.scan / Prosopite.finish,
+// which the README does via an around_action.
 const PROSOPITE_CONFIG_OPTIONS: StepOption[] = [
 	{
-		id: 'wrong-log-only',
-		label: 'config.after_initialize do\n  Prosopite.rails_logger = true\nend',
+		id: 'wrong-config-only',
+		label:
+			'# config/environments/development.rb\nconfig.after_initialize do\n  Prosopite.rails_logger = true\n  Prosopite.raise = true\nend',
 		correct: false,
 		feedback:
-			'Logging alone means N+1 warnings get buried in the log. You want it to stop execution so you notice immediately.',
+			'These settings only choose how findings get reported. Nothing here tells Prosopite when a request starts and ends, so it never actually watches a single query.',
+	},
+	{
+		id: 'wrong-no-raise',
+		label:
+			'# config/environments/development.rb\nconfig.after_initialize do\n  Prosopite.rails_logger = true\nend\n\n# app/controllers/application_controller.rb\naround_action :n_plus_one_detection\n\ndef n_plus_one_detection\n  Prosopite.scan\n  yield\nensure\n  Prosopite.finish\nend',
+		correct: false,
+		feedback:
+			'This wires the scan into every request, but a warning that only lands in the development log gets scrolled past and ignored. You want the N+1 to stop execution so you notice immediately.',
 	},
 	{
 		id: 'correct',
 		label:
-			'config.after_initialize do\n  Prosopite.rails_logger = true\n  Prosopite.raise = true\nend',
+			'# config/environments/development.rb\nconfig.after_initialize do\n  Prosopite.rails_logger = true\n  Prosopite.raise = true\nend\n\n# app/controllers/application_controller.rb\naround_action :n_plus_one_detection\n\ndef n_plus_one_detection\n  Prosopite.scan\n  yield\nensure\n  Prosopite.finish\nend',
 		correct: true,
-	},
-	{
-		id: 'wrong-prod',
-		label:
-			'config.after_initialize do\n  Prosopite.raise = true\n  Prosopite.prosopite_logger = true\nend',
-		correct: false,
-		feedback:
-			'prosopite_logger writes to a separate file, so the warnings never appear alongside the request logs you are already watching. You want them in the log you actually read.',
 	},
 ];
 

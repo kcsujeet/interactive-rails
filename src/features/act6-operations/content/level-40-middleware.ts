@@ -206,20 +206,28 @@ end
 # config/application.rb
 module MyApp
   class Application < Rails::Application
-    # Insert middleware at the top of the stack
-    config.middleware.insert_before 0, RequestIdTracker
-    config.middleware.insert_after RequestIdTracker, BotDetector
-    config.middleware.insert_after BotDetector, RequestLogger
+    # config.middleware.use appends to the bottom of the stack, and
+    # requests run top-to-bottom, so among these three the FIRST one
+    # added runs first. Order them so bots are rejected before the
+    # request id and logger do any work on traffic you will throw away.
+    require Rails.root.join("lib/middleware/bot_detector")
+    require Rails.root.join("lib/middleware/request_id_tracker")
+    require Rails.root.join("lib/middleware/request_logger")
+
+    config.middleware.use BotDetector       # 1. reject bots first
+    config.middleware.use RequestIdTracker  # 2. inject id (logger needs it)
+    config.middleware.use RequestLogger     # 3. log with the id
   end
 end
 
-# Verify the stack:
+# Verify the stack (custom middleware sit below the Rails defaults):
 # $ bin/rails middleware
-# use RequestIdTracker
-# use BotDetector
-# use RequestLogger
+# ...
 # use ActionDispatch::HostAuthorization
-# ...`,
+# use BotDetector
+# use RequestIdTracker
+# use RequestLogger
+# run MyApp::Application.routes`,
 		commonMistakes: [
 			'Putting cross-cutting logic in ApplicationController instead of middleware',
 			'Not passing the request to the next middleware (breaking the chain)',

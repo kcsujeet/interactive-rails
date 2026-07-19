@@ -253,7 +253,7 @@ const PROBE_FRAMES: Record<string, AnimFrame[]> = {
 			edge1: {
 				active: true,
 				reverse: false,
-				label: 'ADD COLUMN ... DEFAULT 0',
+				label: 'ADD COLUMN ... DEFAULT gen_random_uuid()',
 				dotColor: 'bg-cyan-500',
 			},
 			database: { label: 'orders (5M rows)', flash: 'idle' },
@@ -508,16 +508,16 @@ const REWARD_FRAMES: Record<string, AnimFrame[]> = {
 			database: {
 				label: 'Building index concurrently',
 				flash: 'green',
-				lockLabel: 'No Lock',
+				lockLabel: 'Light Lock (reads + writes OK)',
 				lockFlash: 'green',
 			},
 			api: { label: 'Reads + writes OK', flash: 'green' },
 		},
 		{
 			database: {
-				label: 'Index built (no locks held)',
+				label: 'Index built (no writes blocked)',
 				flash: 'green',
-				lockLabel: 'No Lock',
+				lockLabel: 'Light Lock (reads + writes OK)',
 				lockFlash: 'green',
 			},
 			api: { label: 'All requests served', flash: 'green' },
@@ -579,6 +579,48 @@ const REWARD_FRAMES: Record<string, AnimFrame[]> = {
 				lockFlash: 'green',
 			},
 			api: { label: 'No 500 errors', flash: 'green' },
+		},
+	],
+	'unsafe-blocked': [
+		{
+			developer: { label: 'rails db:migrate (unsafe)', flash: 'amber' },
+			edge1: {
+				active: true,
+				reverse: false,
+				label: 'ADD COLUMN ... DEFAULT gen_random_uuid()',
+				dotColor: 'bg-amber-500',
+			},
+			database: { label: 'orders (5M rows)', flash: 'idle' },
+		},
+		{
+			edge1: {
+				active: true,
+				reverse: true,
+				label: 'UnsafeMigration raised',
+				dotColor: 'bg-red-500',
+			},
+			developer: { label: 'Migration aborted by gem', flash: 'red' },
+			database: {
+				label: 'Never touched (gem blocked it)',
+				flash: 'green',
+				lockLabel: 'No Lock',
+				lockFlash: 'green',
+			},
+			api: { label: 'Serving requests normally', flash: 'green' },
+		},
+		{
+			edge1: { active: false },
+			developer: {
+				label: 'Rewrite the migration the safe way',
+				flash: 'idle',
+			},
+			database: {
+				label: 'orders (5M rows) intact',
+				flash: 'green',
+				lockLabel: 'No Lock',
+				lockFlash: 'green',
+			},
+			api: { label: 'Zero downtime', flash: 'green' },
 		},
 	],
 };
@@ -648,7 +690,7 @@ const FIX_ADD_COLUMN_OPTIONS = [
 	{
 		id: 'wrong-disable-lock',
 		label: 'Disable lock timeout before adding column',
-		code: `class AddReferenceCodeToOrders < ActiveRecord::Migration[7.2]
+		code: `class AddReferenceCodeToOrders < ActiveRecord::Migration[8.0]
   def change
     execute "SET lock_timeout = 0"
     add_column :orders, :reference_code, :uuid, default: "gen_random_uuid()"
@@ -661,7 +703,7 @@ end`,
 	{
 		id: 'correct',
 		label: 'Add column without default, then backfill in batches',
-		code: `class AddReferenceCodeToOrders < ActiveRecord::Migration[7.2]
+		code: `class AddReferenceCodeToOrders < ActiveRecord::Migration[8.0]
   def change
     add_column :orders, :reference_code, :uuid
     # Backfill in a separate migration or script:
@@ -675,7 +717,7 @@ end`,
 	{
 		id: 'wrong-raw-sql',
 		label: 'Use raw SQL ALTER TABLE to add column',
-		code: `class AddReferenceCodeToOrders < ActiveRecord::Migration[7.2]
+		code: `class AddReferenceCodeToOrders < ActiveRecord::Migration[8.0]
   def change
     execute <<~SQL
       ALTER TABLE orders
@@ -693,7 +735,7 @@ const FIX_CHANGE_COLUMN_OPTIONS = [
 	{
 		id: 'wrong-in-place',
 		label: 'Use SET DATA TYPE with USING clause',
-		code: `class ChangeOrderTotal < ActiveRecord::Migration[7.2]
+		code: `class ChangeOrderTotal < ActiveRecord::Migration[8.0]
   def change
     execute <<~SQL
       ALTER TABLE orders
@@ -709,7 +751,7 @@ end`,
 	{
 		id: 'wrong-safety-assured',
 		label: 'Wrap change_column in safety_assured',
-		code: `class ChangeOrderTotal < ActiveRecord::Migration[7.2]
+		code: `class ChangeOrderTotal < ActiveRecord::Migration[8.0]
   def change
     safety_assured do
       change_column :orders, :total, :decimal
@@ -739,7 +781,7 @@ const FIX_ADD_INDEX_OPTIONS = [
 	{
 		id: 'wrong-partial',
 		label: 'Add a partial index to reduce lock time',
-		code: `class AddCustomerIndexToOrders < ActiveRecord::Migration[7.2]
+		code: `class AddCustomerIndexToOrders < ActiveRecord::Migration[8.0]
   def change
     add_index :orders, :customer_id, where: "created_at > '2024-01-01'"
   end
@@ -751,7 +793,7 @@ end`,
 	{
 		id: 'correct',
 		label: 'Use algorithm: :concurrently with disable_ddl_transaction!',
-		code: `class AddCustomerIndexToOrders < ActiveRecord::Migration[7.2]
+		code: `class AddCustomerIndexToOrders < ActiveRecord::Migration[8.0]
   disable_ddl_transaction!
 
   def change
@@ -763,7 +805,7 @@ end`,
 	{
 		id: 'wrong-no-disable',
 		label: 'Use algorithm: :concurrently without disable_ddl_transaction!',
-		code: `class AddCustomerIndexToOrders < ActiveRecord::Migration[7.2]
+		code: `class AddCustomerIndexToOrders < ActiveRecord::Migration[8.0]
   def change
     add_index :orders, :customer_id, algorithm: :concurrently
   end
@@ -897,13 +939,16 @@ const STRESS_SCENARIOS = [
 				text: 'CREATE INDEX CONCURRENTLY index_orders_on_customer_id',
 				color: 'green',
 			},
-			{ text: '# No SHARE lock. Reads and writes continue.', color: 'green' },
-			{ text: '# Index built in background', color: 'green' },
+			{
+				text: '# Only a light lock (SHARE UPDATE EXCLUSIVE): reads and writes continue',
+				color: 'green',
+			},
+			{ text: '# Index built in the background', color: 'green' },
 		],
 		story: [
 			'Same index creation, but with CONCURRENTLY.',
-			'PostgreSQL builds the index without acquiring a lock.',
-			'All reads and writes continue during index creation.',
+			'PostgreSQL builds the index while taking only a light lock (SHARE UPDATE EXCLUSIVE).',
+			'That lock allows reads and writes to continue; it only blocks other schema changes.',
 			'Zero downtime.',
 		],
 	},
@@ -930,6 +975,35 @@ const STRESS_SCENARIOS = [
 			'Existing rows validated without blocking writes.',
 		],
 	},
+	{
+		id: 'unsafe-blocked',
+		label: 'Ship an unsafe migration (gem catches it)',
+		description: 'strong_migrations refuses the volatile default before deploy',
+		method: 'MIGRATE' as const,
+		path: 'add_column :orders, :reference_code, default: uuid()',
+		actor: 'developer',
+		expectedResult: 'blocked' as const,
+		responseLines: [
+			{
+				text: 'add_column :orders, :reference_code, :uuid, default: "gen_random_uuid()"',
+				color: 'red',
+			},
+			{
+				text: 'StrongMigrations::UnsafeMigration raised, migration aborted',
+				color: 'red',
+			},
+			{
+				text: '# The gem stops it before it can lock the table in production',
+				color: 'green',
+			},
+		],
+		story: [
+			'A developer tries to ship the original unsafe migration again.',
+			'This time strong_migrations is installed and inspects it first.',
+			'It raises StrongMigrations::UnsafeMigration and aborts the run.',
+			'The dangerous lock never reaches production: the safety net works.',
+		],
+	},
 ];
 
 // ─── Code preview builder ──────────────────────────────────────────────
@@ -944,7 +1018,7 @@ function getCodeFiles(
 				filename: 'db/migrate/20240315_update_orders.rb',
 				language: 'ruby',
 				code: `# UNSAFE migration (current state)
-class UpdateOrders < ActiveRecord::Migration[7.2]
+class UpdateOrders < ActiveRecord::Migration[8.0]
   def change
     # Locks table for 30s on 5M rows!
     add_column :orders, :reference_code, :uuid, default: "gen_random_uuid()"
@@ -989,7 +1063,7 @@ gem "strong_migrations", "~> 2.1"`,
 			files.push({
 				filename: 'db/migrate/safe_add_reference_code.rb',
 				language: 'ruby',
-				code: `class AddReferenceCodeToOrders < ActiveRecord::Migration[7.2]
+				code: `class AddReferenceCodeToOrders < ActiveRecord::Migration[8.0]
   def change
     add_column :orders, :reference_code, :uuid
     # Backfill in a separate migration or script:
@@ -1020,7 +1094,7 @@ add_column :orders, :total_decimal, :decimal
 			files.push({
 				filename: 'db/migrate/safe_add_index.rb',
 				language: 'ruby',
-				code: `class AddCustomerIndexToOrders < ActiveRecord::Migration[7.2]
+				code: `class AddCustomerIndexToOrders < ActiveRecord::Migration[8.0]
   disable_ddl_transaction!
 
   def change
@@ -1072,7 +1146,7 @@ StrongMigrations.statement_timeout = 1.hour`,
 		{
 			filename: 'db/migrate/safe_add_reference_code.rb',
 			language: 'ruby',
-			code: `class AddReferenceCodeToOrders < ActiveRecord::Migration[7.2]
+			code: `class AddReferenceCodeToOrders < ActiveRecord::Migration[8.0]
   def change
     add_column :orders, :reference_code, :uuid
   end
@@ -1092,7 +1166,7 @@ add_column :orders, :total_decimal, :decimal
 		{
 			filename: 'db/migrate/safe_add_index.rb',
 			language: 'ruby',
-			code: `class AddCustomerIndexToOrders < ActiveRecord::Migration[7.2]
+			code: `class AddCustomerIndexToOrders < ActiveRecord::Migration[8.0]
   disable_ddl_transaction!
 
   def change

@@ -3,7 +3,7 @@ import { describe, expect, test } from 'bun:test';
 // ── Mirrored data from Level45DataLifecycle.tsx ──
 
 const DISCOVERY_DEFS = [
-	{ id: 'slow-recent', label: 'Recent order queries scan 50M rows' },
+	{ id: 'slow-recent', label: 'Indexes are bloated by 50M rows nobody reads' },
 	{ id: 'slow-old', label: 'Old order lookups scan entire table' },
 	{ id: 'slow-backup', label: 'Daily backup takes 8 hours' },
 ];
@@ -11,22 +11,29 @@ const DISCOVERY_DEFS = [
 const PROBES = [
 	{
 		id: 'recent-orders',
-		label: 'Customer views recent orders (slow)',
-		command: 'Order.where(customer_id: 42).order(created_at: :desc).limit(10)',
+		label: 'Inspect the customer_id index size',
+		command:
+			"SELECT pg_size_pretty(pg_relation_size('index_orders_on_customer_id'))",
 		responseLines: [
-			{ text: 'Seq Scan on orders (rows=50,000,000)', color: 'red' },
-			{ text: 'Planning time: 12ms', color: 'yellow' },
-			{ text: 'Execution time: 3,200ms', color: 'red' },
 			{
-				text: '# 3 second response for 10 recent orders',
+				text: 'Index Scan using index_orders_on_customer_id (fast for lookups)',
+				color: 'yellow',
+			},
+			{ text: 'index_orders_on_customer_id: 4.1 GB', color: 'red' },
+			{
+				text: '# The index covers all 50M rows, even the 95% nobody reads',
+				color: 'red',
+			},
+			{
+				text: '# Every write updates it, every backup copies it, and it barely fits in memory',
 				color: 'red',
 			},
 		],
 		story: [
-			'A customer opens their order history page.',
-			'The query needs just 10 recent orders from today.',
-			'But Postgres must scan through 50M rows to find them.',
-			'3 seconds to load a page that should be instant.',
+			'The customer_id index makes recent-order lookups fast, so the query itself is fine.',
+			'But the index covers all 50M rows, so it has grown to 4.1 GB.',
+			'95% of those rows are old orders nobody reads, yet they bloat the index.',
+			'Every insert has to update this giant index, and it no longer fits comfortably in memory.',
 		],
 	},
 	{
@@ -37,17 +44,20 @@ const PROBES = [
 		responseLines: [
 			{ text: 'Seq Scan on orders (rows=50,000,000)', color: 'red' },
 			{ text: 'Execution time: 4,100ms', color: 'red' },
-			{ text: '# Same 50M row scan for one old order', color: 'red' },
 			{
-				text: "# This order hasn't been accessed in 2 years",
+				text: '# order_number has no index, so every row is checked',
+				color: 'red',
+			},
+			{
+				text: '# Adding one means a 4GB index, mostly for rows nobody reads',
 				color: 'red',
 			},
 		],
 		story: [
-			'A customer wants to return an item from a 2023 order.',
-			'The query searches the same 50M row table.',
-			'4 seconds to find one row that is 2 years old.',
-			'95% of these rows are never accessed but slow every query.',
+			'A customer pastes the order number from a 2023 email receipt to request a return.',
+			'order_number has no index, so PostgreSQL checks all 50 million rows.',
+			'An index would fix this one query, but at 50M rows it would be 4GB, and every index, backup, and migration pays for rows nobody reads.',
+			'95% of these rows have not been touched in over a year.',
 		],
 	},
 	{
@@ -65,7 +75,7 @@ const PROBES = [
 				color: 'red',
 			},
 			{
-				text: '# Migration ALTER TABLE takes 4+ hours (table lock)',
+				text: '# A row-rewriting migration (L43) takes 4+ hours on 50M rows',
 				color: 'red',
 			},
 		],
@@ -73,7 +83,7 @@ const PROBES = [
 			'The nightly pg_dump backup starts at midnight.',
 			'It takes 8 hours to dump 50M rows of order data.',
 			'The backup overlaps with morning peak traffic.',
-			'Any ALTER TABLE migration locks the table for hours.',
+			'The migrations that DO rewrite rows (the unsafe ones from L43) now take hours instead of minutes on a table this big.',
 		],
 	},
 ];
@@ -257,22 +267,25 @@ const ALL_OPTION_SETS = [
 const STRESS_SCENARIOS = [
 	{
 		id: 'recent-orders',
-		label: 'Customer views recent orders (hot table)',
-		description: 'Query hits hot table with 2.5M rows instead of 50M',
-		method: 'GET',
-		path: '/api/orders',
-		actor: 'customer',
+		label: 'Inspect the customer_id index size (after archiving)',
+		description: 'Index now covers 2.5M hot rows instead of 50M',
+		method: 'MIGRATE',
+		path: 'pg_relation_size(index_orders_on_customer_id)',
+		actor: 'developer',
 		expectedResult: 'allowed',
 		responseLines: [
-			{ text: '200 OK', color: 'green' },
-			{ text: 'Index Scan on orders (rows=2,500,000)', color: 'green' },
-			{ text: 'Execution time: 50ms (was 3,200ms)', color: 'green' },
+			{ text: 'index_orders_on_customer_id: ~200 MB', color: 'green' },
+			{ text: '# Index covers only the 2.5M rows people read', color: 'green' },
+			{
+				text: '# Fits in memory again; writes and lookups stay fast',
+				color: 'green',
+			},
 		],
 		story: [
-			'Same customer, same recent orders page.',
-			'But now the hot table has only 2.5M rows.',
-			'Index scan finds 10 orders in 50ms.',
-			'64x faster than before.',
+			'Same index, but the hot table now holds only 2.5M rows.',
+			'Old orders moved to the archive, so the index shrank from 4.1 GB to ~200 MB.',
+			'It fits comfortably in memory again.',
+			'Every insert updates a small index, so writes stay fast for everyone.',
 		],
 	},
 	{
@@ -355,7 +368,7 @@ describe('Level 46: Data Lifecycle', () => {
 
 		test('exact labels match', () => {
 			expect(DISCOVERY_DEFS[0].label).toBe(
-				'Recent order queries scan 50M rows',
+				'Indexes are bloated by 50M rows nobody reads',
 			);
 			expect(DISCOVERY_DEFS[1].label).toBe(
 				'Old order lookups scan entire table',
@@ -381,7 +394,7 @@ describe('Level 46: Data Lifecycle', () => {
 		});
 
 		test('exact probe labels', () => {
-			expect(PROBES[0].label).toBe('Customer views recent orders (slow)');
+			expect(PROBES[0].label).toBe('Inspect the customer_id index size');
 			expect(PROBES[1].label).toBe('Customer views old order from 2023');
 			expect(PROBES[2].label).toBe('Daily backup takes 8 hours');
 		});
@@ -559,6 +572,23 @@ describe('Level 46: Data Lifecycle', () => {
 		test('reward scenarios are a superset of probe concepts', () => {
 			// 3 probes, 4 scenarios (3 matching + 1 additional cold-destroy)
 			expect(STRESS_SCENARIOS.length).toBeGreaterThanOrEqual(PROBES.length);
+		});
+	});
+
+	describe('Technical accuracy', () => {
+		test('recent-orders probe is about index bloat, not a fabricated seq scan on an indexed column', () => {
+			const probe = PROBES.find((p) => p.id === 'recent-orders');
+			const joined = (probe?.responseLines ?? []).map((l) => l.text).join(' ');
+			expect(joined.includes('Seq Scan')).toBe(false);
+			expect(joined.includes('Index Scan')).toBe(true);
+			expect(joined.includes('4.1 GB')).toBe(true);
+		});
+
+		test('old-order probe seq scan is justified by the missing order_number index', () => {
+			const probe = PROBES.find((p) => p.id === 'old-order');
+			const joined = (probe?.responseLines ?? []).map((l) => l.text).join(' ');
+			expect(joined.includes('Seq Scan')).toBe(true);
+			expect(joined.includes('order_number has no index')).toBe(true);
 		});
 	});
 

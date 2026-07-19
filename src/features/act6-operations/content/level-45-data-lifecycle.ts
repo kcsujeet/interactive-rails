@@ -46,13 +46,15 @@ Order.count  # => 50,000,000
 Order.where("created_at > ?", 1.year.ago).count  # => 2,500,000
 Order.where("created_at < ?", 1.year.ago).count  # => 47,500,000
 
-# Every query scans the full table:
-# EXPLAIN: Seq Scan on orders (rows=50,000,000)
-# Even indexed queries are slow; the index itself is 4GB
+# Any lookup on an UNindexed column scans the full table:
+# EXPLAIN (order_number, no index): Seq Scan on orders (rows=50,000,000)
+# And even indexed lookups pay a tax: the index covers all 50M rows,
+# so index_orders_on_customer_id has bloated to 4GB and no longer fits in memory
 
 # Backups take 6 hours and sometimes fail
 # pg_dump: 48GB uncompressed
-# Migrations: ALTER TABLE on 50M rows = 30 minute lock
+# Row-rewriting migrations (the unsafe ones from L43) on 50M rows = 30 minute lock
+# (metadata-only changes stay instant; it is the rewrites that hurt at this size)
 
 # The "assumed requirement" is keeping everything forever.
 # But who actually needs a 3-year-old draft order?`,
@@ -91,11 +93,11 @@ After archiving (2.5M rows):
 
 **The Gordian Knot metaphor:** The "assumed requirement" is keeping everything forever. Challenge it. Destroying data is the most effective scalability solution: if the data isn't there, you don't need to query it, index it, back it up, or migrate it.
 
-**Archiving strategies for warm data:**
-- **Separate table** (\`archived_orders\`): SQL queries still work. Easy to re-query if needed
-- **Redis with AOF persistence**: Key-value access, fast reads for specific lookups
-- **S3/object storage**: Cheapest. Export-only. Good for compliance archives
-- **Separate database**: Full SQL, but isolated from hot data. Use for analytics
+**Archiving strategies for warm/cold data:**
+- **Separate table** (\`archived_orders\`): SQL queries still work. Easy to re-query if needed. Good for warm data
+- **Separate archive database**: Full SQL, but isolated from hot data. Cheaper hardware, out of the hot backup path
+- **S3/object storage**: Cheapest per GB. Export-only. Good for cold, compliance archives you rarely read
+- **Data warehouse** (columnar, e.g. BigQuery/Redshift/DuckDB): for cold data you still analyze in bulk
 
 **Data destruction best practices:**
 - Define retention policies per data type (orders: 2 years, logs: 90 days, sessions: 30 days)

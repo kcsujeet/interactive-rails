@@ -5,18 +5,18 @@
  *
  * Phase 1 (observe): 3-node horizontal layout.
  *   Scheduler (left, missing) -> Rails App (center) -> Database (right, row count grows).
- *   Probes reveal expired tokens, orphaned records, and unchecked storage growth.
+ *   Probes reveal expired tokens, stale abandoned carts, and unchecked storage growth.
  *
  * Phase 2 (build): 6 steps
  *   Step 0: OptionCard - Create cleanup job class (ApplicationJob pattern)
  *   Step 1: OptionCard - Implement token cleanup logic (batch deletion)
  *   Step 2: Terminal - Configure Solid Queue recurring schedule (config/recurring.yml)
- *   Step 3: OptionCard - Add orphan cleanup job
+ *   Step 3: OptionCard - Add stale-cart expiry job
  *   Step 4: OptionCard - Configure error handling (retry_on, discard_on)
  *   Step 5: OptionCard - Add monitoring/logging for scheduled runs
  *
  * Phase 3 (reward): Same 3 nodes, but Scheduler is active and jobs fire.
- *   Expired tokens cleaned, orphans purged, storage stabilized, failure handled.
+ *   Expired tokens cleaned, stale carts expired, storage stabilized, failure handled.
  */
 
 import {
@@ -135,7 +135,7 @@ const DEFAULT_EDGE: EdgeVizState = {
 
 const DISCOVERY_DEFS = [
 	{ id: 'expired-tokens', label: '2M expired session tokens accumulating' },
-	{ id: 'orphaned-records', label: '500K orphaned records with no parent' },
+	{ id: 'abandoned-carts', label: '500K stale carts abandoned mid-checkout' },
 	{ id: 'storage-growth', label: 'Storage growing 5%/week with no cleanup' },
 ];
 
@@ -169,29 +169,30 @@ const PROBES = [
 		],
 	},
 	{
-		id: 'orphaned-records',
-		label: 'Check orphaned records',
-		command: 'OrderItem.left_joins(:order).where(orders: { id: nil }).count',
+		id: 'abandoned-carts',
+		label: 'Check stale abandoned carts',
+		command:
+			'Cart.where("updated_at < ?", 30.days.ago).where(purchased_at: nil).count',
 		responseLines: [
 			{ text: '=> 523,491', color: 'red' as const },
 			{
-				text: '# 500K+ order items with no parent order',
+				text: '# 500K+ carts last touched over 30 days ago, never checked out',
 				color: 'red' as const,
 			},
 			{
-				text: '# Created by failed checkouts, never cleaned',
+				text: '# Shoppers added items, then left; the carts just sit there',
 				color: 'red' as const,
 			},
 			{
-				text: '# Wasting storage and skewing analytics',
+				text: '# Wasting storage and skewing "active cart" analytics',
 				color: 'red' as const,
 			},
 		],
 		story: [
-			'You query for order items whose parent order no longer exists.',
-			'523K orphaned records from failed or deleted checkouts.',
-			'They accumulate silently, wasting storage and polluting reports.',
-			'Without a recurring cleanup job, they will only grow.',
+			'You query for carts that have not been touched in over 30 days and were never purchased.',
+			'523K stale carts from shoppers who added items and then left.',
+			'They are valid rows (each belongs to a user), but they never expire.',
+			'Without a recurring cleanup job to expire them, they only grow.',
 		],
 	},
 	{
@@ -217,7 +218,7 @@ const PROBES = [
 		story: [
 			'You check the total database size.',
 			'42 GB and growing at 5% per week.',
-			'Expired sessions, orphaned records, and stale cache entries pile up.',
+			'Expired sessions, stale abandoned carts, and stale cache entries pile up.',
 			'Without scheduled cleanup jobs, the disk will fill in months.',
 		],
 	},
@@ -225,7 +226,7 @@ const PROBES = [
 
 const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
 	'expired-tokens': ['expired-tokens'],
-	'orphaned-records': ['orphaned-records'],
+	'abandoned-carts': ['abandoned-carts'],
 	'storage-growth': ['storage-growth'],
 };
 
@@ -240,11 +241,11 @@ const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
 //   F2: Scheduler shows no cleanup, DB shows 2M expired, App queries slow
 //   F3: App and Scheduler show no one cleans up
 //
-// orphaned-records:
-//   F0: App shows checkout failure, edge2 sends partial items to DB
-//   F1: DB shows orphans piling up
-//   F2: Scheduler empty, DB shows 523K orphans, App analytics skewed
-//   F3: Nobody purges orphans
+// abandoned-carts:
+//   F0: App shows shopper leaving, edge2 leaves the cart untouched in DB
+//   F1: DB shows stale carts piling up
+//   F2: Scheduler empty, DB shows 523K stale carts, App analytics skewed
+//   F3: Nobody expires stale carts
 //
 // storage-growth:
 //   F0: DB measured at 42 GB
@@ -286,35 +287,35 @@ const PROBE_FRAMES: Record<string, AnimFrame[]> = {
 			scheduler: { label: 'Empty', flash: 'red' },
 		},
 	],
-	'orphaned-records': [
+	'abandoned-carts': [
 		{
-			app: { label: 'Checkout fails mid-process', flash: 'amber' },
+			app: { label: 'Shopper leaves without checking out', flash: 'amber' },
 			edge2: {
 				active: true,
 				reverse: false,
-				label: 'Partial order items created',
+				label: 'Cart left untouched',
 				dotColor: 'bg-amber-500',
 			},
 		},
 		{
 			edge2: { active: false },
 			db: {
-				label: 'Orphans pile up',
+				label: 'Stale carts pile up',
 				flash: 'amber',
-				rowCount: '523K orphaned rows',
+				rowCount: '523K stale carts',
 			},
 		},
 		{
 			scheduler: { label: 'No cleanup scheduled', flash: 'red' },
 			db: {
-				label: 'No parent orders',
+				label: 'Never expired',
 				flash: 'red',
-				rowCount: '523,491 orphans',
+				rowCount: '523,491 stale carts',
 			},
-			app: { label: 'Analytics skewed', flash: 'amber' },
+			app: { label: '"Active cart" analytics skewed', flash: 'amber' },
 		},
 		{
-			app: { label: 'Nobody purges orphans', flash: 'red' },
+			app: { label: 'Nobody expires stale carts', flash: 'red' },
 			scheduler: { label: 'Empty', flash: 'red' },
 		},
 	],
@@ -359,10 +360,10 @@ const PROBE_FRAMES: Record<string, AnimFrame[]> = {
 //   F2: DB purged, App shows 85K cleaned
 //   F3: Scheduler runs hourly, App complete
 //
-// orphaned-records:
-//   F0: Scheduler triggers daily job, edge1 sends PurgeOrphansJob
-//   F1: App purges, edge2 sends DELETE to DB
-//   F2: DB orphans removed, App shows 523K purged
+// abandoned-carts:
+//   F0: Scheduler triggers daily job, edge1 sends ExpireStaleCartsJob
+//   F1: App expires, edge2 sends DELETE to DB
+//   F2: DB stale carts removed, App shows 523K expired
 //   F3: Scheduler daily at 2AM, App complete
 //
 // storage-growth:
@@ -412,34 +413,34 @@ const REWARD_FRAMES: Record<string, AnimFrame[]> = {
 			app: { label: 'Job complete', flash: 'green' },
 		},
 	],
-	'orphaned-records': [
+	'abandoned-carts': [
 		{
 			scheduler: { label: 'Triggering daily job', flash: 'amber' },
 			edge1: {
 				active: true,
 				reverse: false,
-				label: 'PurgeOrphansJob',
+				label: 'ExpireStaleCartsJob',
 				dotColor: 'bg-emerald-500',
 			},
 		},
 		{
 			edge1: { active: false },
-			app: { label: 'Purging orphans...', flash: 'amber' },
+			app: { label: 'Expiring stale carts...', flash: 'amber' },
 			edge2: {
 				active: true,
 				reverse: false,
-				label: 'DELETE orphaned rows',
+				label: 'DELETE stale carts in_batches',
 				dotColor: 'bg-emerald-500',
 			},
 		},
 		{
 			edge2: { active: false },
 			db: {
-				label: 'Orphans removed',
+				label: 'Stale carts expired',
 				flash: 'green',
-				rowCount: '0 orphaned rows',
+				rowCount: '0 stale carts',
 			},
-			app: { label: 'Purged 523K records', flash: 'green' },
+			app: { label: 'Expired 523K carts', flash: 'green' },
 		},
 		{
 			scheduler: { label: 'Runs daily at 2 AM', flash: 'green' },
@@ -532,7 +533,7 @@ const STEP_DEFS = [
 	{ id: 'create-job', title: 'Create Cleanup Job Class' },
 	{ id: 'token-cleanup', title: 'Token Cleanup Logic' },
 	{ id: 'recurring-yml', title: 'Configure Recurring Schedule' },
-	{ id: 'orphan-job', title: 'Add Orphan Cleanup Job' },
+	{ id: 'orphan-job', title: 'Add Stale-Cart Expiry Job' },
 	{ id: 'error-handling', title: 'Error Handling' },
 	{ id: 'monitoring', title: 'Monitoring & Logging' },
 ];
@@ -646,17 +647,17 @@ const RECURRING_YML_COMMANDS = [
 	},
 ];
 
-// Step 3: Add orphan cleanup job (OptionCard)
+// Step 3: Add stale-cart expiry job (OptionCard)
 const ORPHAN_JOB_OPTIONS = [
 	{
 		id: 'wrong-no-batch',
-		label: 'Find and delete orphans without batching',
-		code: `class PurgeOrphansJob < ApplicationJob
+		label: 'Find and delete stale carts without batching',
+		code: `class ExpireStaleCartsJob < ApplicationJob
   queue_as :default
 
   def perform
-    OrderItem.left_joins(:order)
-      .where(orders: { id: nil })
+    Cart.where("updated_at < ?", 30.days.ago)
+      .where(purchased_at: nil)
       .delete_all
   end
 end`,
@@ -667,15 +668,15 @@ end`,
 	{
 		id: 'wrong-wrong-queue',
 		label: 'Batch deletion on the default queue',
-		code: `class PurgeOrphansJob < ApplicationJob
+		code: `class ExpireStaleCartsJob < ApplicationJob
   queue_as :default
 
   def perform
-    OrderItem.left_joins(:order)
-      .where(orders: { id: nil })
+    Cart.where("updated_at < ?", 30.days.ago)
+      .where(purchased_at: nil)
       .in_batches(of: 5_000, &:delete_all)
 
-    Rails.logger.info("[PurgeOrphansJob] Orphans purged")
+    Rails.logger.info("[ExpireStaleCartsJob] Stale carts expired")
   end
 end`,
 		correct: false,
@@ -685,18 +686,18 @@ end`,
 	{
 		id: 'correct',
 		label: 'Batch deletion on the maintenance queue with logging',
-		code: `class PurgeOrphansJob < ApplicationJob
+		code: `class ExpireStaleCartsJob < ApplicationJob
   queue_as :maintenance
 
   def perform
-    orphans = OrderItem.left_joins(:order)
-      .where(orders: { id: nil })
-    count = orphans.count
+    stale = Cart.where("updated_at < ?", 30.days.ago)
+      .where(purchased_at: nil)
+    count = stale.count
 
-    orphans.in_batches(of: 5_000, &:delete_all)
+    stale.in_batches(of: 5_000, &:delete_all)
 
     Rails.logger.info(
-      "[PurgeOrphansJob] Purged #{count} orphaned records"
+      "[ExpireStaleCartsJob] Expired #{count} stale carts"
     )
   end
 end`,
@@ -851,26 +852,27 @@ const STRESS_SCENARIOS = [
 		],
 	},
 	{
-		id: 'orphaned-records',
-		label: 'PurgeOrphansJob runs (daily)',
-		description: 'Scheduled daily at 2 AM, removes orphaned order items',
+		id: 'abandoned-carts',
+		label: 'ExpireStaleCartsJob runs (daily)',
+		description:
+			'Scheduled daily at 2 AM, expires carts abandoned mid-checkout',
 		method: 'POST' as const,
-		path: '/jobs/purge_orphans',
+		path: '/jobs/expire_stale_carts',
 		actor: 'scheduler',
 		expectedResult: 'allowed' as const,
 		responseLines: [
-			{ text: 'PurgeOrphansJob: started', color: 'green' },
+			{ text: 'ExpireStaleCartsJob: started', color: 'green' },
 			{
-				text: 'Purged 523,491 orphaned records in 45.1s',
+				text: 'Expired 523,491 stale carts in 45.1s',
 				color: 'green',
 			},
 			{ text: 'Status: completed', color: 'green' },
 		],
 		story: [
-			'Solid Queue triggers PurgeOrphansJob at 2 AM.',
-			'The job finds order items with no parent order.',
-			'523K orphaned rows deleted in batches.',
-			'Storage reclaimed, analytics no longer skewed.',
+			'Solid Queue triggers ExpireStaleCartsJob at 2 AM.',
+			'The job finds carts untouched for 30 days that were never purchased.',
+			'523K stale carts deleted in batches.',
+			'Storage reclaimed, "active cart" analytics no longer skewed.',
 		],
 	},
 	{
@@ -941,7 +943,7 @@ function getCodeFiles(
 				code: `# No cleanup job classes exist
 # Database accumulates stale data:
 #   - 2M expired session tokens
-#   - 500K orphaned order items
+#   - 500K stale carts abandoned mid-checkout
 #   - 100K stale cache entries
 # Storage growing 5%/week with no automated maintenance`,
 			},
@@ -1002,20 +1004,20 @@ production:
 
 		if (completedStep >= 3) {
 			files.push({
-				filename: 'app/jobs/purge_orphans_job.rb',
+				filename: 'app/jobs/expire_stale_carts_job.rb',
 				language: 'ruby',
-				code: `class PurgeOrphansJob < ApplicationJob
+				code: `class ExpireStaleCartsJob < ApplicationJob
   queue_as :maintenance
 
   def perform
-    orphans = OrderItem.left_joins(:order)
-      .where(orders: { id: nil })
-    count = orphans.count
+    stale = Cart.where("updated_at < ?", 30.days.ago)
+      .where(purchased_at: nil)
+    count = stale.count
 
-    orphans.in_batches(of: 5_000, &:delete_all)
+    stale.in_batches(of: 5_000, &:delete_all)
 
     Rails.logger.info(
-      "[PurgeOrphansJob] Purged #{count} orphaned records"
+      "[ExpireStaleCartsJob] Expired #{count} stale carts"
     )
   end
 end`,
@@ -1034,8 +1036,8 @@ production:
     class: CleanExpiredTokensJob
     schedule: "every hour"
     queue: maintenance
-  purge_orphans:
-    class: PurgeOrphansJob
+  expire_stale_carts:
+    class: ExpireStaleCartsJob
     schedule: "every day at 2am"
     queue: maintenance`,
 				};
@@ -1123,8 +1125,8 @@ production:
     class: CleanExpiredTokensJob
     schedule: "every hour"
     queue: maintenance
-  purge_orphans:
-    class: PurgeOrphansJob
+  expire_stale_carts:
+    class: ExpireStaleCartsJob
     schedule: "every day at 2am"
     queue: maintenance`,
 		},
@@ -1157,20 +1159,20 @@ production:
 end`,
 		},
 		{
-			filename: 'app/jobs/purge_orphans_job.rb',
+			filename: 'app/jobs/expire_stale_carts_job.rb',
 			language: 'ruby',
-			code: `class PurgeOrphansJob < ApplicationJob
+			code: `class ExpireStaleCartsJob < ApplicationJob
   queue_as :maintenance
 
   def perform
-    orphans = OrderItem.left_joins(:order)
-      .where(orders: { id: nil })
-    count = orphans.count
+    stale = Cart.where("updated_at < ?", 30.days.ago)
+      .where(purchased_at: nil)
+    count = stale.count
 
-    orphans.in_batches(of: 5_000, &:delete_all)
+    stale.in_batches(of: 5_000, &:delete_all)
 
     Rails.logger.info(
-      "[PurgeOrphansJob] Purged #{count} orphaned records"
+      "[ExpireStaleCartsJob] Expired #{count} stale carts"
     )
   end
 end`,
@@ -1588,7 +1590,7 @@ export function Level44RecurringJobs({ onComplete }: LevelComponentProps) {
 	const OPTION_DESCRIPTIONS: Record<number, string> = {
 		0: 'How should the cleanup job class be structured?',
 		1: 'How should the token cleanup logic handle 2M expired rows?',
-		3: 'How should the orphan cleanup job be implemented?',
+		3: 'How should the stale-cart expiry job be implemented?',
 		4: 'How should recurring jobs handle transient and fatal errors?',
 		5: 'How should the job report its results for monitoring?',
 	};
@@ -1603,10 +1605,10 @@ export function Level44RecurringJobs({ onComplete }: LevelComponentProps) {
 							Scenario
 						</h3>
 						<p className="text-sm text-muted-foreground mb-2">
-							Your database has 2M expired session tokens, 500K orphaned
-							records, and 100K stale cache entries. Storage is growing 5% per
-							week. You have Solid Queue from L36 for one-off background jobs,
-							but nothing runs on a recurring schedule.
+							Your database has 2M expired session tokens, 500K stale carts
+							abandoned mid-checkout, and 100K stale cache entries. Storage is
+							growing 5% per week. You have Solid Queue from L36 for one-off
+							background jobs, but nothing runs on a recurring schedule.
 						</p>
 						<p className="text-sm text-muted-foreground">
 							Nobody cleans up because cleanup never happens automatically. Fire

@@ -4,7 +4,7 @@ import { describe, expect, test } from 'bun:test';
 
 const DISCOVERY_DEFS = [
 	{ id: 'expired-tokens', label: '2M expired session tokens accumulating' },
-	{ id: 'orphaned-records', label: '500K orphaned records with no parent' },
+	{ id: 'abandoned-carts', label: '500K stale carts abandoned mid-checkout' },
 	{ id: 'storage-growth', label: 'Storage growing 5%/week with no cleanup' },
 ];
 
@@ -30,23 +30,30 @@ const PROBES = [
 		],
 	},
 	{
-		id: 'orphaned-records',
-		label: 'Check orphaned records',
-		command: 'OrderItem.left_joins(:order).where(orders: { id: nil }).count',
+		id: 'abandoned-carts',
+		label: 'Check stale abandoned carts',
+		command:
+			'Cart.where("updated_at < ?", 30.days.ago).where(purchased_at: nil).count',
 		responseLines: [
 			{ text: '=> 523,491', color: 'red' },
-			{ text: '# 500K+ order items with no parent order', color: 'red' },
 			{
-				text: '# Created by failed checkouts, never cleaned',
+				text: '# 500K+ carts last touched over 30 days ago, never checked out',
 				color: 'red',
 			},
-			{ text: '# Wasting storage and skewing analytics', color: 'red' },
+			{
+				text: '# Shoppers added items, then left; the carts just sit there',
+				color: 'red',
+			},
+			{
+				text: '# Wasting storage and skewing "active cart" analytics',
+				color: 'red',
+			},
 		],
 		story: [
-			'You query for order items whose parent order no longer exists.',
-			'523K orphaned records from failed or deleted checkouts.',
-			'They accumulate silently, wasting storage and polluting reports.',
-			'Without a recurring cleanup job, they will only grow.',
+			'You query for carts that have not been touched in over 30 days and were never purchased.',
+			'523K stale carts from shoppers who added items and then left.',
+			'They are valid rows (each belongs to a user), but they never expire.',
+			'Without a recurring cleanup job to expire them, they only grow.',
 		],
 	},
 	{
@@ -66,7 +73,7 @@ const PROBES = [
 		story: [
 			'You check the total database size.',
 			'42 GB and growing at 5% per week.',
-			'Expired sessions, orphaned records, and stale cache entries pile up.',
+			'Expired sessions, stale abandoned carts, and stale cache entries pile up.',
 			'Without scheduled cleanup jobs, the disk will fill in months.',
 		],
 	},
@@ -74,7 +81,7 @@ const PROBES = [
 
 const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
 	'expired-tokens': ['expired-tokens'],
-	'orphaned-records': ['orphaned-records'],
+	'abandoned-carts': ['abandoned-carts'],
 	'storage-growth': ['storage-growth'],
 };
 
@@ -82,7 +89,7 @@ const STEP_DEFS = [
 	{ id: 'create-job', title: 'Create Cleanup Job Class' },
 	{ id: 'token-cleanup', title: 'Token Cleanup Logic' },
 	{ id: 'recurring-yml', title: 'Configure Recurring Schedule' },
-	{ id: 'orphan-job', title: 'Add Orphan Cleanup Job' },
+	{ id: 'orphan-job', title: 'Add Stale-Cart Expiry Job' },
 	{ id: 'error-handling', title: 'Error Handling' },
 	{ id: 'monitoring', title: 'Monitoring & Logging' },
 ];
@@ -160,7 +167,7 @@ const RECURRING_YML_COMMANDS = [
 const ORPHAN_JOB_OPTIONS = [
 	{
 		id: 'wrong-no-batch',
-		label: 'Find and delete orphans without batching',
+		label: 'Find and delete stale carts without batching',
 		correct: false,
 		feedback:
 			'Deleting 500K rows in one statement locks the table. Also, maintenance jobs belong on a dedicated queue so they do not block user-facing work.',
@@ -231,7 +238,7 @@ const ALL_OPTION_SETS = [
 		name: 'Configure Recurring Schedule',
 		options: RECURRING_YML_COMMANDS,
 	},
-	{ step: 3, name: 'Orphan Cleanup Job', options: ORPHAN_JOB_OPTIONS },
+	{ step: 3, name: 'Stale-Cart Expiry Job', options: ORPHAN_JOB_OPTIONS },
 	{ step: 4, name: 'Error Handling', options: ERROR_HANDLING_OPTIONS },
 	{ step: 5, name: 'Monitoring & Logging', options: MONITORING_OPTIONS },
 ];
@@ -258,26 +265,27 @@ const STRESS_SCENARIOS = [
 		],
 	},
 	{
-		id: 'orphaned-records',
-		label: 'PurgeOrphansJob runs (daily)',
-		description: 'Scheduled daily at 2 AM, removes orphaned order items',
+		id: 'abandoned-carts',
+		label: 'ExpireStaleCartsJob runs (daily)',
+		description:
+			'Scheduled daily at 2 AM, expires carts abandoned mid-checkout',
 		method: 'POST',
-		path: '/jobs/purge_orphans',
+		path: '/jobs/expire_stale_carts',
 		actor: 'scheduler',
 		expectedResult: 'allowed',
 		responseLines: [
-			{ text: 'PurgeOrphansJob: started', color: 'green' },
+			{ text: 'ExpireStaleCartsJob: started', color: 'green' },
 			{
-				text: 'Purged 523,491 orphaned records in 45.1s',
+				text: 'Expired 523,491 stale carts in 45.1s',
 				color: 'green',
 			},
 			{ text: 'Status: completed', color: 'green' },
 		],
 		story: [
-			'Solid Queue triggers PurgeOrphansJob at 2 AM.',
-			'The job finds order items with no parent order.',
-			'523K orphaned rows deleted in batches.',
-			'Storage reclaimed, analytics no longer skewed.',
+			'Solid Queue triggers ExpireStaleCartsJob at 2 AM.',
+			'The job finds carts untouched for 30 days that were never purchased.',
+			'523K stale carts deleted in batches.',
+			'Storage reclaimed, "active cart" analytics no longer skewed.',
 		],
 	},
 	{
@@ -344,7 +352,7 @@ describe('Level 45: Recurring Jobs', () => {
 				'2M expired session tokens accumulating',
 			);
 			expect(DISCOVERY_DEFS[1].label).toBe(
-				'500K orphaned records with no parent',
+				'500K stale carts abandoned mid-checkout',
 			);
 			expect(DISCOVERY_DEFS[2].label).toBe(
 				'Storage growing 5%/week with no cleanup',
@@ -353,7 +361,7 @@ describe('Level 45: Recurring Jobs', () => {
 
 		test('exact IDs match', () => {
 			expect(DISCOVERY_DEFS[0].id).toBe('expired-tokens');
-			expect(DISCOVERY_DEFS[1].id).toBe('orphaned-records');
+			expect(DISCOVERY_DEFS[1].id).toBe('abandoned-carts');
 			expect(DISCOVERY_DEFS[2].id).toBe('storage-growth');
 		});
 	});
@@ -370,7 +378,7 @@ describe('Level 45: Recurring Jobs', () => {
 
 		test('exact probe labels', () => {
 			expect(PROBES[0].label).toBe('Check expired session tokens');
-			expect(PROBES[1].label).toBe('Check orphaned records');
+			expect(PROBES[1].label).toBe('Check stale abandoned carts');
 			expect(PROBES[2].label).toBe('Database storage growing');
 		});
 
@@ -433,7 +441,7 @@ describe('Level 45: Recurring Jobs', () => {
 			expect(STEP_DEFS[0].title).toBe('Create Cleanup Job Class');
 			expect(STEP_DEFS[1].title).toBe('Token Cleanup Logic');
 			expect(STEP_DEFS[2].title).toBe('Configure Recurring Schedule');
-			expect(STEP_DEFS[3].title).toBe('Add Orphan Cleanup Job');
+			expect(STEP_DEFS[3].title).toBe('Add Stale-Cart Expiry Job');
 			expect(STEP_DEFS[4].title).toBe('Error Handling');
 			expect(STEP_DEFS[5].title).toBe('Monitoring & Logging');
 		});
@@ -520,7 +528,7 @@ describe('Level 45: Recurring Jobs', () => {
 		test('exact scenario IDs and expectedResults', () => {
 			expect(STRESS_SCENARIOS[0].id).toBe('expired-tokens');
 			expect(STRESS_SCENARIOS[0].expectedResult).toBe('allowed');
-			expect(STRESS_SCENARIOS[1].id).toBe('orphaned-records');
+			expect(STRESS_SCENARIOS[1].id).toBe('abandoned-carts');
 			expect(STRESS_SCENARIOS[1].expectedResult).toBe('allowed');
 			expect(STRESS_SCENARIOS[2].id).toBe('storage-growth');
 			expect(STRESS_SCENARIOS[2].expectedResult).toBe('allowed');
@@ -538,7 +546,7 @@ describe('Level 45: Recurring Jobs', () => {
 		});
 
 		test('reward scenarios are a superset of probe concepts', () => {
-			// 3 probes map to expired-tokens, orphaned-records, storage-growth
+			// 3 probes map to expired-tokens, abandoned-carts, storage-growth
 			// 4 scenarios include those 3 + job-failure
 			expect(STRESS_SCENARIOS.length).toBeGreaterThanOrEqual(PROBES.length);
 		});

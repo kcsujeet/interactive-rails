@@ -160,15 +160,15 @@ const DISCOVERY_DEFS = [
 const PROBES = [
 	{
 		id: 'unnoticed-500',
-		label: 'Customer hits 500 error (unnoticed)',
-		command: 'curl -X GET localhost:3000/api/products/999',
+		label: 'Customer hits a 500 during checkout (unnoticed)',
+		command: 'curl -X POST localhost:3000/api/checkout',
 		responseLines: [
 			{
-				text: '# ActiveRecord::RecordNotFound in ProductsController#show',
+				text: '# NoMethodError in CheckoutController#create (a real bug)',
 				color: 'red' as const,
 			},
 			{
-				text: '# Request logged (L40), but exception not captured',
+				text: '# Request logged (L40), but the exception is not captured',
 				color: 'yellow' as const,
 			},
 			{
@@ -181,8 +181,8 @@ const PROBES = [
 			},
 		],
 		story: [
-			'Customer browses your store, clicks on product #999.',
-			'Product was deleted last week. Rails raises RecordNotFound.',
+			'Customer clicks "Place order" during checkout.',
+			'A code bug raises NoMethodError, so Rails returns a 500.',
 			'L40 request logger captures the request, but not the exception itself.',
 			'No error context: no user_id, no breadcrumbs, no stack trace captured.',
 			'The team finds out when the customer tweets about it.',
@@ -190,11 +190,12 @@ const PROBES = [
 	},
 	{
 		id: 'duplicate-errors',
-		label: 'Same error happens 50 times',
-		command: 'for i in {1..50}; do curl localhost:3000/api/products/999; done',
+		label: 'Same 500 happens 50 times',
+		command:
+			'for i in {1..50}; do curl -X POST localhost:3000/api/checkout; done',
 		responseLines: [
 			{
-				text: '# 50 identical RecordNotFound errors in logs',
+				text: '# 50 identical NoMethodError 500s in the logs',
 				color: 'yellow' as const,
 			},
 			{
@@ -211,8 +212,8 @@ const PROBES = [
 			},
 		],
 		story: [
-			'50 customers all hit the same deleted product.',
-			'50 identical RecordNotFound errors flood the logs.',
+			'50 customers all hit the same checkout bug.',
+			'50 identical NoMethodError 500s flood the logs.',
 			'Without grouping, each looks like a separate problem.',
 			'A developer scanning logs sees 50 "different" errors.',
 			'They waste time investigating each one individually.',
@@ -264,20 +265,20 @@ const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
 const UNNOTICED_500_FRAMES: AnimFrame[] = [
 	// Frame 0: Customer sends request
 	{
-		customer: { label: 'GET /products/999', flash: 'idle' },
+		customer: { label: 'POST /checkout', flash: 'idle' },
 		app: { label: 'Processing request...', flash: 'idle', errorCount: 0 },
 		edge: {
 			active: true,
 			reverse: false,
-			label: 'GET /api/products/999',
+			label: 'POST /api/checkout',
 			dotColor: 'bg-cyan-500',
 		},
 	},
-	// Frame 1: App raises RecordNotFound
+	// Frame 1: App raises NoMethodError (a real bug -> 500)
 	{
 		customer: { label: 'Waiting...', flash: 'idle' },
 		app: {
-			label: 'RecordNotFound!',
+			label: 'NoMethodError!',
 			flash: 'red',
 			errorLog: 'puts error to stdout...',
 			errorCount: 1,
@@ -313,12 +314,12 @@ const UNNOTICED_500_FRAMES: AnimFrame[] = [
 const DUPLICATE_ERRORS_FRAMES: AnimFrame[] = [
 	// Frame 0: 50 requests arrive
 	{
-		customer: { label: '50 customers browsing', flash: 'idle' },
+		customer: { label: '50 customers checking out', flash: 'idle' },
 		app: { label: 'Processing requests...', flash: 'idle', errorCount: 0 },
 		edge: {
 			active: true,
 			reverse: false,
-			label: '50x GET /products/999',
+			label: '50x POST /checkout',
 			dotColor: 'bg-red-500',
 		},
 	},
@@ -326,7 +327,7 @@ const DUPLICATE_ERRORS_FRAMES: AnimFrame[] = [
 	{
 		customer: { label: 'All getting errors...', flash: 'amber' },
 		app: {
-			label: '50 RecordNotFound errors',
+			label: '50 NoMethodError 500s',
 			flash: 'red',
 			errorLog: '50 separate log entries',
 			errorCount: 50,
@@ -420,13 +421,13 @@ const PROBE_FRAMES: Record<string, AnimFrame[]> = {
 const REWARD_CAPTURED_FRAMES: AnimFrame[] = [
 	// Frame 0: Customer sends request
 	{
-		customer: { label: 'GET /products/999', flash: 'idle' },
+		customer: { label: 'POST /checkout', flash: 'idle' },
 		app: { label: 'Processing...', flash: 'idle', errorCount: 0 },
 		monitor: { ...DEFAULT_MONITOR_REWARD },
 		edge: {
 			active: true,
 			reverse: false,
-			label: 'GET /api/products/999',
+			label: 'POST /api/checkout',
 			dotColor: 'bg-cyan-500',
 		},
 		edgeB: { active: false, label: '' },
@@ -435,7 +436,7 @@ const REWARD_CAPTURED_FRAMES: AnimFrame[] = [
 	{
 		customer: { label: 'Waiting...', flash: 'idle' },
 		app: {
-			label: 'RecordNotFound! Captured.',
+			label: 'NoMethodError! Captured.',
 			flash: 'amber',
 			errorLog: 'user_id: 42, req: abc123',
 			errorCount: 1,
@@ -460,18 +461,18 @@ const REWARD_CAPTURED_FRAMES: AnimFrame[] = [
 		monitor: {
 			label: 'Grouped + alerted',
 			flash: 'green',
-			grouped: 'RecordNotFound (1)',
+			grouped: 'NoMethodError (1)',
 			alertStatus: 'Slack notified',
 		},
 	},
-	// Frame 3: Customer gets clean error, team notified
+	// Frame 3: Customer sees a graceful failure, team notified
 	{
-		customer: { label: '404 Not Found (clean)', flash: 'amber' },
-		app: { label: 'Handled gracefully', flash: 'green' },
+		customer: { label: 'Checkout failed cleanly', flash: 'amber' },
+		app: { label: 'Reported + alerted', flash: 'green' },
 		edge: {
 			active: true,
 			reverse: true,
-			label: '404 Not Found',
+			label: '500 (now tracked)',
 			dotColor: 'bg-amber-500',
 		},
 		monitor: {
@@ -485,13 +486,13 @@ const REWARD_CAPTURED_FRAMES: AnimFrame[] = [
 const REWARD_GROUPED_FRAMES: AnimFrame[] = [
 	// Frame 0: 50 requests arrive
 	{
-		customer: { label: '50 customers browsing', flash: 'idle' },
+		customer: { label: '50 customers checking out', flash: 'idle' },
 		app: { label: 'Processing...', flash: 'idle', errorCount: 0 },
 		monitor: { ...DEFAULT_MONITOR_REWARD },
 		edge: {
 			active: true,
 			reverse: false,
-			label: '50x GET /products/999',
+			label: '50x POST /checkout',
 			dotColor: 'bg-red-500',
 		},
 		edgeB: { active: false, label: '' },
@@ -521,24 +522,24 @@ const REWARD_GROUPED_FRAMES: AnimFrame[] = [
 		monitor: {
 			label: '1 group, 50 occurrences',
 			flash: 'green',
-			grouped: 'RecordNotFound (50)',
+			grouped: 'NoMethodError (50)',
 			alertStatus: 'Critical: 50 hits',
 		},
 	},
 	// Frame 3: Team sees one group, not 50 lines
 	{
-		customer: { label: 'Getting 404s (clean)', flash: 'amber' },
-		app: { label: 'Handled gracefully', flash: 'green' },
+		customer: { label: '50 checkouts failed cleanly', flash: 'amber' },
+		app: { label: 'All reported + alerted', flash: 'green' },
 		edge: {
 			active: true,
 			reverse: true,
-			label: '50x 404 Not Found',
+			label: '50x 500 (now tracked)',
 			dotColor: 'bg-amber-500',
 		},
 		monitor: {
-			label: 'Fix the deleted product',
+			label: 'Fix the checkout bug once',
 			flash: 'green',
-			grouped: 'RecordNotFound (50)',
+			grouped: 'NoMethodError (50)',
 			context: '50 users affected',
 		},
 	},
@@ -686,10 +687,10 @@ const STEP_DEFS: StepDef[] = [
 	{ id: 'error-grouping', title: 'Configure Error Grouping' },
 	{ id: 'alerting', title: 'Set Up Alerting Thresholds' },
 	{ id: 'error-budgets', title: 'Implement Error Budgets' },
-	{ id: 'wire-middleware', title: 'Wire Into Middleware Stack' },
+	{ id: 'wire-middleware', title: 'Register the Error Subscriber' },
 ];
 
-// Step 0: Configure error handler middleware
+// Step 0: Choose the central error-reporting mechanism
 const ERROR_HANDLER_OPTIONS = [
 	{
 		id: 'wrong-rescue-only',
@@ -697,7 +698,7 @@ const ERROR_HANDLER_OPTIONS = [
 		description: 'Catch errors in the controller layer only',
 		correct: false,
 		feedback:
-			'rescue_from only catches controller-level errors. Errors in middleware, background jobs, and services are invisible to this approach.',
+			'rescue_from only catches controller-level errors. Errors in background jobs and services never reach it. You need one reporting layer the whole app shares.',
 	},
 	{
 		id: 'wrong-begin-rescue',
@@ -740,7 +741,7 @@ const ERROR_CONTEXT_OPTIONS = [
 		description: 'Store context in thread-local storage',
 		correct: false,
 		feedback:
-			'Thread-local storage is fragile and leaks between requests in threaded servers. The framework provides a proper context API for this.',
+			'Thread-local (like the request id in L40) is fine for a single value with careful cleanup, but here you would have to read each key back and hand-attach it to every report yourself. The error reporter has its own context API that carries the whole bag into every report automatically.',
 	},
 ];
 
@@ -826,30 +827,31 @@ const ERROR_BUDGET_OPTIONS = [
 	},
 ];
 
-// Step 5: Wire into middleware stack
+// Step 5: Register the subscriber so Rails.error fans out to it
 const WIRE_MIDDLEWARE_OPTIONS = [
 	{
-		id: 'wrong-after-routing',
-		name: 'config.middleware.use ErrorReporter',
-		description: 'Append error reporter to end of middleware stack',
+		id: 'wrong-middleware',
+		name: 'config.middleware.insert_before 0, ErrorSubscriber',
+		description: 'Insert the subscriber as a Rack middleware at the top',
 		correct: false,
 		feedback:
-			'Appending to the end means errors in earlier middleware are missed. The error reporter must wrap the entire stack to catch everything.',
+			'A subscriber is not middleware, and a middleware at position 0 sits ABOVE the layer that rescues app exceptions, so it never sees them. Rails already reports unhandled exceptions to Rails.error; you just have to attach your subscriber to it.',
 	},
 	{
 		id: 'correct',
-		name: 'config.middleware.insert_before 0, ErrorReporter',
-		description: 'Insert at the top to wrap all other middleware',
+		name: 'Rails.error.subscribe(ErrorSubscriber.new) in an initializer',
+		description:
+			'Register the subscriber once at boot so every Rails.error report reaches it',
 		correct: true,
 		feedback: '',
 	},
 	{
-		id: 'wrong-initializer',
-		name: 'Rails.application.config.after_initialize { ErrorReporter.start }',
-		description: 'Start the reporter in an initializer',
+		id: 'wrong-per-controller',
+		name: 'Call ErrorSubscriber.new.report in each rescue_from block',
+		description: 'Report manually from every controller rescue',
 		correct: false,
 		feedback:
-			'An initializer starts the reporter but does not insert it into the middleware stack. Without middleware wrapping, errors in the Rack pipeline are invisible.',
+			'Wiring the reporter into every controller by hand misses background jobs, services, and framework code, and it is easy to forget. Register it once so the whole app shares it.',
 	},
 ];
 
@@ -869,49 +871,49 @@ const _TERMINAL_STEP_MAP: null[] = [
 const STRESS_SCENARIOS = [
 	{
 		id: 'unnoticed-500',
-		label: 'Customer hits 500 error (unnoticed)',
-		description: 'Same 500 error, now captured with full context and alert',
-		method: 'GET',
-		path: '/api/products/999',
+		label: 'Customer hits a 500 during checkout (unnoticed)',
+		description: 'Same 500, now captured with full context and alert',
+		method: 'POST',
+		path: '/api/checkout',
 		actor: 'customer',
 		expectedResult: 'blocked' as const,
 		responseLines: [
-			{ text: 'GET /api/products/999 -> RecordNotFound', color: 'cyan' },
+			{ text: 'POST /api/checkout -> NoMethodError (500)', color: 'cyan' },
 			{ text: 'Context: user_id=42, request_id=abc123', color: 'green' },
 			{
-				text: 'Grouped: RecordNotFound in ProductsController#show',
+				text: 'Grouped: NoMethodError in CheckoutController#create',
 				color: 'green',
 			},
 			{ text: 'Alert: Slack notification sent in 30s', color: 'green' },
 		],
 		story: [
-			'Same customer, same deleted product, same RecordNotFound.',
+			'Same customer, same checkout bug, same NoMethodError 500.',
 			'But now the error is captured with user_id and request_id.',
-			'Grouped into "RecordNotFound in ProductsController#show".',
+			'Grouped into "NoMethodError in CheckoutController#create".',
 			'Team gets a Slack alert within 30 seconds.',
-			'Customer gets a clean 404 instead of a cryptic 500.',
+			'They fix the bug before most customers ever see it.',
 		],
 	},
 	{
 		id: 'duplicate-errors',
-		label: 'Same error happens 50 times',
+		label: 'Same 500 happens 50 times',
 		description: 'Same 50 errors, now grouped into 1 entry with count',
-		method: 'GET',
-		path: '/api/products/999',
+		method: 'POST',
+		path: '/api/checkout',
 		actor: 'customer',
 		expectedResult: 'blocked' as const,
 		responseLines: [
-			{ text: '50x RecordNotFound -> 1 error group', color: 'cyan' },
-			{ text: 'Group: RecordNotFound (50 occurrences)', color: 'green' },
+			{ text: '50x NoMethodError -> 1 error group', color: 'cyan' },
+			{ text: 'Group: NoMethodError (50 occurrences)', color: 'green' },
 			{ text: 'Context: 50 unique user_ids affected', color: 'green' },
 			{ text: 'Priority: Critical (highest frequency group)', color: 'red' },
 		],
 		story: [
-			'Same 50 customers, same deleted product.',
+			'Same 50 customers, same checkout bug.',
 			'But now all 50 errors collapse into a single group.',
-			'Dashboard shows: "RecordNotFound, 50 occurrences, 50 users."',
+			'Dashboard shows: "NoMethodError, 50 occurrences, 50 users."',
 			'Developer sees one issue to fix, not 50 mysterious log lines.',
-			'Fix the deleted product reference, resolve 50 errors at once.',
+			'Fix the checkout bug once, resolve 50 errors at once.',
 		],
 	},
 	{
@@ -978,16 +980,13 @@ function getCodeFiles(
 				filename: 'app/controllers/application_controller.rb',
 				language: 'ruby',
 				code: `class ApplicationController < ActionController::API
-  # No error monitoring configured
-  # Errors go to Rails.logger (stdout) and vanish
-
-  rescue_from StandardError do |e|
-    Rails.logger.error(e.message)
-    # No user_id, no request_id, no breadcrumbs
-    # No grouping, no alerting, no error budgets
-    render json: { error: "Internal error" },
-      status: :internal_server_error
-  end
+  # No error monitoring configured.
+  #
+  # Rails already maps common exceptions to sensible statuses
+  # (RecordNotFound -> 404, RecordInvalid -> 422). The gap is that
+  # when a REAL bug raises, it becomes a 500 that only lands in the
+  # L40 request log line as one more row: no user_id-tagged report,
+  # no grouping, no alert. Nobody is told a customer just hit it.
 end`,
 			},
 		];
@@ -1017,11 +1016,12 @@ end`,
 Rails.error.subscribe(ErrorSubscriber.new)
 
 class ErrorSubscriber
-  def report(error, handled:, severity:, context:, source:)
+  def report(error, handled:, severity:, context:, source: nil)
     ErrorTracker.record(
       exception_class: error.class.name,
       message: error.message,
       severity: severity,
+      source: source,
       handled: handled
     )
   end
@@ -1054,11 +1054,10 @@ end`,
 				filename: 'app/services/error_tracker.rb',
 				language: 'ruby',
 				code: `class ErrorTracker
-  def self.record(exception_class:, message:, severity:, handled:, context: {})
-    fingerprint = [
-      exception_class,
-      context[:controller_action]
-    ].compact.join(":")
+  def self.record(exception_class:, message:, severity:, handled:, source: nil)
+    # Group by exception class + where it came from (source),
+    # not by the message (messages contain ids/timestamps).
+    fingerprint = [exception_class, source].compact.join(":")
 
     group = ErrorGroup.find_or_create_by(fingerprint: fingerprint)
     group.increment!(:occurrence_count)
@@ -1081,18 +1080,13 @@ end`,
 
 		if (completedStep >= 5) {
 			files.push({
-				filename: 'config/application.rb',
+				filename: 'config/initializers/error_subscriber.rb',
 				language: 'ruby',
-				code: `module MyApp
-  class Application < Rails::Application
-    config.load_defaults 8.0
-
-    # Error reporter at the top of the middleware stack
-    config.middleware.insert_before 0, ErrorReporter
-
-    config.api_only = true
-  end
-end`,
+				code: `# Registered once at boot. Rails already reports every
+# unhandled exception to Rails.error, so attaching the
+# subscriber here catches errors from controllers, jobs,
+# services, and framework code alike.
+Rails.error.subscribe(ErrorSubscriber.new)`,
 			});
 		}
 
@@ -1108,11 +1102,12 @@ end`,
 Rails.error.subscribe(ErrorSubscriber.new)
 
 class ErrorSubscriber
-  def report(error, handled:, severity:, context:, source:)
+  def report(error, handled:, severity:, context:, source: nil)
     ErrorTracker.record(
       exception_class: error.class.name,
       message: error.message,
       severity: severity,
+      source: source,
       user_id: context[:user_id],
       request_id: context[:request_id],
       breadcrumbs: context[:breadcrumbs],
@@ -1143,12 +1138,11 @@ end`,
 			language: 'ruby',
 			code: `class ErrorTracker
   def self.record(exception_class:, message:, severity:,
-                   user_id: nil, request_id: nil,
+                   source: nil, user_id: nil, request_id: nil,
                    breadcrumbs: [], handled: false)
-    fingerprint = [
-      exception_class,
-      context[:controller_action]
-    ].compact.join(":")
+    # Group by exception class + where it came from (source),
+    # NOT by the message (messages contain ids/timestamps).
+    fingerprint = [exception_class, source].compact.join(":")
 
     group = ErrorGroup.find_or_create_by(fingerprint: fingerprint)
     group.increment!(:occurrence_count)
@@ -1176,18 +1170,14 @@ end`,
 end`,
 		},
 		{
-			filename: 'config/application.rb',
+			filename: 'config/initializers/error_budget.rb',
 			language: 'ruby',
-			code: `module MyApp
-  class Application < Rails::Application
-    config.load_defaults 8.0
-
-    # Error reporter wraps entire middleware stack
-    config.middleware.insert_before 0, ErrorReporter
-
-    config.api_only = true
-  end
-end`,
+			code: `# No middleware needed. Rails already reports unhandled
+# exceptions to Rails.error; the subscriber is registered in
+# config/initializers/error_subscriber.rb.
+#
+# The recurring job (L44) checks the error rate against the SLO.
+# See config/recurring.yml -> error_budget_check.`,
 		},
 	];
 }
