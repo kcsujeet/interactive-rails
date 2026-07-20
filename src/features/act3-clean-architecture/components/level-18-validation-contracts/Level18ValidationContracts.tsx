@@ -4,27 +4,31 @@
  * Sequential phase flow: intro -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
- * Phase 1 (WHY - intro): Static annotated code display (Type 2).
- *   Shows the registration service (from L16) with color-coded validation blocks.
- *   Each inline check gets a destructive left border + Badge label.
- *   Callout states the structural problems. "Build the Fix" always visible.
+ * Phase 1 (WHY - intro): the validation gauntlet in its broken state.
+ *   A signup payload with several bad fields hits the L16 service, which
+ *   checks fields one at a time and RETURNS at the first bad one, so the
+ *   customer only ever sees one error and has to resubmit again and again.
+ *   The round-trip strip and damage callout make the cost visible.
  * Phase 2 (HOW - build): 4 steps (1 TerminalChoice + 3 OptionCard)
  *   Step 0: Install dry-validation gem (TerminalChoiceStep)
  *   Step 1: Choose schema approach (OptionCard)
- *   Step 2: Create composed contract (OptionCard)
+ *   Step 2: Compose the contract (OptionCard)
  *   Step 3: Add cross-field rule (OptionCard)
- * Phase 3 (ADVANTAGE - reward): Same annotated code style as intro, now
- *   showing thin service (green) + contract with composed schemas (green).
- *   "Problems Solved" checklist closing the loop on intro's stated problems.
+ * Phase 3 (ADVANTAGE - reward): the same gauntlet, now a RegistrationContract
+ *   with a Schema layer + Rules layer. The player fires the same signup
+ *   stories from the intro and watches the contract return every error in one
+ *   response, reject malformed input with a clean 422, and key the cross-field
+ *   failure to :role. The valid signup shows the model still owning uniqueness.
  *
- * Visualization approach: Type 2 static intro (refactoring concept).
- * The scattered validations are self-evident by reading the service code.
+ * Visualization: custom ValidationGauntletFlow (state-driven, frame-animated),
+ * matching the L16 service-objects reward pattern.
  *
- * Teaches: dry-validation gem, Dry::Schema, schema composition, cross-field rules
+ * Teaches: dry-validation gem, Dry::Schema.Params, schema composition,
+ * cross-field rules, and the contract-vs-model-validation boundary.
  */
 
-import { ArrowRight, Check } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { ArrowRight } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
 	buildTerminalHistory,
 	CenterPanel,
@@ -41,12 +45,21 @@ import {
 	type TerminalStepData,
 	type ValidationResult,
 } from '@/components/levels';
-import { Badge } from '@/components/ui/Badge';
+import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
+import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
+import { ANIMATION_DURATION_MS } from '@/lib/animation';
 import { registerLevelCode } from '@/lib/codebase-registry';
 import type { LevelComponentProps } from '@/lib/levels-registry';
 import { shuffleOptions } from '@/lib/shuffleOptions';
+import {
+	type EdgeVizState,
+	type FieldChip,
+	type GauntletVizState,
+	ValidationGauntletFlow,
+	type ValidatorVizState,
+} from './ValidationGauntletFlow';
 
 registerLevelCode('act3-level18-validation-contracts', () =>
 	getCodeFiles('reward', STEP_DEFS.length),
@@ -59,63 +72,13 @@ registerLevelCode('act3-level18-validation-contracts', () =>
 type Phase = 'intro' | 'build' | 'reward';
 
 // ──────────────────────────────────────────────
-// Annotated code sections (intro)
-// ──────────────────────────────────────────────
-
-interface AnnotatedSection {
-	id: string;
-	label: string;
-	variant: 'core' | 'scattered' | 'buried';
-	code: string;
-}
-
-const INTRO_SECTIONS: AnnotatedSection[] = [
-	{
-		id: 'email-check',
-		label: 'Inline: Email Check',
-		variant: 'scattered',
-		code: `if @params[:email_address].blank?\n  return Result.new(success?: false, user: nil, errors: ["Email required"])\nend`,
-	},
-	{
-		id: 'password-check',
-		label: 'Inline: Password Check',
-		variant: 'scattered',
-		code: `if @params[:password].length < 8\n  return Result.new(success?: false, user: nil, errors: ["Password too short"])\nend`,
-	},
-	{
-		id: 'name-check',
-		label: 'Inline: Display Name Check',
-		variant: 'scattered',
-		code: `if @params[:display_name].blank?\n  return Result.new(success?: false, user: nil, errors: ["Name required"])\nend`,
-	},
-	{
-		id: 'digest-check',
-		label: 'Inline: Digest Frequency',
-		variant: 'scattered',
-		code: `unless %w[daily weekly monthly never].include?(@params[:email_digest])\n  return Result.new(success?: false, user: nil, errors: ["Bad digest"])\nend`,
-	},
-	{
-		id: 'cross-field',
-		label: 'Buried: Cross-Field Rule',
-		variant: 'buried',
-		code: `if @params[:role] == "creator" && @params[:email_digest] != "weekly"\n  return Result.new(success?: false, user: nil, errors: ["Creators need weekly"])\nend`,
-	},
-	{
-		id: 'create',
-		label: 'Core: Record Creation',
-		variant: 'core',
-		code: `user = User.create!(\n  email_address: @params[:email_address], ...\n)`,
-	},
-];
-
-// ──────────────────────────────────────────────
 // Step definitions (1 terminal + 3 OptionCard)
 // ──────────────────────────────────────────────
 
 export const STEP_DEFS: StepDef[] = [
 	{ id: 'install-gem', title: 'Install dry-validation' },
 	{ id: 'schema-approach', title: 'Choose Schema Approach' },
-	{ id: 'compose-contract', title: 'Create the Contract' },
+	{ id: 'compose-contract', title: 'Compose the Contract' },
 	{ id: 'cross-field-rule', title: 'Add Cross-Field Rule' },
 ];
 
@@ -208,7 +171,7 @@ export const SCHEMA_APPROACH_OPTIONS: StepOption[] = [
 	},
 ];
 
-// Step 2: Create the Contract
+// Step 2: Compose the Contract
 export const COMPOSE_CONTRACT_OPTIONS: StepOption[] = [
 	{
 		id: 'single-schema',
@@ -245,7 +208,7 @@ export const CROSS_FIELD_RULE_OPTIONS: StepOption[] = [
 		label: `before_action :validate_creator_digest\ndef validate_creator_digest\n  # check in controller\nend`,
 		correct: false,
 		feedback:
-			'That drags the rule back into the controller. Every other caller (imports, tests) would have to re-implement it. Business rules belong where the validation lives.',
+			'That drags the rule into the controller. Every other caller (imports, tests) would have to re-implement it. Business rules belong where the validation lives.',
 	},
 	{
 		id: 'rule-block',
@@ -270,7 +233,7 @@ const OPTION_STEP_CONFIG: Record<
 		options: SCHEMA_APPROACH_OPTIONS,
 	},
 	2: {
-		title: 'Create the Contract',
+		title: 'Compose the Contract',
 		description:
 			'You have three separate schemas: CredentialsSchema, ProfileSchema, and NotifPrefsSchema. How do you reuse all three inside a single contract that validates the entire registration payload?',
 		options: COMPOSE_CONTRACT_OPTIONS,
@@ -444,16 +407,400 @@ class UserRegistration < ApplicationService
                         errors: validation.errors.to_h)
     end
 
+    # The model still owns data-integrity rules (email uniqueness).
     user = User.create!(validation.to_h)
     Result.new(success?: true, user: user, errors: [])
   end
 end`,
 			highlight: [10, 12, 13, 14],
 		});
+		files.push({
+			filename: 'app/controllers/users_controller.rb',
+			language: 'ruby',
+			code: `# Thin controller (unchanged from L16): it only speaks HTTP and
+# delegates the workflow to the service.
+class UsersController < ApplicationController
+  allow_unauthenticated_access only: :create
+
+  def create
+    result = UserRegistration.call(registration_params)
+
+    if result.success?
+      render json: UserSerializer.new(result.user).serializable_hash.to_json,
+             status: :created
+    else
+      render json: { errors: result.errors }, status: :unprocessable_entity
+    end
+  end
+
+  private
+
+  def registration_params
+    params.expect(user: [
+      :email_address, :password, :role,
+      :display_name, :bio, :email_digest, :push_enabled
+    ])
+  end
+end`,
+		});
 	}
 
 	return files;
 }
+
+// ──────────────────────────────────────────────
+// Visualization: field labels + base states
+// ──────────────────────────────────────────────
+
+const FIELD_LABELS: { key: FieldChip['key']; label: string }[] = [
+	{ key: 'email_address', label: 'email_address' },
+	{ key: 'password', label: 'password' },
+	{ key: 'display_name', label: 'display_name' },
+	{ key: 'email_digest', label: 'email_digest' },
+	{ key: 'role', label: 'role' },
+];
+
+function fieldsFrom(
+	states: Partial<Record<FieldChip['key'], FieldChip['state']>>,
+	notes: Partial<Record<FieldChip['key'], string>> = {},
+): FieldChip[] {
+	return FIELD_LABELS.map(({ key, label }) => ({
+		key,
+		label,
+		state: states[key] ?? 'unchecked',
+		note: notes[key],
+	}));
+}
+
+const IDLE_REQUEST: EdgeVizState = { active: false, reverse: false, label: '' };
+const IDLE_RESULT: EdgeVizState = { active: false, reverse: true, label: '' };
+
+// Intro (before): the short-circuit. The service checked email, returned, and
+// never looked at the other four fields. The customer resubmits four times.
+const INTRO_STATE: GauntletVizState = {
+	fields: fieldsFrom(
+		{
+			email_address: 'bad',
+			password: 'unchecked',
+			display_name: 'unchecked',
+			email_digest: 'unchecked',
+			role: 'unchecked',
+		},
+		{ email_address: 'blank' },
+	),
+	validator: {
+		mode: 'inline',
+		sublabel: 'checks email, returns, never sees the rest',
+		badge: '422: 1 of 4',
+		flash: 'red',
+		activeLayer: 'none',
+	},
+	request: { active: false, reverse: false, label: 'POST /users' },
+	result: { active: false, reverse: true, label: '422 -> "Email required"' },
+	roundTrips: 4,
+};
+
+// Reward base (idle contract, before any scenario is fired).
+const BASE_STATE: GauntletVizState = {
+	fields: fieldsFrom({}),
+	validator: {
+		mode: 'contract',
+		sublabel: 'waiting for a signup',
+		badge: null,
+		flash: 'idle',
+		activeLayer: 'none',
+	},
+	request: { ...IDLE_REQUEST },
+	result: { ...IDLE_RESULT },
+	roundTrips: 1,
+};
+
+// The four sequential errors a customer hits in the before-state, one per trip.
+const ROUND_TRIP_STRIP = [
+	'Trip 1: "Email required"',
+	'Trip 2: "Password too short"',
+	'Trip 3: "Name required"',
+	'Trip 4: "Bad digest"',
+];
+
+// ──────────────────────────────────────────────
+// Reward stress scenarios (replay the intro damage stories with the fix)
+// ──────────────────────────────────────────────
+
+export const STRESS_SCENARIOS: StressScenario[] = [
+	{
+		id: 'all-errors-at-once',
+		label: 'Sign up with four fields wrong',
+		description: 'The schema checks every field and returns all errors at once',
+		method: 'POST',
+		path: '/users',
+		actor: 'new seller',
+		expectedResult: 'blocked',
+		responseLines: [
+			{ text: 'POST /users (email, password, name, digest all bad)' },
+			{ text: '422 Unprocessable Entity', color: 'red' },
+			{
+				text: 'errors: {email_address, password, display_name, email_digest}',
+				color: 'red',
+			},
+			{ text: 'One response, four errors. One round trip.', color: 'green' },
+		],
+		story: [
+			'A new seller fills the signup form and gets four fields wrong.',
+			'The whole payload enters the contract at once.',
+			'The schema layer checks every field together and flags all four.',
+			'The contract returns all four errors in one 422, so the seller fixes everything in a single pass instead of four round trips.',
+		],
+	},
+	{
+		id: 'malformed-payload',
+		label: 'Send password as a number, not a string',
+		description:
+			'The schema type-checks the payload, so a bad type is a clean 422 (not a 500)',
+		method: 'POST',
+		path: '/users',
+		actor: 'buggy client',
+		expectedResult: 'blocked',
+		responseLines: [
+			{ text: 'POST /users {"password": 12345678}' },
+			{ text: '422 Unprocessable Entity', color: 'red' },
+			{ text: 'errors: {password: ["must be a string"]}', color: 'red' },
+			{
+				text: 'No 500. The schema rejects the wrong type at the boundary.',
+				color: 'green',
+			},
+		],
+		story: [
+			'A buggy mobile client sends password as a JSON number instead of a string.',
+			'The inline version called number.length and crashed with a 500.',
+			'The schema layer type-checks the payload: password must be a filled string.',
+			'The wrong type is rejected with a clean 422 keyed to :password. The endpoint never crashes.',
+		],
+	},
+	{
+		id: 'creator-cross-field',
+		label: 'Sign up as a creator with the monthly digest',
+		description:
+			'Every field is valid, but the cross-field rule keys the failure to :role',
+		method: 'POST',
+		path: '/users',
+		actor: 'creator',
+		expectedResult: 'blocked',
+		responseLines: [
+			{ text: 'POST /users (role: creator, email_digest: monthly)' },
+			{
+				text: 'schema passes: every field is individually valid',
+				color: 'green',
+			},
+			{ text: '422 Unprocessable Entity', color: 'red' },
+			{ text: 'errors: {role: ["creators need weekly digest"]}', color: 'red' },
+		],
+		story: [
+			'A creator signs up and picks the monthly digest. Every individual field is valid.',
+			'The schema layer passes: shape and types are fine.',
+			'The rules layer runs rule(:role, :email_digest) and fails the cross-field check.',
+			'The error comes back keyed to :role (not a bare string), so the frontend can highlight the exact field. The rule lives in the contract, reusable and testable without HTTP.',
+		],
+	},
+	{
+		id: 'valid-signup',
+		label: 'Sign up with a valid payload',
+		description:
+			'Schema passes, rules pass, the service persists; the model still owns uniqueness',
+		method: 'POST',
+		path: '/users',
+		actor: 'new seller',
+		expectedResult: 'allowed',
+		responseLines: [
+			{ text: 'POST /users (all fields valid, role: member)' },
+			{ text: 'schema passes -> rules pass', color: 'green' },
+			{ text: 'UserRegistration persists the validated data', color: 'green' },
+			{ text: '201 Created', color: 'green' },
+		],
+		story: [
+			'A new seller submits a clean, valid payload.',
+			'The schema layer passes and the rules layer passes.',
+			'The thin service persists the validated data with User.create!.',
+			'The model still owns data-integrity rules like email uniqueness, so the contract and the model each guard their own layer.',
+		],
+	},
+];
+
+// ──────────────────────────────────────────────
+// Reward frames (full-snapshot patches, played on fire)
+// ──────────────────────────────────────────────
+
+type RewardFrame = {
+	fields?: FieldChip[];
+	validator?: Partial<ValidatorVizState>;
+	request?: Partial<EdgeVizState>;
+	result?: Partial<EdgeVizState>;
+	roundTrips?: number;
+};
+
+const REQUEST_IN: RewardFrame = {
+	fields: fieldsFrom({}),
+	validator: {
+		sublabel: 'RegistrationContract.new.call(params)',
+		badge: 'POST',
+		flash: 'amber',
+		activeLayer: 'none',
+	},
+	request: { active: true, reverse: false, label: 'POST /users' },
+	result: { active: false, reverse: true, label: '' },
+	roundTrips: 1,
+};
+
+export const REWARD_SCENARIO_FRAMES: Record<string, RewardFrame[]> = {
+	'all-errors-at-once': [
+		REQUEST_IN,
+		{
+			fields: fieldsFrom(
+				{
+					email_address: 'bad',
+					password: 'bad',
+					display_name: 'bad',
+					email_digest: 'bad',
+					role: 'ok',
+				},
+				{
+					email_address: 'is missing',
+					password: 'min 8 chars',
+					display_name: 'is missing',
+					email_digest: 'not in list',
+				},
+			),
+			validator: {
+				sublabel: 'schema checks every field at once',
+				badge: 'SCHEMA',
+				flash: 'amber',
+				activeLayer: 'schema',
+			},
+			request: { active: false, label: '' },
+		},
+		{
+			validator: {
+				sublabel: 'four errors, one response',
+				badge: '422 x4',
+				flash: 'red',
+				activeLayer: 'schema',
+			},
+			result: { active: true, reverse: true, label: '422 {4 fields}' },
+			roundTrips: 1,
+		},
+	],
+	'malformed-payload': [
+		{
+			...REQUEST_IN,
+			validator: {
+				sublabel: 'call(params): password is a number',
+				badge: 'POST',
+				flash: 'amber',
+				activeLayer: 'none',
+			},
+		},
+		{
+			fields: fieldsFrom(
+				{
+					email_address: 'ok',
+					password: 'bad',
+					display_name: 'ok',
+					email_digest: 'ok',
+					role: 'ok',
+				},
+				{ password: 'must be a string' },
+			),
+			validator: {
+				sublabel: 'schema rejects the wrong type',
+				badge: 'SCHEMA',
+				flash: 'amber',
+				activeLayer: 'schema',
+			},
+			request: { active: false, label: '' },
+		},
+		{
+			validator: {
+				sublabel: 'clean 422, no crash',
+				badge: '422',
+				flash: 'red',
+				activeLayer: 'schema',
+			},
+			result: { active: true, reverse: true, label: '422 {password}' },
+		},
+	],
+	'creator-cross-field': [
+		REQUEST_IN,
+		{
+			fields: fieldsFrom({
+				email_address: 'ok',
+				password: 'ok',
+				display_name: 'ok',
+				email_digest: 'ok',
+				role: 'ok',
+			}),
+			validator: {
+				sublabel: 'every field valid, schema passes',
+				badge: 'SCHEMA OK',
+				flash: 'amber',
+				activeLayer: 'schema',
+			},
+			request: { active: false, label: '' },
+		},
+		{
+			validator: {
+				sublabel: 'rule(:role, :email_digest) fails',
+				badge: 'RULES',
+				flash: 'amber',
+				activeLayer: 'rules',
+			},
+		},
+		{
+			validator: {
+				sublabel: '422 keyed to :role',
+				badge: '422 role',
+				flash: 'red',
+				activeLayer: 'rules',
+			},
+			result: { active: true, reverse: true, label: '422 {role}' },
+		},
+	],
+	'valid-signup': [
+		REQUEST_IN,
+		{
+			fields: fieldsFrom({
+				email_address: 'ok',
+				password: 'ok',
+				display_name: 'ok',
+				email_digest: 'ok',
+				role: 'ok',
+			}),
+			validator: {
+				sublabel: 'schema passes',
+				badge: 'SCHEMA OK',
+				flash: 'amber',
+				activeLayer: 'schema',
+			},
+			request: { active: false, label: '' },
+		},
+		{
+			validator: {
+				sublabel: 'rules pass -> service persists',
+				badge: 'RULES OK',
+				flash: 'amber',
+				activeLayer: 'rules',
+			},
+		},
+		{
+			validator: {
+				sublabel: 'User created (model owns uniqueness)',
+				badge: '201',
+				flash: 'green',
+				activeLayer: 'none',
+			},
+			result: { active: true, reverse: true, label: '201 Created' },
+		},
+	],
+};
 
 // ──────────────────────────────────────────────
 // Component
@@ -463,7 +810,71 @@ export function Level18ValidationContracts({
 	onComplete,
 }: LevelComponentProps) {
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
+	const stressTest = useStressTest(STRESS_SCENARIOS);
 	const [phase, setPhase] = useState<Phase>('intro');
+
+	// ── Reward visualization state ──
+	const [vizState, setVizState] = useState<GauntletVizState>(BASE_STATE);
+	const [vizAnimating, setVizAnimating] = useState(false);
+	const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+	const resetViz = useCallback(() => {
+		setVizState(structuredClone(BASE_STATE));
+	}, []);
+
+	const applyFrame = useCallback((frame: RewardFrame) => {
+		setVizState((prev) => ({
+			fields: frame.fields ?? prev.fields,
+			validator: { ...prev.validator, ...frame.validator },
+			request: { ...prev.request, ...frame.request },
+			result: { ...prev.result, ...frame.result },
+			roundTrips: frame.roundTrips ?? prev.roundTrips,
+		}));
+	}, []);
+
+	const runAnimation = useCallback(
+		(frames: RewardFrame[]) => {
+			for (const t of timersRef.current) clearTimeout(t);
+			timersRef.current = [];
+			setVizAnimating(true);
+			resetViz();
+
+			for (const [i, frame] of frames.entries()) {
+				const t = setTimeout(() => {
+					applyFrame(frame);
+					if (i === frames.length - 1) {
+						const cleanup = setTimeout(() => {
+							setVizState((prev) => ({
+								...prev,
+								request: { ...prev.request, active: false },
+								result: { ...prev.result, active: false },
+							}));
+							setVizAnimating(false);
+						}, ANIMATION_DURATION_MS);
+						timersRef.current.push(cleanup);
+					}
+				}, i * ANIMATION_DURATION_MS);
+				timersRef.current.push(t);
+			}
+		},
+		[applyFrame, resetViz],
+	);
+
+	useEffect(() => {
+		return () => {
+			for (const t of timersRef.current) clearTimeout(t);
+		};
+	}, []);
+
+	const handleFireScenario = useCallback(
+		(scenarioId: string) => {
+			if (vizAnimating) return;
+			stressTest.fireRequest(scenarioId);
+			const frames = REWARD_SCENARIO_FRAMES[scenarioId];
+			if (frames) runAnimation(frames);
+		},
+		[vizAnimating, stressTest, runAnimation],
+	);
 
 	// ── OptionCard step handler ──
 	const handleOptionClick = (option: StepOption) => {
@@ -472,11 +883,6 @@ export function Level18ValidationContracts({
 		} else if (option.feedback) {
 			stepper.recordWrongAttempt(option.feedback);
 		}
-	};
-
-	// ── Phase transition handlers ──
-	const handleStartBuild = () => {
-		setPhase('build');
 	};
 
 	// ── Completion ──
@@ -492,6 +898,12 @@ export function Level18ValidationContracts({
 				details: stepper.steps
 					.filter((s) => s.status !== 'completed')
 					.map((s) => s.title),
+			};
+		}
+		if (phase !== 'reward') {
+			return {
+				valid: false,
+				message: 'Fire a few signup scenarios to see the contract handle them.',
 			};
 		}
 		return { valid: true, message: 'Validation contract is locked down!' };
@@ -515,20 +927,21 @@ export function Level18ValidationContracts({
 				<InstructionPanel>
 					{/* Scenario (always visible) */}
 					<div className="p-4 border-b border-border space-y-3">
+						<h3 className="text-sm font-semibold text-foreground mb-2">
+							Scenario
+						</h3>
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							The registration service (extracted in L16) creates a User from a
 							rich signup payload: credentials, profile fields, and notification
 							preferences. Validations are scattered inline inside the service
-							with duplicated{' '}
-							<code className="text-foreground text-xs bg-muted px-1 py-0.5 rounded">
-								Result.new
-							</code>{' '}
-							calls and inconsistent error formats.
+							with early returns, so it checks one field, bails on the first bad
+							one, and returns a single error.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							Cross-field rules like "creator accounts must enable the weekly
-							digest" are buried between the field checks. You need a validation
-							contract to centralize all of this.
+							A seller who gets four fields wrong has to submit four times. A
+							malformed payload crashes the endpoint. The buried cross-field
+							rule ("creators need the weekly digest") cannot be reused or
+							tested on its own. You need a validation contract.
 						</p>
 					</div>
 
@@ -543,6 +956,38 @@ export function Level18ValidationContracts({
 								onStepClick={stepper.goToStep}
 								steps={stepper.steps}
 							/>
+						</div>
+					)}
+
+					{/* Reward: legend */}
+					{phase === 'reward' && (
+						<div className="p-4 border-b border-border space-y-2">
+							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+								Contract
+							</div>
+							<p className="text-xs text-muted-foreground leading-relaxed">
+								Fire each signup story and watch the contract handle it. The
+								schema layer checks every field's shape and types at once; the
+								rules layer runs cross-field business logic after.
+							</p>
+							<div className="grid grid-cols-2 gap-2 pt-1">
+								<div className="rounded-md border border-success/40 bg-success/5 dark:bg-success/10 p-2 text-center">
+									<div className="text-lg font-bold text-success">
+										{stressTest.allowedCount}
+									</div>
+									<div className="text-[10px] text-muted-foreground uppercase tracking-wider">
+										Allowed
+									</div>
+								</div>
+								<div className="rounded-md border border-destructive/40 bg-destructive/5 dark:bg-destructive/10 p-2 text-center">
+									<div className="text-lg font-bold text-destructive">
+										{stressTest.blockedCount}
+									</div>
+									<div className="text-[10px] text-muted-foreground uppercase tracking-wider">
+										Blocked (422)
+									</div>
+								</div>
+							</div>
 						</div>
 					)}
 				</InstructionPanel>
@@ -564,70 +1009,51 @@ export function Level18ValidationContracts({
 					{/* ── Phase 1: Intro (WHY) ── */}
 					{phase === 'intro' && (
 						<div className="flex-1 flex flex-col overflow-auto">
-							<div className="flex-1 flex flex-col items-center justify-center px-6 gap-4">
-								{/* Header */}
-								<div className="text-center">
+							<div className="flex-1 flex flex-col min-h-0">
+								<div className="text-center pt-4 px-6">
 									<h3 className="text-lg font-semibold text-foreground">
-										The Problem: Scattered Inline Validations
+										One error at a time
 									</h3>
 									<p className="text-xs text-muted-foreground mt-1">
-										UserRegistration#call, scattered inline checks
+										The service checks fields one by one and returns at the
+										first bad one
 									</p>
 								</div>
+								<ValidationGauntletFlow state={INTRO_STATE} />
+							</div>
 
-								{/* Annotated code blocks */}
-								<div className="w-full max-w-2xl space-y-1.5">
-									{INTRO_SECTIONS.map((section) => {
-										const isScattered = section.variant === 'scattered';
-										const isBuried = section.variant === 'buried';
-										const borderClass = isScattered
-											? 'border-l-destructive bg-destructive/5 dark:bg-destructive/10'
-											: isBuried
-												? 'border-l-amber-500 bg-amber-500/5 dark:bg-amber-500/10'
-												: 'border-l-zinc-400 dark:border-l-zinc-600 bg-muted/30';
-										const badgeClass = isScattered
-											? 'border-destructive/50 text-destructive bg-destructive/10'
-											: isBuried
-												? 'border-amber-500/50 text-amber-600 dark:text-amber-400 bg-amber-500/10'
-												: 'border-zinc-400/50 text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800';
-
-										return (
+							<div className="px-6 pb-4 space-y-3">
+								{/* Round-trip strip */}
+								<div className="rounded-lg border border-destructive/30 bg-destructive/5 dark:bg-destructive/10 p-3">
+									<div className="text-xs font-semibold text-destructive uppercase tracking-wider mb-2">
+										What the customer lives through
+									</div>
+									<div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+										{ROUND_TRIP_STRIP.map((trip) => (
 											<div
-												className={`border-l-2 rounded-r-md px-3 py-2 ${borderClass}`}
-												key={section.id}
+												className="text-xs font-mono text-foreground/80 rounded-md border border-border bg-card px-2 py-1"
+												key={trip}
 											>
-												<Badge
-													className={`text-[10px] mb-1 ${badgeClass}`}
-													variant="outline"
-												>
-													{section.label}
-												</Badge>
-												<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">
-													{section.code}
-												</pre>
+												{trip}
 											</div>
-										);
-									})}
-								</div>
-
-								{/* Callout */}
-								<div className="w-full max-w-2xl rounded-lg border border-destructive/30 bg-destructive/5 dark:bg-destructive/10 p-3">
-									<p className="text-sm text-destructive font-medium">
-										5 scattered checks, each returning a separate{' '}
-										<code className="text-xs bg-destructive/10 px-1 py-0.5 rounded">
-											Result
-										</code>
-										. Only one error returned per call. Cross-field rules are
-										buried. Cannot reuse validations in other services or test
-										them in isolation.
+										))}
+									</div>
+									<p className="text-xs text-muted-foreground mt-2">
+										Four submissions to surface four problems. The malformed
+										payload and the buried creator/digest rule make it worse.
 									</p>
 								</div>
 
-								{/* Build the Fix button (always visible) */}
-								<Button className="gap-2" onClick={handleStartBuild} size="lg">
-									Build the Fix
-									<ArrowRight className="w-4 h-4" />
-								</Button>
+								<div className="flex justify-center">
+									<Button
+										className="gap-2"
+										onClick={() => setPhase('build')}
+										size="lg"
+									>
+										Build the Fix
+										<ArrowRight className="w-4 h-4" />
+									</Button>
+								</div>
 							</div>
 						</div>
 					)}
@@ -716,6 +1142,8 @@ export function Level18ValidationContracts({
 														hasNextStep
 															? stepper.nextStep
 															: () => {
+																	stressTest.reset();
+																	resetViz();
 																	setPhase('reward');
 																}
 													}
@@ -734,146 +1162,32 @@ export function Level18ValidationContracts({
 
 					{/* ── Phase 3: Reward (ADVANTAGE) ── */}
 					{phase === 'reward' && (
-						<div className="flex-1 flex flex-col overflow-auto">
-							<div className="flex-1 flex flex-col items-center justify-center px-6 gap-4">
-								{/* Header */}
-								<div className="text-center">
+						<div className="flex-1 flex flex-col">
+							<div className="flex-1 flex flex-col min-h-0">
+								<div className="text-center pt-4 px-6">
 									<h3 className="text-lg font-semibold text-foreground">
-										The Fix: RegistrationContract
+										One contract, every error at once
 									</h3>
 									<p className="text-xs text-muted-foreground mt-1">
-										Composable schemas, cross-field rules, structured errors
+										Schema layer checks shape and types together; rules layer
+										runs cross-field logic
 									</p>
 								</div>
+								<ValidationGauntletFlow state={vizState} />
+							</div>
 
-								{/* Clean service (thin) */}
-								<div className="w-full max-w-2xl space-y-1.5">
-									<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-										app/services/user_registration.rb
-									</div>
-									<div className="border-l-2 border-l-success bg-success/5 dark:bg-success/10 rounded-r-md px-3 py-2">
-										<Badge
-											className="text-[10px] mb-1 border-success/50 text-success bg-success/10"
-											variant="outline"
-										>
-											Delegates to Contract
-										</Badge>
-										<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">{`validation = RegistrationContract.new.call(@params)
-if validation.failure?
-  return Result.new(success?: false, user: nil,
-                    errors: validation.errors.to_h)
-end
-user = User.create!(validation.to_h)`}</pre>
-									</div>
-									<div className="mt-1 text-xs text-success font-medium px-3">
-										Clean (12 lines, no inline validation)
-									</div>
-								</div>
-
-								{/* Contract with schemas */}
-								<div className="w-full max-w-2xl border-2 border-success/30 bg-success/5 dark:bg-success/10 rounded-lg p-4">
-									<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 text-center">
-										app/contracts/registration_contract.rb
-									</div>
-									<div className="grid grid-cols-3 gap-2 mb-2">
-										<div className="border-l-2 border-l-success bg-success/5 dark:bg-success/10 rounded-r-md px-2 py-1.5">
-											<Badge
-												className="text-[10px] mb-1 border-success/50 text-success bg-success/10"
-												variant="outline"
-											>
-												CredentialsSchema
-											</Badge>
-											<pre className="text-[10px] font-mono text-foreground/70 whitespace-pre-wrap">
-												email_address{'\n'}password, role
-											</pre>
-										</div>
-										<div className="border-l-2 border-l-success bg-success/5 dark:bg-success/10 rounded-r-md px-2 py-1.5">
-											<Badge
-												className="text-[10px] mb-1 border-success/50 text-success bg-success/10"
-												variant="outline"
-											>
-												ProfileSchema
-											</Badge>
-											<pre className="text-[10px] font-mono text-foreground/70 whitespace-pre-wrap">
-												display_name{'\n'}bio
-											</pre>
-										</div>
-										<div className="border-l-2 border-l-success bg-success/5 dark:bg-success/10 rounded-r-md px-2 py-1.5">
-											<Badge
-												className="text-[10px] mb-1 border-success/50 text-success bg-success/10"
-												variant="outline"
-											>
-												NotifPrefsSchema
-											</Badge>
-											<pre className="text-[10px] font-mono text-foreground/70 whitespace-pre-wrap">
-												email_digest{'\n'}push_enabled
-											</pre>
-										</div>
-									</div>
-									<div className="border-l-2 border-l-amber-500 bg-amber-500/5 dark:bg-amber-500/10 rounded-r-md px-2 py-1.5">
-										<Badge
-											className="text-[10px] mb-1 border-amber-500/50 text-amber-600 dark:text-amber-400 bg-amber-500/10"
-											variant="outline"
-										>
-											Cross-Field Rule
-										</Badge>
-										<pre className="text-[10px] font-mono text-foreground/70 whitespace-pre-wrap">
-											rule(:role, :email_digest) {'{'} creators need weekly{' '}
-											{'}'}
-										</pre>
-									</div>
-								</div>
-
-								{/* Problems Solved checklist */}
-								<div className="w-full max-w-2xl rounded-lg border border-success/30 bg-success/5 dark:bg-success/10 p-3">
-									<div className="text-xs font-semibold text-success uppercase tracking-wider mb-2">
-										Problems Solved
-									</div>
-									<div className="space-y-2">
-										<div className="flex items-start gap-2">
-											<Check className="w-4 h-4 text-success mt-0.5 shrink-0" />
-											<p className="text-sm text-foreground">
-												<span className="font-medium">
-													All errors returned at once.
-												</span>{' '}
-												<span className="text-muted-foreground">
-													Schema validates every field, returns structured
-													errors for all failures in one response.
-												</span>
-											</p>
-										</div>
-										<div className="flex items-start gap-2">
-											<Check className="w-4 h-4 text-success mt-0.5 shrink-0" />
-											<p className="text-sm text-foreground">
-												<span className="font-medium">
-													Reusable in any endpoint.
-												</span>{' '}
-												<span className="text-muted-foreground">
-													Admin registration, API import, CSV upload can all
-													call{' '}
-													<code className="text-xs bg-muted px-1 py-0.5 rounded">
-														RegistrationContract.new.call(params)
-													</code>
-													.
-												</span>
-											</p>
-										</div>
-										<div className="flex items-start gap-2">
-											<Check className="w-4 h-4 text-success mt-0.5 shrink-0" />
-											<p className="text-sm text-foreground">
-												<span className="font-medium">
-													Cross-field rules are explicit and testable.
-												</span>{' '}
-												<span className="text-muted-foreground">
-													<code className="text-xs bg-muted px-1 py-0.5 rounded">
-														rule(:role, :email_digest)
-													</code>{' '}
-													lives in the contract, unit-testable without HTTP.
-												</span>
-											</p>
-										</div>
-									</div>
-								</div>
+							<div className="px-4 pb-4">
+								<StressTestPanel
+									allowedCount={stressTest.allowedCount}
+									blockedCount={stressTest.blockedCount}
+									canAutoFire={stressTest.canAutoFire}
+									disabled={vizAnimating}
+									isAutoFiring={stressTest.isAutoFiring}
+									onFire={handleFireScenario}
+									onToggleAutoFire={stressTest.toggleAutoFire}
+									results={stressTest.results}
+									scenarios={STRESS_SCENARIOS}
+								/>
 							</div>
 						</div>
 					)}
@@ -890,6 +1204,7 @@ user = User.create!(validation.to_h)`}</pre>
 								? stepper.currentStep
 								: stepper.currentStep - 1,
 					)}
+					learningGoal="A validation contract validates the request at the boundary: the schema layer checks shape and types (so a malformed payload is a clean 422, never a 500), and the rules layer runs cross-field business logic, returning every error in one response. The model still owns data-integrity rules like uniqueness."
 				/>
 			</RightPanel>
 		</LevelLayout>

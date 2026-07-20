@@ -19,15 +19,22 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { expectBuildStepQuality } from '@/lib/testing/level-pedagogy';
+import {
+	expectBuildStepQuality,
+	expectScenarioBasics,
+	expectStoriesPresent,
+} from '@/lib/testing/level-pedagogy';
+import { expectEveryProbeDrivesDistinctChange } from '@/lib/testing/probe-pedagogy';
 import {
 	COMPOSE_CONTRACT_OPTIONS,
 	CROSS_FIELD_RULE_OPTIONS,
 	getCodeFiles,
 	INSTALL_GEM_COMMANDS,
 	INSTALL_GEM_OUTPUT,
+	REWARD_SCENARIO_FRAMES,
 	SCHEMA_APPROACH_OPTIONS,
 	STEP_DEFS,
+	STRESS_SCENARIOS,
 } from '../Level18ValidationContracts';
 
 const allPreviewCode = () => {
@@ -129,6 +136,17 @@ describe('Level 18: code preview correctness', () => {
 		);
 	});
 
+	test('the reward preview drops the old scattered inline validations', () => {
+		const service = getCodeFiles('build', STEP_DEFS.length).find((f) =>
+			f.filename.includes('user_registration.rb'),
+		);
+		// The fixed service delegates to the contract; the inline early-return
+		// field checks from the intro must be gone.
+		expect(service?.code).toContain('RegistrationContract.new.call(@params)');
+		expect(service?.code.includes('Password too short')).toBe(false);
+		expect(service?.code.includes('Name required')).toBe(false);
+	});
+
 	test('the final service defines its own initialize (ApplicationService has no super)', () => {
 		const service = getCodeFiles('build', STEP_DEFS.length).find((f) =>
 			f.filename.includes('user_registration.rb'),
@@ -143,5 +161,99 @@ describe('Level 18: code preview correctness', () => {
 		expect(all.includes('@params[:email]')).toBe(false);
 		expect(all.includes('Profile.create!')).toBe(false);
 		expect(all.includes('NotificationPref.create!')).toBe(false);
+	});
+});
+
+describe('Level 18: interactive reward (no more static poster)', () => {
+	test('scenario basics and stories', () => {
+		expectScenarioBasics({ scenarios: STRESS_SCENARIOS });
+		expectStoriesPresent({ items: STRESS_SCENARIOS, kind: 'scenario' });
+	});
+
+	test('the four scenarios replay the intro damage stories plus the valid path', () => {
+		const ids = STRESS_SCENARIOS.map((s) => s.id).sort();
+		expect(ids).toEqual([
+			'all-errors-at-once',
+			'creator-cross-field',
+			'malformed-payload',
+			'valid-signup',
+		]);
+		// Exactly one allowed path (the valid signup); the three damage
+		// stories all come back as blocked 422s.
+		const allowed = STRESS_SCENARIOS.filter(
+			(s) => s.expectedResult === 'allowed',
+		).map((s) => s.id);
+		expect(allowed).toEqual(['valid-signup']);
+	});
+
+	test('every scenario has frames; no orphans; all distinct', () => {
+		const ids = new Set(STRESS_SCENARIOS.map((s) => s.id));
+		for (const scenario of STRESS_SCENARIOS) {
+			expect(
+				REWARD_SCENARIO_FRAMES[scenario.id],
+				`scenario "${scenario.id}" fires but animates nothing`,
+			).toBeInstanceOf(Array);
+		}
+		for (const key of Object.keys(REWARD_SCENARIO_FRAMES)) {
+			expect(ids.has(key), `frames for "${key}" have no button`).toBe(true);
+		}
+		expectEveryProbeDrivesDistinctChange({
+			probes: STRESS_SCENARIOS,
+			probeStateMap: REWARD_SCENARIO_FRAMES,
+			serialize: (_id, frames) => JSON.stringify(frames),
+		});
+	});
+
+	test('all-errors-at-once returns four field errors in one response', () => {
+		const scenario = STRESS_SCENARIOS.find(
+			(s) => s.id === 'all-errors-at-once',
+		);
+		const lines = (scenario?.responseLines ?? []).map((l) => l.text).join('\n');
+		expect(lines).toContain('422');
+		expect(lines.toLowerCase()).toContain('one round trip');
+		// The frames flag all four bad fields at once (not one at a time).
+		const frames = JSON.stringify(REWARD_SCENARIO_FRAMES['all-errors-at-once']);
+		expect(frames).toContain('"email_address"');
+		expect(frames).toContain('"password"');
+		expect(frames).toContain('"display_name"');
+		expect(frames).toContain('"email_digest"');
+	});
+
+	test('malformed-payload is a clean 422 at the schema layer, never a 500', () => {
+		const scenario = STRESS_SCENARIOS.find((s) => s.id === 'malformed-payload');
+		const lines = (scenario?.responseLines ?? []).map((l) => l.text).join('\n');
+		expect(lines).toContain('422');
+		const story = (scenario?.story ?? []).join('\n');
+		expect(story).toContain('500');
+		const frames = JSON.stringify(
+			REWARD_SCENARIO_FRAMES['malformed-payload'],
+		).toLowerCase();
+		expect(frames).toContain('must be a string');
+		expect(frames).toContain('no crash');
+		// The reward frames must NOT show the endpoint crashing.
+		expect(frames.includes('500')).toBe(false);
+	});
+
+	test('creator-cross-field keys the failure to :role via the rules layer', () => {
+		const frames = JSON.stringify(
+			REWARD_SCENARIO_FRAMES['creator-cross-field'],
+		);
+		expect(frames).toContain('"rules"');
+		expect(frames.toLowerCase()).toContain('role');
+		const scenario = STRESS_SCENARIOS.find(
+			(s) => s.id === 'creator-cross-field',
+		);
+		const lines = (scenario?.responseLines ?? []).map((l) => l.text).join('\n');
+		expect(lines).toContain('role');
+	});
+
+	test('valid-signup persists and leaves uniqueness to the model', () => {
+		const frames = JSON.stringify(
+			REWARD_SCENARIO_FRAMES['valid-signup'],
+		).toLowerCase();
+		expect(frames).toContain('201');
+		const scenario = STRESS_SCENARIOS.find((s) => s.id === 'valid-signup');
+		const story = (scenario?.story ?? []).join('\n').toLowerCase();
+		expect(story).toContain('uniqueness');
 	});
 });
