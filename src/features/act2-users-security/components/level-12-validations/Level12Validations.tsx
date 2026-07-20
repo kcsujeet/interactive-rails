@@ -407,25 +407,34 @@ const PRESENCE_OPTIONS: StepOption[] = [
 // Step 1: Uniqueness validation (OptionCard)
 // ──────────────────────────────────────────────
 
+// email_address is encrypted deterministically with downcase: true (built in
+// L10). Per the Active Record Encryption guide, case-insensitivity is handled
+// at the encrypts declaration, NOT the validation: "make sure to use the
+// :downcase or :ignore_case option in the encrypts declaration. Using the
+// :case_sensitive option in the validation won't work." A case_sensitive:
+// option here would try LOWER() over the ciphertext, which is meaningless.
+// So plain `uniqueness: true` is correct: it compares the (already downcased)
+// deterministic ciphertext for equality.
+// (https://guides.rubyonrails.org/active_record_encryption.html)
 const UNIQUENESS_OPTIONS: StepOption[] = [
 	{
 		id: 'manual-check',
 		label: 'User.find_by(email_address: email_address).nil?',
 		correct: false,
 		feedback:
-			'Manual lookups have race conditions. Two requests can check simultaneously and both pass.',
+			'A manual check in code cannot replace a declared validation: nothing returns a clean 422, and the check is not enforced anywhere the model is saved.',
+	},
+	{
+		id: 'case-insensitive',
+		label: 'validates :email_address, uniqueness: { case_sensitive: false }',
+		correct: false,
+		feedback:
+			'This column is encrypted deterministically. Case folding at the validation layer runs LOWER() over ciphertext, which is meaningless. Casing for this column is already handled where the column is declared, so the validation itself does not need a case option.',
 	},
 	{
 		id: 'uniqueness',
-		label: 'validates :email_address, uniqueness: { case_sensitive: false }',
+		label: 'validates :email_address, uniqueness: true',
 		correct: true,
-	},
-	{
-		id: 'rescue',
-		label: 'rescue ActiveRecord::RecordNotUnique',
-		correct: false,
-		feedback:
-			'Rescuing database errors is reactive. Validations check proactively before attempting the save.',
 	},
 ];
 
@@ -439,7 +448,7 @@ const FORMAT_OPTIONS: StepOption[] = [
 		label: 'validates :email_address, format: { with: /@/ }',
 		correct: false,
 		feedback:
-			'A single @ check is too permissive. "not@valid" would pass. Use the standard email_address regexp.',
+			'A single @ check is far too permissive. A string like "joe@" (nothing after the @) still contains an @, so it passes. You need a pattern that actually validates the structure of an address.',
 	},
 	{
 		id: 'custom-method',
@@ -515,7 +524,7 @@ const OPTION_STEP_CONFIG: Record<
 	1: {
 		title: 'Add Uniqueness Validation',
 		description:
-			'Users are signing up with duplicate emails (including case variations like "Admin@" vs "admin@"). Pick the validation that prevents duplicates regardless of casing.',
+			'Users are signing up with emails that already exist, and the raw duplicate hits the database as a 500. The email_address column was encrypted deterministically with case-folding back in L10, so casing is already normalized before storage. Pick the validation that rejects duplicates with a clean error.',
 		options: UNIQUENESS_OPTIONS,
 	},
 	2: {
@@ -549,9 +558,17 @@ end`,
 			language: 'ruby',
 			code: `class User < ApplicationRecord
   has_secure_password
+  has_many :sessions, dependent: :destroy
+
+  normalizes :email_address, with: ->(e) { e.strip.downcase }
+
+  encrypts :email_address, deterministic: true, downcase: true
+  encrypts :phone
+  encrypts :address
+
   # No email_address validation!
 end`,
-			highlight: [3],
+			highlight: [11],
 		});
 		return files;
 	}
@@ -571,7 +588,11 @@ end`,
 	// keep diffs minimal as constraints are added.
 	if (furthestStep >= 2) {
 		const opts = ['    presence: true'];
-		opts.push('    uniqueness: { case_sensitive: false }');
+		// Plain uniqueness: true. The column is deterministically encrypted with
+		// downcase: true (L10), so casing is already handled at the encrypts
+		// declaration; a case option on the validation would be a no-op over
+		// ciphertext. (https://guides.rubyonrails.org/active_record_encryption.html)
+		opts.push('    uniqueness: true');
 		if (furthestStep >= 3) {
 			opts.push('    format: { with: URI::MailTo::EMAIL_REGEXP }');
 		}
@@ -592,14 +613,27 @@ end`,
 	});
 
 	if (furthestStep >= 2) {
+		// Cumulative User model: has_secure_password + has_many :sessions +
+		// normalizes (L9), the three encrypts declarations (L10), then the
+		// validations this level adds. The preamble is 8 lines, so the new
+		// validates block starts at line 10.
+		const userPreamble = `class User < ApplicationRecord
+  has_secure_password
+  has_many :sessions, dependent: :destroy
+
+  normalizes :email_address, with: ->(e) { e.strip.downcase }
+
+  encrypts :email_address, deterministic: true, downcase: true
+  encrypts :phone
+  encrypts :address
+`;
+		const preambleLineCount = userPreamble.split('\n').length - 1;
 		files.push({
 			filename: 'app/models/user.rb',
 			language: 'ruby',
-			code: `class User < ApplicationRecord
-  has_secure_password
-${userValidations.join('\n')}
+			code: `${userPreamble}${userValidations.join('\n')}
 end`,
-			highlight: userValidations.map((_, i) => i + 3),
+			highlight: userValidations.map((_, i) => i + preambleLineCount + 1),
 		});
 	}
 

@@ -106,7 +106,10 @@ curl -I http://localhost:3000/up
 		homework: [
 			{
 				task: 'Inside your rails-practice folder, create a real API-only Rails app.',
-				commands: ['rails new store_api --api', 'cd store_api'],
+				commands: [
+					'rails new store_api --api --database=postgresql',
+					'cd store_api',
+				],
 				verify:
 					'A store_api directory exists with app/, config/, db/, and a Gemfile inside.',
 			},

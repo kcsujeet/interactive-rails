@@ -64,13 +64,14 @@ export const level4CRUD: Level = {
 Pick the higher-level, validation-respecting variant by default. Reach for the lower-level one only when you specifically need to bypass the lifecycle.
 
 **Bang vs non-bang (\`save\` vs \`save!\`, \`create\` vs \`create!\`):**
-Almost every write method has two forms. The non-bang form returns the record whether or not it was actually saved (you have to check \`record.persisted?\` or \`record.errors.any?\` to know). The bang form raises \`ActiveRecord::RecordInvalid\` if validations fail.
+Almost every write method has two forms. The non-bang form returns the record whether or not it was actually saved (you check \`record.persisted?\` or \`record.errors.any?\` to know which happened). The bang form raises \`ActiveRecord::RecordInvalid\` if validations fail.
 
 The rule:
-- **Use the bang form** in scripts, the console, seeds, migrations, and anywhere you EXPECT the write to succeed. Failure should crash loud, not return a quiet invalid record that propagates downstream.
+- **Interactively (the Rails console), the non-bang form is fine**, because you can read the return value on the very next line: the console prints the record, and you glance at \`errors\` if something looks off. That is exactly what this level does.
 - **Use the non-bang form** in controllers and any code that explicitly handles validation failure (\`if product.save; ...; else; render :unprocessable_entity; end\`).
+- **Use the bang form** in scripts, seeds, and migrations, where nothing is watching the return value. There, a silently-invalid record propagates downstream, so you want the write to crash loud instead.
 
-Returning a silently-invalid record is the source of "the record did not save and I cannot figure out why" bugs. Default to bang; switch to non-bang only when you have a branch for the failure path.`,
+The failure mode to avoid is ignoring the return value in code that is not being watched: the record looks saved, in fact it failed validation, and downstream code uses an unsaved object. Match the form to the context.`,
 		railsCodeExample: `# After completing this level you will have, from the Rails console:
 # 1. inserted a row by calling the validation-respecting Create method
 # 2. fetched the row back by primary key
@@ -103,9 +104,9 @@ Returning a silently-invalid record is the source of "the record did not save an
 				task: 'Run the full create-read-update-destroy cycle by hand in the Rails console.',
 				commands: [
 					'bin/rails console',
-					'p = Product.create!(name: "Desk", price: 199.0)',
+					'p = Product.create!(name: "Desk", price: "199.00")',
 					'Product.count',
-					'p.update!(price: 149.0)',
+					'p.update!(price: "149.00")',
 					'p.reload.price',
 					'p.destroy!',
 					'Product.count',

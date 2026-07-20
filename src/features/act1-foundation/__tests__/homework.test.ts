@@ -50,7 +50,7 @@ describe('Act 1 homework exercises', () => {
 			'brew install mise',
 		);
 		expect(commandsOf('act1-level2-first-boot')).toContain(
-			'rails new store_api --api',
+			'rails new store_api --api --database=postgresql',
 		);
 		expect(commandsOf('act1-level3-model')).toContain(
 			'bin/rails generate model Product name:string description:text price:decimal',

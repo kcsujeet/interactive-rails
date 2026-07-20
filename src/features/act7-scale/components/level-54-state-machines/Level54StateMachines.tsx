@@ -190,11 +190,11 @@ export const PROBES: ProbeConfig[] = [
 	{
 		id: 'set-invalid-status',
 		label: 'Set arbitrary status string',
-		command: 'Order.where(status: "shipped").update_all(status: "refunded")',
+		command: 'order = Order.find(1500); order.update!(status: "refunded")',
 		responseLines: [
-			{ text: '=> 847  # rows updated', color: 'red' },
+			{ text: '=> true', color: 'red' },
 			{ text: '', color: 'muted' },
-			{ text: '847 shipped orders now show "refunded".', color: 'yellow' },
+			{ text: 'Order #1500 now shows status "refunded".', color: 'yellow' },
 			{ text: '"refunded" is not even a defined status.', color: 'red' },
 			{
 				text: 'No validation, no enum, no constraint. Any string accepted.',
@@ -202,11 +202,11 @@ export const PROBES: ProbeConfig[] = [
 			},
 		],
 		story: [
-			'A bulk operation sets 847 orders to "refunded".',
+			'A support action sets Order #1500 to "refunded".',
 			'"refunded" is not a valid status in the application.',
 			'The orders table now contains an undefined state.',
-			'Queries filtering by valid statuses miss these 847 orders.',
-			'Reports show 847 "ghost" orders that match no known state.',
+			'Queries filtering by valid statuses miss this order.',
+			'Reports show a "ghost" order that matches no known state.',
 		],
 	},
 	{
@@ -308,15 +308,15 @@ const DELIVER_CONFIRMED_FRAMES: AnimFrame[] = [
 const INVALID_STATUS_FRAMES: AnimFrame[] = [
 	{
 		states: {
-			shipped: { flash: 'amber', badge: '847 orders' },
+			shipped: { flash: 'amber', badge: 'update!(refunded)' },
 		},
 	},
 	{
 		states: {
 			shipped: { flash: 'red', badge: '"refunded"?!' },
-			pending: { flash: 'red', badge: 'UNKNOWN' },
-			confirmed: { flash: 'red', badge: 'UNKNOWN' },
-			delivered: { flash: 'red', badge: 'UNKNOWN' },
+			pending: { flash: 'red', badge: 'undefined state' },
+			confirmed: { flash: 'red', badge: 'undefined state' },
+			delivered: { flash: 'red', badge: 'undefined state' },
 		},
 	},
 ];

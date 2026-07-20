@@ -101,10 +101,10 @@ A URL prefix (\`/api/\`) keeps API routes organised and lays the groundwork for 
 		],
 		homework: [
 			{
-				task: 'In config/routes.rb, nest `resources :products` inside `namespace :api` and `namespace :v1`, then list what Rails generated.',
+				task: 'In config/routes.rb, nest `resources :products` inside `namespace :api`, then list what Rails generated.',
 				commands: ['bin/rails routes -g products'],
 				verify:
-					'Five routes appear under /api/v1/products, mapped to api/v1/products#index, #show, #create, #update, and #destroy.',
+					'Five routes appear under /api/products, mapped to api/products#index, #show, #create, #update, and #destroy.',
 			},
 		],
 	},

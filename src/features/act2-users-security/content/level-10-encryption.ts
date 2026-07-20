@@ -10,7 +10,7 @@ export const level10Encryption: Level = {
 	trigger: {
 		type: 'security_audit',
 		description:
-			'Pre-launch security review: every PII column on `users` (email_address, phone, address) is stored as plaintext. Anyone with DB access, a leaked backup, a misconfigured staging environment, a SQL injection, sees every customer. Encrypt at rest before the first signup.',
+			'Pre-launch security review: every PII column on `users` (email_address, phone, address) is stored as plaintext, and early test and staging accounts are already sitting in the table that way. Anyone with DB access, a leaked backup, a misconfigured staging environment, a SQL injection, sees every customer. Turn on encryption at rest so these columns become ciphertext.',
 	},
 	startingPipeline: standardPipeline({ modelLabel: 'User' }),
 	problem: {
@@ -172,18 +172,21 @@ user = User.create!(
 # Querying deterministic attributes works normally
 User.find_by(email: "alice@example.com")  # Works!
 
-# Querying non-deterministic raises an error
-User.find_by(phone: "+1-555-0123")  # Raises ActiveRecord::Encryption::Errors::Configuration
+# Querying non-deterministic does not raise: it just cannot match.
+# The same phone encrypts to a different ciphertext each time, so the
+# WHERE compares against a ciphertext that will never equal any stored
+# row. The query runs fine and silently returns nil.
+User.find_by(phone: "+1-555-0123")  # => nil (no match, no error)
 
 # In the database, all values are ciphertext:
 # SELECT email FROM users LIMIT 1;
 # => "{"p":"dB3dhj...","h":{"iv":"f9w...","at":"Ij..."}}"
 
 # Migrating existing plaintext data
-# Re-save records to trigger encryption on write:
-User.find_each do |user|
-  user.save!(validate: false)  # Re-saves with encryption
-end
+# record.encrypt re-encrypts every encryptable attribute on the row in
+# one call (per the Active Record Encryption guide). A bare save! is a
+# no-op for an unchanged row, so it would NOT encrypt anything.
+User.find_each(batch_size: 1000, &:encrypt)
 
 # Key rotation
 Rails.application.config.active_record.encryption.previous = [
@@ -198,7 +201,7 @@ Rails.application.config.active_record.encryption.previous = [
 			'Backfilling existing data with User.update_all (skips the encryptor; rows look encrypted but are still plaintext on disk)',
 			'Using deterministic encryption on low-cardinality fields like status or tier (the ciphertext distribution leaks the value distribution)',
 			"Assuming WHERE description LIKE '%foo%' still works after encrypts :description (non-deterministic encryption makes substring search impossible; plan a separate searchable index)",
-			'Storing the encryption key in the same credentials file you commit to git (leaked repo == leaked database). Use ENV-injected keys or a KMS for production',
+			'Committing config/master.key (or leaking RAILS_MASTER_KEY) to git. The encrypted credentials.yml.enc is meant to be committed and is the recommended place for the keys; it is the master key that unlocks it which must stay out of the repo. For the strictest compliance posture, inject the keys from a KMS instead',
 			'No documented key rotation cadence (compliance auditors will ask; design for it before launch)',
 		],
 		whenToUse:

@@ -8,7 +8,7 @@ export const level12Validations: Level = {
 	trigger: {
 		type: 'user_complaint',
 		description:
-			'Authentication is live, but users submit products with missing names, zero prices, and duplicate emails. The database is filling up with invalid records. Reject bad data before it hits the DB.',
+			'Authentication is live, but users submit products with missing names and blank descriptions, and duplicate or malformed emails. The database is filling up with invalid records. Reject bad data before it hits the DB.',
 	},
 	startingPipeline: {
 		nodes: [
@@ -72,7 +72,7 @@ export const level12Validations: Level = {
 	},
 	problem: {
 		observation:
-			'The database contains products with blank names, users with duplicate emails, and prices set to zero or negative. No data integrity.',
+			'The database contains products with blank names and empty descriptions, plus users with duplicate and malformed emails. No data integrity.',
 		rootCause:
 			'No model validations. Data flows straight through to the database without any checks.',
 		codeExample: `# Current state: NO validations
@@ -82,15 +82,14 @@ end
 
 class User < ApplicationRecord
   has_secure_password
-  # No email_address uniqueness check!
+  # No email_address uniqueness or format check!
 end
 
 # What gets through:
-Product.create(name: "", price: nil)        # Saved! No name, no price.
-Product.create(name: "a" * 1000, price: -5) # Saved! Absurd name, negative price.
-User.create(email_address: "not-an-email")          # Saved! Invalid email format.
-User.create(email_address: "joe@test.com")          # Saved!
-User.create(email_address: "joe@test.com")          # RecordNotUnique raised; client sees a 500.
+Product.create(name: "", description: "")   # Saved! Blank name and description.
+User.create(email_address: "not-an-email")  # Saved! Invalid email format.
+User.create(email_address: "joe@test.com")  # Saved!
+User.create(email_address: "joe@test.com")  # RecordNotUnique raised; client sees a 500.
 
 # The database is full of garbage.`,
 		goal: 'Reject the bad data at the model layer before it ever reaches the database, then inspect the resulting error messages from the Rails console.',
@@ -126,7 +125,7 @@ When validation fails, \`save\` returns \`false\` and errors are added to the mo
 **Where the error messages come from (\`I18n\`):**
 - When a validation fails, you get \`product.errors.full_messages\` like \`["Name can't be blank", "Price must be greater than 0"]\`. Where do those English strings actually live?
 - Rails ships an internationalization framework called **I18n**. Every built-in validator has a default message stored as a translation key (\`errors.messages.blank\`, \`errors.messages.taken\`, \`errors.messages.invalid\`)
-- The default English translations live inside the \`activemodel\` gem at \`config/locales/en.yml\` (Rails) and similar files. Rails 8 ships English by default; other languages are gem-based (\`gem "rails-i18n"\`)
+- The default English translations live inside Rails itself, in the \`activemodel\` gem at \`activemodel/lib/active_model/locale/en.yml\` (and \`activerecord/lib/active_record/locale/en.yml\`), per the [Rails i18n guide](https://guides.rubyonrails.org/i18n.html). Your app's own \`config/locales/en.yml\` is where you override or add strings. Rails 8 ships English by default; other languages are gem-based (\`gem "rails-i18n"\`)
 - To customize a message: \`validates :name, presence: { message: "is required" }\`. To translate the entire app: add \`config/locales/es.yml\` (or \`fr.yml\`, \`ja.yml\`) with translated keys, then set \`I18n.locale = :es\` per request
 - For an English-only app, you still benefit: \`I18n.t("errors.messages.blank")\` is the canonical way to access these strings in mailers, controllers, anywhere outside the model. Hardcoding strings in code makes them harder to update and translate later
 - Even API-only apps that never plan to translate should know I18n exists. The default messages your validators produce **are** I18n strings. The \`t()\` helper is the path to clean copy management`,
@@ -147,9 +146,9 @@ class User < ApplicationRecord
   has_secure_password
 
   validates :email_address, presence: true,
-                    uniqueness: { case_sensitive: false },
+                    uniqueness: true,
                     format: { with: URI::MailTo::EMAIL_REGEXP,
-                              message: "must be a valid email_address address" }
+                              message: "must be a valid email address" }
 end
 
 # In the controller, return validation errors as JSON:

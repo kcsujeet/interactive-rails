@@ -211,9 +211,9 @@ end`,
 	},
 	controller: {
 		stageId: 'controller',
-		title: 'ProductsController (Unreachable)',
+		title: 'Controller (not built yet)',
 		description:
-			'The controller exists and has all five RESTful actions defined, but without routes, no HTTP request can reach it.',
+			'This level only wires up routing. Once routes exist, a request will be dispatched toward an api/products controller action, but that controller class has not been built yet (that is the next level). For now, the job is to make the router point requests at the right place.',
 	},
 	model: {
 		stageId: 'model',
@@ -238,11 +238,15 @@ const STAGE_DISCOVERY_MAP: Record<string, string> = {
 // Stress test scenarios (reward phase)
 // ──────────────────────────────────────────────
 
+// Reward scenarios: this level only built the routes, so each scenario shows
+// the router MATCHING the request and dispatching it to the right controller
+// action. The controller itself is built in the next level, so the reward
+// stops at "dispatched to api/products#action", not a full 200 response.
 const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'get-index',
-		label: 'List all products',
-		description: 'Fetch the collection of products',
+		label: 'GET /api/products',
+		description: 'Router dispatches to the index action',
 		method: 'GET',
 		path: '/api/products',
 		actor: 'client',
@@ -250,8 +254,8 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	},
 	{
 		id: 'post-create',
-		label: 'Create a product',
-		description: 'Submit a new product',
+		label: 'POST /api/products',
+		description: 'Router dispatches to the create action',
 		method: 'POST',
 		path: '/api/products',
 		actor: 'client',
@@ -259,8 +263,8 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	},
 	{
 		id: 'get-show',
-		label: 'Show one product',
-		description: 'Fetch a single product by ID',
+		label: 'GET /api/products/1',
+		description: 'Router dispatches to the show action',
 		method: 'GET',
 		path: '/api/products/1',
 		actor: 'client',
@@ -268,8 +272,8 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	},
 	{
 		id: 'patch-update',
-		label: 'Update a product',
-		description: 'Modify an existing product',
+		label: 'PATCH /api/products/1',
+		description: 'Router dispatches to the update action',
 		method: 'PATCH',
 		path: '/api/products/1',
 		actor: 'client',
@@ -277,8 +281,8 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	},
 	{
 		id: 'delete-destroy',
-		label: 'Delete a product',
-		description: 'Remove a product by ID',
+		label: 'DELETE /api/products/1',
+		description: 'Router dispatches to the destroy action',
 		method: 'DELETE',
 		path: '/api/products/1',
 		actor: 'client',
@@ -352,7 +356,7 @@ const NAMESPACE_OPTIONS: StepOption[] = [
 		label: "scope '/api' do\n  resources :products\nend",
 		correct: false,
 		feedback:
-			'scope changes only the URL path, not the controller module. Your controller lives in the Api:: module, so you need something that maps both.',
+			'scope changes only the URL path, not the controller module. API controllers should live in the Api:: module, so you need something that maps both the URL and the module.',
 	},
 	{
 		id: 'correct-namespace',
@@ -360,11 +364,11 @@ const NAMESPACE_OPTIONS: StepOption[] = [
 		correct: true,
 	},
 	{
-		id: 'string-namespace',
-		label: "namespace 'api' do\n  resources :products\nend",
+		id: 'scope-module',
+		label: "scope module: 'api' do\n  resources :products\nend",
 		correct: false,
 		feedback:
-			'A quoted string is not what this routing method expects for its argument here. Check how Ruby DSLs usually name things.',
+			'This nests the controllers under the Api module but leaves the URL as /products. You need both the URL prefix and the module to change together.',
 	},
 ];
 
@@ -416,6 +420,10 @@ const viewRoutesOutput: TerminalOutputLine[] = [
 	},
 	{
 		text: '                  PATCH   /api/products/:id(.:format)    api/products#update',
+		color: 'yellow',
+	},
+	{
+		text: '                  PUT     /api/products/:id(.:format)    api/products#update',
 		color: 'yellow',
 	},
 	{
@@ -482,13 +490,13 @@ const OPTION_STEP_CONFIG: Record<
 	1: {
 		title: 'Add Namespace',
 		description:
-			'The resource creates /products, but your API controller lives at Api::ProductsController. How do you nest routes under /api/?',
+			'The resource creates /products, but API routes should live under /api/ and point at controllers in an Api:: module. How do you nest routes under /api/?',
 		options: NAMESPACE_OPTIONS,
 	},
 	3: {
 		title: 'Trace the Request Lifecycle',
 		description:
-			'When a client sends GET /api/products, what is the correct order of the request lifecycle?',
+			'Now that the route matches, confirm where the router hands the request off next. Which path does a GET /api/products actually follow through the app?',
 		options: TRACE_OPTIONS,
 	},
 };
@@ -563,22 +571,18 @@ const PROBE_ACTIVE_CONNECTIONS: Record<string, string[]> = {
 	'get-api-products': ['request-router'],
 };
 
-// Reward: every RESTful action successfully traverses the full pipeline:
-// router -> controller -> model -> database -> back -> response.
-const FULL_PIPELINE_CONNECTIONS = [
-	'request-router',
-	'router-controller',
-	'controller-response',
-	'controller-model',
-	'model-database',
-];
+// Reward: each RESTful request is now matched by the router and dispatched to
+// the correct controller action. This level only built routing, so the dot
+// flow stops at the controller (dispatch); the controller class, model query,
+// and full response are built in the next level.
+const DISPATCH_CONNECTIONS = ['request-router', 'router-controller'];
 
 const SCENARIO_ACTIVE_CONNECTIONS: Record<string, string[]> = {
-	'get-index': FULL_PIPELINE_CONNECTIONS,
-	'post-create': FULL_PIPELINE_CONNECTIONS,
-	'get-show': FULL_PIPELINE_CONNECTIONS,
-	'patch-update': FULL_PIPELINE_CONNECTIONS,
-	'delete-destroy': FULL_PIPELINE_CONNECTIONS,
+	'get-index': DISPATCH_CONNECTIONS,
+	'post-create': DISPATCH_CONNECTIONS,
+	'get-show': DISPATCH_CONNECTIONS,
+	'patch-update': DISPATCH_CONNECTIONS,
+	'delete-destroy': DISPATCH_CONNECTIONS,
 };
 
 // ──────────────────────────────────────────────
@@ -601,32 +605,29 @@ end`,
 		return files;
 	}
 
-	// Build / reward phases: show evolving code
-	if (completedStep === 0) {
+	// Build / reward phases: show evolving code.
+	// `completedStep` is the completed-step index (currentStep when the current
+	// step is done, else currentStep - 1). While the player is still working on
+	// step 0 (completedStep = -1), routes.rb is still empty.
+	if (completedStep < 1) {
 		files.push({
 			filename: 'config/routes.rb',
 			language: 'ruby',
-			code: `Rails.application.routes.draw do
+			code:
+				completedStep === 0
+					? `Rails.application.routes.draw do
+  resources :products
+  # This creates /products, not /api/products yet.
+end`
+					: `Rails.application.routes.draw do
   # No routes defined yet...
 end`,
 			highlight: [2],
 		});
 	}
 
-	if (completedStep >= 1 && completedStep < 2) {
-		files.push({
-			filename: 'config/routes.rb',
-			language: 'ruby',
-			code: `Rails.application.routes.draw do
-  resources :products
-  # But this creates /products, not /api/products
-  # We need a namespace!
-end`,
-			highlight: [2],
-		});
-	}
-
-	if (completedStep >= 2) {
+	if (completedStep >= 1) {
+		// After step 1 (namespace): routes are nested under /api.
 		files.push({
 			filename: 'config/routes.rb',
 			language: 'ruby',
@@ -639,7 +640,8 @@ end`,
 		});
 	}
 
-	if (completedStep >= 3) {
+	if (completedStep >= 2) {
+		// After step 2 (view routes): the generated route table.
 		files.push({
 			filename: 'Route Table',
 			language: 'ruby',
@@ -654,19 +656,22 @@ end`,
 		});
 	}
 
-	if (completedStep >= 4) {
+	if (completedStep >= 3) {
+		// After step 3 (trace request): the lifecycle a routed request will
+		// follow. The controller and model are built in the next level, so this
+		// is the path the dispatch sets up, not something that runs yet.
 		files.push({
 			filename: 'Request Lifecycle',
 			language: 'ruby',
 			code: `# GET /api/products
 #
 # 1. Request arrives (GET /api/products)
-# 2. Router matches: Api::ProductsController#index
-# 3. Controller calls: @products = Product.all
-# 4. Model queries DB: SELECT * FROM products
-# 5. Controller renders: render json: @products
-# 6. Response: 200 OK with JSON body`,
-			highlight: [3, 4, 5, 6, 7, 8],
+# 2. Router matches and dispatches: api/products#index
+# 3. Controller (built next level) will query the model
+# 4. Model reads the database
+# 5. Controller renders JSON
+# 6. Response goes back to the client`,
+			highlight: [3, 4],
 		});
 	}
 
@@ -686,7 +691,9 @@ function PipelineLegend() {
 			<div className="space-y-2 text-sm">
 				<div className="flex items-center gap-2">
 					<Check className="w-4 h-4 text-success" />
-					<span className="text-foreground">Routed request (200 OK)</span>
+					<span className="text-foreground">
+						Matched and dispatched to a controller action
+					</span>
 				</div>
 				<div className="flex items-center gap-2">
 					<X className="w-4 h-4 text-destructive" />
@@ -815,30 +822,39 @@ export function Level6Routes({ onComplete }: LevelComponentProps) {
 			{
 				id: 'router',
 				label: 'Router',
-				sublabel: matchedAction ?? 'routes.rb',
+				sublabel: matchedAction ? `matched ${matchedAction}` : 'routes.rb',
 				variant: 'active' as const,
 			},
 			{
 				id: 'controller',
 				label: 'Controller',
-				sublabel: matchedAction ? `${matchedAction.split('#')[1]}` : undefined,
+				sublabel: matchedAction
+					? `dispatched to ${matchedAction}`
+					: 'built next level',
+				badge: matchedAction ? 'DISPATCHED' : undefined,
+				// The controller class does not exist yet (next level), so it is not
+				// a working stage. It lights up only as the dispatch target.
+				variant: (matchedAction ? 'active' : 'inactive') as
+					| 'active'
+					| 'inactive',
 			},
 			{
 				id: 'response',
 				label: 'Response',
-				sublabel: lastResult ? '200 OK' : undefined,
-				variant: lastResult ? ('active' as const) : ('default' as const),
+				sublabel: 'built next level',
+				variant: 'inactive' as const,
 			},
 			{
 				id: 'model',
 				label: 'Model',
 				position: HUB_POS.model,
+				variant: 'inactive' as const,
 			},
 			{
 				id: 'database',
 				label: 'Database',
 				position: HUB_POS.database,
-				variant: 'active' as const,
+				variant: 'inactive' as const,
 			},
 		];
 	}, [lastResult]);

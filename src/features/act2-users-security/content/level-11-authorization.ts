@@ -19,8 +19,13 @@ export const level11Authorization: Level = {
 			'User A logs in and sends DELETE /api/products/42 -- a product owned by User B. It succeeds. Any authenticated user can modify or destroy any product.',
 		rootCause:
 			'Authentication verifies identity but there is no authorization layer checking ownership or permissions.',
-		codeExample: `# Current state: no ownership check
+		codeExample: `# Current state: no ownership check on writes
 class Api::ProductsController < ApplicationController
+  def index
+    render json: Product.all  # public catalog (fine), but
+                              # the scope is hardcoded here
+  end
+
   def destroy
     product = Product.find(params[:id])
     product.destroy  # Any user can delete ANY product!
@@ -44,7 +49,7 @@ end
 	},
 	learningContent: {
 		title: 'Authorization & Per-Record Ownership Checks',
-		goal: `In this level, you'll:\n- learn the difference between authentication ("who are you?") and authorization ("are you allowed to do this?").\n- introduce dedicated rule classes that decide whether a given user is allowed to update or delete a given record.\n- filter list endpoints so users only see records they have permission to access.`,
+		goal: `In this level, you'll:\n- learn the difference between authentication ("who are you?") and authorization ("are you allowed to do this?").\n- introduce dedicated rule classes that decide whether a given user is allowed to update or delete a given record.\n- route list endpoints through a policy scope so the collection-filtering rule lives in one place (today the catalog stays public; tomorrow's ownership rules have a single home).`,
 		conceptExplanation: `Authorization answers "Can this user do this action on this resource?"
 
 **Why it lives in its own layer:**
@@ -91,7 +96,7 @@ The library keeps the rules as plain Ruby objects, which makes each one trivial 
 		commonMistakes: [
 			'Forgetting to call the authorization helper in controller actions. The action runs unprotected and any authenticated user can hit it.',
 			'Putting permission rules inline in the controller instead of in dedicated rule classes. They drift across controllers and become impossible to unit-test.',
-			'Forgetting to filter index/list queries through the collection-filter mechanism, so users see records they have no right to access.',
+			'Hardcoding the index/list query in the controller instead of routing it through the collection-filter mechanism, so there is no single place to tighten visibility when ownership rules change.',
 			'Confusing authentication (who) with authorization (can). They are different layers; you need both.',
 			'Not testing rule edge cases (owner vs stranger; signed-in vs unauthenticated; admin override).',
 		],
@@ -125,9 +130,9 @@ The library keeps the rules as plain Ruby objects, which makes each one trivial 
 					'In the console, ProductPolicy.new(owner, product).destroy? returns true and ProductPolicy.new(other_user, product).destroy? returns false, and a non-owner request to destroy raises Pundit::NotAuthorizedError instead of deleting the record.',
 			},
 			{
-				task: 'Filter the list endpoint through the policy scope so users only see records they are allowed to access.',
+				task: 'Route the list endpoint through the policy scope so collection filtering lives in one place. The Scope#resolve can return scope.all today (the catalog is public); the point is that future ownership rules have a single home.',
 				verify:
-					'Api::V1::ProductsController#index resolves its collection through policy_scope(Product) instead of Product.all.',
+					'Api::V1::ProductsController#index resolves its collection through policy_scope(Product) instead of a hardcoded Product.all.',
 			},
 		],
 	},

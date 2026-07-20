@@ -363,7 +363,7 @@ const ORDER_FRAMES: AnimFrame[] = [
 		primary: {
 			label: 'Primary DB',
 			flash: 'amber',
-			sublabel: '20 reads holding locks',
+			sublabel: '20 reads using every connection',
 			badge: null,
 		},
 		edgeA: {
@@ -377,12 +377,12 @@ const ORDER_FRAMES: AnimFrame[] = [
 		app: {
 			label: 'Write waiting...',
 			flash: 'red',
-			sublabel: '650ms lock wait',
+			sublabel: '650ms waiting for a connection',
 		},
 		primary: {
 			label: 'Primary DB',
 			flash: 'red',
-			sublabel: 'Lock contention!',
+			sublabel: 'Pool + CPU saturated!',
 			badge: '890ms',
 			isOverloaded: true,
 		},
@@ -964,9 +964,9 @@ const addReplicaCommands: TerminalCommand[] = [
 	},
 	{
 		id: 'correct',
-		label: 'Add primary_replica to config/database.yml',
+		label: 'Add primary_replica under production: in config/database.yml',
 		command:
-			'cat >> config/database.yml << EOF\n  primary_replica:\n    adapter: postgresql\n    host: replica-db.example.com\n    database: app_production\nEOF',
+			'$EDITOR config/database.yml\n# nest primary_replica as a sibling of primary, inside production:\n#   production:\n#     primary:\n#       ...\n#     primary_replica:\n#       adapter: postgresql\n#       host: replica-db.example.com\n#       database: app_production',
 		correct: true,
 	},
 ];
@@ -994,7 +994,7 @@ const REPLICA_FLAG_OPTIONS: StepOption[] = [
 		name: 'readonly: true',
 		correct: false,
 		feedback:
-			'Rails uses `replica: true`, not `readonly`. This flag tells ActiveRecord the connection is read-only and should never run migrations.',
+			'That is not the flag Rails looks for. Rails needs a specific marker that tells it this database serves read traffic and must never run migrations.',
 	},
 	{
 		id: 'correct',

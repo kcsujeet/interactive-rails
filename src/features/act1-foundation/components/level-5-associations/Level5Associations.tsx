@@ -121,7 +121,7 @@ const PROBES: ProbeConfig[] = [
 			},
 			{ text: 'product.reviews', color: 'muted' },
 			{
-				text: "NoMethodError: undefined method `reviews' for #<Product>",
+				text: "NoMethodError: undefined method 'reviews' for an instance of Product",
 				color: 'red',
 			},
 			{
@@ -184,14 +184,16 @@ const PROBE_DISCOVERY_MAP: Record<string, string> = {
 };
 
 // Map probe IDs to per-probe pipeline node display during observe.
-// Each probe lights up a different aspect of the missing relationship.
+// Each probe lights up a different aspect of the missing relationship on the
+// two things that actually exist right now: the Product model and the schema.
+// The Review model does NOT exist yet, so it is not a node in observe.
 interface ProbePipelineDisplay {
 	productSublabel?: string;
 	productBadge?: string;
 	productVariant?: PipelineStage['variant'];
-	reviewSublabel?: string;
-	reviewBadge?: string;
-	reviewVariant?: PipelineStage['variant'];
+	schemaSublabel?: string;
+	schemaBadge?: string;
+	schemaVariant?: PipelineStage['variant'];
 }
 
 const PROBE_PIPELINE_MAP: Record<string, ProbePipelineDisplay> = {
@@ -199,22 +201,22 @@ const PROBE_PIPELINE_MAP: Record<string, ProbePipelineDisplay> = {
 		productSublabel: 'no .reviews method',
 		productBadge: 'NoMethodError',
 		productVariant: 'danger',
-		reviewSublabel: 'never declared',
-		reviewVariant: 'inactive',
+		schemaSublabel: 'products table only',
+		schemaVariant: 'inactive',
 	},
 	'review-model-exists': {
 		productSublabel: 'no associations',
 		productVariant: 'danger',
-		reviewSublabel: 'class missing',
-		reviewBadge: 'NameError',
-		reviewVariant: 'inactive',
+		schemaSublabel: 'no reviews table',
+		schemaBadge: 'no table',
+		schemaVariant: 'inactive',
 	},
 	'inspect-product-columns': {
 		productSublabel: 'name, description, price',
 		productVariant: 'danger',
-		reviewSublabel: 'no reviews table',
-		reviewBadge: 'no FK',
-		reviewVariant: 'inactive',
+		schemaSublabel: 'no product_id foreign key',
+		schemaBadge: 'no FK',
+		schemaVariant: 'inactive',
 	},
 };
 
@@ -235,12 +237,6 @@ const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 class Product < ApplicationRecord
   # No associations defined.
 end`,
-	},
-	review: {
-		stageId: 'review',
-		title: 'Review Model (does not exist)',
-		description:
-			'There is no app/models/review.rb file. No reviews table either. The build phase will generate the Review model, the migration, and the foreign key all at once.',
 	},
 	schema: {
 		stageId: 'schema',
@@ -275,16 +271,21 @@ const STAGE_DISCOVERY_MAP: Record<string, string> = {};
 const NODE_POS = {
 	product: { x: 200, y: 200 },
 	review: { x: 700, y: 200 },
+	schema: { x: 450, y: 380 },
 } as const;
 
+// Observe: only the Product model and the schema exist. The single edge runs
+// from Product down to the schema (Product reads/writes the products table).
+// The Review model does not exist yet, so there is no node and no edge for it.
 const OBSERVE_CONNECTIONS: PipelineConnection[] = [
 	{
 		from: 'product',
-		to: 'review',
+		to: 'schema',
 		dots: 'mixed',
 	},
 ];
 
+// Reward: the Review model now exists, linked to Product both ways.
 const REWARD_CONNECTIONS: PipelineConnection[] = [
 	{
 		from: 'product',
@@ -294,13 +295,13 @@ const REWARD_CONNECTIONS: PipelineConnection[] = [
 	},
 ];
 
-// Per-probe edge activation. Each probe lights the (broken) link between
-// the two models in single-pass mode so the player sees a one-shot dot
-// flow that stops at the missing target.
+// Per-probe edge activation. Each probe is a console call against the Product
+// model, so it lights the Product -> schema edge in single-pass mode. The dot
+// flow reaches the schema and reveals what the products table alone cannot do.
 const PROBE_ACTIVE_CONNECTIONS: Record<string, string[]> = {
-	'reviews-on-product': ['product-review'],
-	'review-model-exists': ['product-review'],
-	'inspect-product-columns': ['product-review'],
+	'reviews-on-product': ['product-schema'],
+	'review-model-exists': ['product-schema'],
+	'inspect-product-columns': ['product-schema'],
 };
 
 // Per-scenario edge activation in reward. Same console probes, but now
@@ -355,17 +356,17 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	},
 	{
 		id: 'inspect-product-columns',
-		label: 'Review.columns_hash.keys',
-		description: 'The reviews table now has a product_id foreign key',
+		label: 'Product.columns_hash.keys',
+		description: 'The products table is now linked to a reviews table',
 		method: 'GET',
 		path: 'rails c',
 		actor: 'developer',
 		expectedResult: 'allowed',
 		story: [
-			'Same developer inspecting the schema, but this time on the reviews table.',
-			'They see id, body, product_id, created_at, updated_at.',
-			'product_id is the foreign key the migration added via t.references.',
-			'An index on product_id and a database-level FK constraint come along for free.',
+			'Same developer inspecting the schema, the same command as before.',
+			'The products table still has id, name, description, price.',
+			'What changed is on the other side: a reviews table now exists with a product_id foreign key.',
+			'That product_id, plus its index and database-level FK constraint, is what lets the two tables link.',
 		],
 	},
 	{
@@ -582,17 +583,17 @@ const CONSOLE_STEP_MAP: (TerminalStepData | null)[] = [
 const RELATIONSHIP_OPTIONS: StepOption[] = [
 	{
 		id: 'has_one',
-		label: 'has_one :reviews',
+		label: 'has_one :review',
 		correct: false,
 		feedback:
-			'"has_one" limits the parent to a single child record. Products should be able to have unlimited reviews.',
+			'This limits the parent to a single child record. A product should be able to collect an unlimited number of reviews over time.',
 	},
 	{
-		id: 'belongs_to',
-		label: 'belongs_to :reviews',
+		id: 'has_many_through',
+		label: 'has_many :reviews, through: :categories',
 		correct: false,
 		feedback:
-			'"belongs_to" goes on the child side (Review). The parent needs a different declaration to express a one-to-many relationship.',
+			'A :through association routes the relationship across a join model. Reviews link straight to a product, with no intermediate model in between.',
 	},
 	{
 		id: 'has_many',
@@ -604,7 +605,7 @@ const RELATIONSHIP_OPTIONS: StepOption[] = [
 		label: 'has_and_belongs_to_many :reviews',
 		correct: false,
 		feedback:
-			'"has_and_belongs_to_many" creates a many-to-many relationship. Reviews belong to one product, not shared across many.',
+			'This creates a many-to-many relationship where a review could be shared across many products. Each review belongs to exactly one product.',
 	},
 ];
 
@@ -684,8 +685,12 @@ end`,
 		return files;
 	}
 
-	// Build / reward phases: show evolving code
-	if (furthestStep === 0) {
+	// Build / reward phases: show evolving code.
+	// `furthestStep` here is the completed-step index (currentStep when the
+	// current step is done, else currentStep - 1). While the player is still
+	// working on step 0 nothing has been generated yet, so that value is -1 and
+	// we show the starting Product model rather than an empty panel.
+	if (furthestStep < 0) {
 		files.push({
 			filename: 'app/models/product.rb',
 			language: 'ruby',
@@ -696,8 +701,8 @@ end`,
 		});
 	}
 
-	if (furthestStep >= 1) {
-		// After step 0: migration file from generator
+	if (furthestStep >= 0) {
+		// Step 0 (generate) produces the migration and the Review model together.
 		files.push({
 			filename: 'db/migrate/<timestamp>_create_reviews.rb',
 			language: 'ruby',
@@ -713,10 +718,8 @@ end`,
 end`,
 			highlight: [5],
 		});
-	}
 
-	if (furthestStep >= 2) {
-		// After step 1: Review model with belongs_to (auto-generated)
+		// The generator also writes Review with belongs_to (from product:references).
 		files.push({
 			filename: 'app/models/review.rb',
 			language: 'ruby',
@@ -727,13 +730,14 @@ end`,
 		});
 	}
 
-	if (furthestStep >= 3) {
-		// After step 2: Product model with has_many
+	if (furthestStep >= 2) {
+		// After step 2 (choose relationship): Product gains has_many. The
+		// dependent: :destroy option is added at step 4.
 		files.push({
 			filename: 'app/models/product.rb',
 			language: 'ruby',
 			code:
-				furthestStep >= 5
+				furthestStep >= 4
 					? `class Product < ApplicationRecord
   has_many :reviews, dependent: :destroy
 end`
@@ -742,7 +746,9 @@ end`
 end`,
 			highlight: [2],
 		});
-	} else if (furthestStep >= 1) {
+	} else if (furthestStep >= 0) {
+		// After generate/migrate but before choosing the relationship, Product
+		// still has no association declared.
 		files.push({
 			filename: 'app/models/product.rb',
 			language: 'ruby',
@@ -753,7 +759,7 @@ end`,
 		});
 	}
 
-	if (furthestStep >= 6) {
+	if (furthestStep >= 5) {
 		// After step 5 (test): show the console output
 		files.push({
 			filename: 'Rails Console',
@@ -829,21 +835,12 @@ export function Level5Associations({ onComplete }: LevelComponentProps) {
 				inspected: inspectedStages.has('product'),
 			},
 			{
-				id: 'review',
-				label: 'Review Model',
-				position: NODE_POS.review,
-				sublabel: probeDisplay?.reviewSublabel ?? 'does not exist',
-				badge: probeDisplay?.reviewBadge,
-				variant: probeDisplay?.reviewVariant ?? 'inactive',
-				inspectable: true,
-				inspected: inspectedStages.has('review'),
-			},
-			{
 				id: 'schema',
 				label: 'Database Schema',
-				position: { x: 450, y: 380 },
-				sublabel: 'products table only',
-				variant: 'inactive',
+				position: NODE_POS.schema,
+				sublabel: probeDisplay?.schemaSublabel ?? 'products table only',
+				badge: probeDisplay?.schemaBadge,
+				variant: probeDisplay?.schemaVariant ?? 'inactive',
 				inspectable: true,
 				inspected: inspectedStages.has('schema'),
 			},
@@ -931,7 +928,7 @@ export function Level5Associations({ onComplete }: LevelComponentProps) {
 			{
 				id: 'schema',
 				label: 'Database Schema',
-				position: { x: 450, y: 380 },
+				position: NODE_POS.schema,
 				sublabel: 'products + reviews (FK)',
 				variant: 'active' as const,
 			},

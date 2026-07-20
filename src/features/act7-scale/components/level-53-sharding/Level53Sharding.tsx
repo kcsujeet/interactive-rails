@@ -11,11 +11,11 @@
  *   Step 0: Add shard entries to database.yml (TerminalChoice)
  *   Step 1: Create ShardRecord abstract class with connects_to shards (OptionCard)
  *   Step 2: Configure shard key selection with modular hash (OptionCard)
- *   Step 3: Build ShardResolver middleware (OptionCard)
+ *   Step 3: Enable Rails' native shard_selector / shard_resolver (OptionCard)
  *   Step 4: Move Order to inherit from ShardRecord (OptionCard)
  *   Step 5: Add cross-shard aggregation service (OptionCard)
  *
- * Phase 3 (ADVANTAGE - reward): Topology changes to 3 tenants -> ShardResolver -> 3 shards.
+ * Phase 3 (ADVANTAGE - reward): Topology changes to 3 tenants -> Shard Router -> 3 shards.
  *   Stress test fires tenant writes, cross-shard queries, migrations, and a shard-key-less lookup (refused, not guessed).
  */
 
@@ -161,7 +161,7 @@ const DEFAULT_TENANT_C: TenantVizState = {
 const DEFAULT_PRIMARY: DbVizState = {
 	label: 'Primary DB',
 	flash: 'red',
-	sublabel: '2B rows, ALL tenants',
+	sublabel: '1.6B rows, ALL tenants',
 	badge: null,
 	isOverloaded: true,
 };
@@ -182,7 +182,7 @@ const DEFAULT_RESOLVER: ResolverVizState = {
 const DEFAULT_SHARD_ONE: DbVizState = {
 	label: 'shard_one',
 	flash: 'green',
-	sublabel: 'Acme Corp data',
+	sublabel: 'Acme data (800M, hot shard)',
 	badge: null,
 	isOverloaded: false,
 };
@@ -190,7 +190,7 @@ const DEFAULT_SHARD_ONE: DbVizState = {
 const DEFAULT_SHARD_TWO: DbVizState = {
 	label: 'shard_two',
 	flash: 'green',
-	sublabel: 'Globex Inc data',
+	sublabel: 'Globex data (500M)',
 	badge: null,
 	isOverloaded: false,
 };
@@ -198,7 +198,7 @@ const DEFAULT_SHARD_TWO: DbVizState = {
 const DEFAULT_SHARD_THREE: DbVizState = {
 	label: 'shard_three',
 	flash: 'green',
-	sublabel: 'Initech data',
+	sublabel: 'Initech data (300M)',
 	badge: null,
 	isOverloaded: false,
 };
@@ -207,7 +207,7 @@ const DEFAULT_SHARD_THREE: DbVizState = {
 
 const DISCOVERY_DEFS: DiscoveryDef[] = [
 	{ id: 'write-bottleneck', label: 'Write latency 200ms+ from contention' },
-	{ id: 'table-bloat', label: 'Index rebuild takes 4+ hours on 2B rows' },
+	{ id: 'table-bloat', label: 'Index rebuild takes 4+ hours on 1.6B rows' },
 	{ id: 'backup-failure', label: 'pg_dump fails after 6 hours, out of disk' },
 	{ id: 'vacuum-lag', label: 'Autovacuum cannot keep up with dead tuples' },
 ];
@@ -231,14 +231,14 @@ export const PROBES: ProbeConfig[] = [
 				color: 'yellow',
 			},
 			{
-				text: 'Index on (tenant_id, created_at) spans 2B rows.',
+				text: 'Index on (tenant_id, created_at) spans 1.6B rows.',
 				color: 'yellow',
 			},
 		],
 		story: [
 			'A customer at Acme Corp clicks "Place order".',
 			'The INSERT waits its turn: Globex and Initech customers are writing to the same table at the same moment.',
-			'Every write also updates a shared index spanning 2 billion rows.',
+			'Every write also updates a shared index spanning 1.6 billion rows.',
 			'5ms six months ago; 214ms today; climbing every week.',
 			'Checkout is slowing for every tenant simultaneously, and no single tenant is doing anything wrong.',
 		],
@@ -251,7 +251,7 @@ export const PROBES: ProbeConfig[] = [
 			{ text: 'REINDEX started...', color: 'cyan' },
 			{ text: '', color: 'muted' },
 			{
-				text: 'Estimated time: 4 hours 22 minutes (2.1B rows).',
+				text: 'Estimated time: 4 hours 22 minutes (1.6B rows).',
 				color: 'red',
 			},
 			{
@@ -265,7 +265,7 @@ export const PROBES: ProbeConfig[] = [
 		],
 		story: [
 			'Order lookups have been getting slower for weeks, and rebuilding the fragmented index is the fix.',
-			'With 2.1 billion rows in one table, the rebuild needs 4+ hours; the nightly quiet window is 2.',
+			'With 1.6 billion rows in one table, the rebuild needs 4+ hours; the nightly quiet window is 2.',
 			'So the fix cannot be applied. Tonight, or any night.',
 			'Checkout and order history stay slow indefinitely, for every tenant at once.',
 			'The table has outgrown the ability to maintain it.',
@@ -315,20 +315,20 @@ export const PROBES: ProbeConfig[] = [
 				color: 'red',
 			},
 			{
-				text: 'Cleanup needs 18h per pass and cannot keep up: 120GB of wasted space drags every query.',
+				text: 'Effect 1 (bloat): cleanup needs 18h per pass and cannot keep up, so 120GB of wasted space drags every query slower.',
 				color: 'yellow',
 			},
 			{
-				text: 'If cleanup falls fully behind, Postgres will refuse writes to protect the data.',
+				text: 'Effect 2 (wraparound): the same vacuum also advances the transaction-id horizon; if it falls far enough behind, Postgres refuses new writes to prevent data loss.',
 				color: 'red',
 			},
 		],
 		story: [
 			"Every update and delete leaves a dead row behind; PostgreSQL's vacuum process cleans them up. Usually invisibly.",
-			'At 2 billion rows the cleanup pass takes 18 hours and falls further behind every day: 84 million dead rows and 120GB of wasted space so far, dragged through every query.',
-			'PostgreSQL has a hard protection line: if cleanup falls too far behind, it will refuse operations that write, to prevent data loss (reads keep working).',
-			'That line is about two weeks away. Crossing it means no new orders for ANY tenant until an 18-hour cleanup finishes.',
-			'The table is too big to clean. Splitting it is the only way the math works again.',
+			'At 1.6 billion rows the vacuum pass takes 18 hours and falls further behind every day.',
+			'First mechanism (bloat): 84 million dead rows and 120GB of wasted space so far, dragged through every query, so everything gets slower.',
+			'Second, separate mechanism (transaction-id wraparound): vacuum also freezes old transaction ids. If it lags too far, Postgres refuses new writes to protect the data (reads keep working). That line is about two weeks away.',
+			'Both problems come from one table being too big to vacuum. Splitting it is the only way the math works again.',
 		],
 	},
 ];
@@ -391,7 +391,7 @@ const WRITE_LATENCY_FRAMES: AnimFrame[] = [
 			label: 'Primary DB',
 			flash: 'red',
 			sublabel: '3 tenants contending',
-			badge: '2B rows',
+			badge: '1.6B rows',
 			isOverloaded: true,
 		},
 	},
@@ -401,7 +401,7 @@ const WRITE_LATENCY_FRAMES: AnimFrame[] = [
 		tenantC: { flash: 'idle', sublabel: 'Tenant C' },
 		primaryDb: {
 			flash: 'red',
-			sublabel: '2B rows, ALL tenants',
+			sublabel: '1.6B rows, ALL tenants',
 			badge: null,
 			isOverloaded: true,
 		},
@@ -417,7 +417,7 @@ const INDEX_REBUILD_FRAMES: AnimFrame[] = [
 			label: 'Primary DB',
 			flash: 'amber',
 			sublabel: 'REINDEX CONCURRENTLY...',
-			badge: '2.1B rows',
+			badge: '1.6B rows',
 		},
 	},
 	{
@@ -482,8 +482,8 @@ const VACUUM_FRAMES: AnimFrame[] = [
 		primaryDb: {
 			label: 'Primary DB',
 			flash: 'red',
-			sublabel: '84M dead tuples',
-			badge: '340GB bloat',
+			sublabel: '84M dead rows: 120GB wasted space slows queries',
+			badge: '120GB bloat',
 			isOverloaded: true,
 		},
 	},
@@ -491,8 +491,8 @@ const VACUUM_FRAMES: AnimFrame[] = [
 		primaryDb: {
 			label: 'Primary DB',
 			flash: 'red',
-			sublabel: 'TX wraparound risk: 2 weeks',
-			badge: null,
+			sublabel: 'Separate risk: writes refused near TX-id wraparound',
+			badge: 'writes at risk',
 			isOverloaded: true,
 		},
 	},
@@ -1065,7 +1065,7 @@ const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 		stageId: 'primaryDb',
 		title: 'Primary Database',
 		description:
-			'Single PostgreSQL instance holding 2 billion rows across all tenants. Indexes span the full dataset. Backups, vacuums, and migrations all operate on the entire 2B-row table.',
+			'Single PostgreSQL instance holding 1.6 billion rows across all tenants. Indexes span the full dataset. Backups, vacuums, and migrations all operate on the entire 1.6B-row table.',
 		code: `# config/database.yml (current)
 production:
   primary:
@@ -1074,7 +1074,7 @@ production:
     database: app_production
     pool: 50
     # ALL tenants share this one database
-    # 2B rows in orders table alone`,
+    # 1.6B rows in orders table alone`,
 	},
 };
 
@@ -1184,7 +1184,7 @@ const STEP_DEFS: StepDef[] = [
 	{ id: 'add-shards', title: 'Add Shard Entries to database.yml' },
 	{ id: 'shard-record', title: 'Create ShardRecord Abstract Class' },
 	{ id: 'shard-key', title: 'Configure Shard Key Selection' },
-	{ id: 'shard-resolver', title: 'Build ShardResolver Middleware' },
+	{ id: 'shard-resolver', title: 'Enable Automatic Shard Switching' },
 	{ id: 'move-order', title: 'Move Order to ShardRecord' },
 	{ id: 'cross-shard', title: 'Add Cross-Shard Aggregation' },
 ];
@@ -1214,7 +1214,7 @@ const addShardsCommands: TerminalCommand[] = [
 		id: 'wrong-partition',
 		label: 'ALTER TABLE orders PARTITION BY RANGE (tenant_id)',
 		command:
-			'rails dbconsole -e production -c "ALTER TABLE orders PARTITION BY RANGE (tenant_id)"',
+			'echo "ALTER TABLE orders PARTITION BY RANGE (tenant_id);" | rails dbconsole -e production',
 		correct: false,
 		feedback:
 			'Table partitioning keeps data on the same server. Sharding distributes data across separate database servers for independent scaling.',
@@ -1294,23 +1294,23 @@ const SHARD_KEY_OPTIONS: StepOption[] = [
 
 const RESOLVER_OPTIONS: StepOption[] = [
 	{
-		id: 'wrong-header',
-		name: 'class ShardResolver\n  def self.call(request)\n    shard = request.headers["X-Shard"]\n    ActiveRecord::Base.connected_to(shard: shard.to_sym) { yield }\n  end\nend',
+		id: 'wrong-middleware',
+		name: 'config.middleware.use ShardRouterMiddleware\n# hand-rolled Rack middleware wrapping\n# every request in connected_to(shard:)',
 		correct: false,
 		feedback:
-			'Relying on a client-provided header is a security risk. Clients could target any shard. Derive the shard from the authenticated tenant context instead.',
+			'Hand-rolling Rack middleware re-implements request routing Rails already ships (the same trap you avoided with read/write splitting in L51). The framework has a built-in setting for automatic shard switching.',
+	},
+	{
+		id: 'wrong-header',
+		name: 'config.active_record.shard_selector = { lock: true }\nconfig.active_record.shard_resolver =\n  ->(request) { request.headers["X-Shard"].to_sym }',
+		correct: false,
+		feedback:
+			'Resolving the shard from a client-provided header is a security risk: clients could target any shard. Derive the shard from the authenticated tenant, not from request input.',
 	},
 	{
 		id: 'correct',
-		name: 'class ShardResolver\n  def self.call(request)\n    tenant = ActsAsTenant.current_tenant\n    shard = [:shard_one, :shard_two, :shard_three][tenant.id % 3]\n    ActiveRecord::Base.connected_to(shard: shard) { yield }\n  end\nend',
+		name: 'config.active_record.shard_selector = { lock: true }\nconfig.active_record.shard_resolver = ->(request) do\n  tenant = ActsAsTenant.current_tenant\n  ShardRouting.shard_for(tenant.id)\nend',
 		correct: true,
-	},
-	{
-		id: 'wrong-env',
-		name: 'class ShardResolver\n  def self.call(request)\n    shard = ENV["DATABASE_SHARD"].to_sym\n    ActiveRecord::Base.connected_to(shard: shard) { yield }\n  end\nend',
-		correct: false,
-		feedback:
-			'An environment variable is static per process. Every request would go to the same shard, defeating the purpose of tenant-based routing.',
 	},
 ];
 
@@ -1326,7 +1326,7 @@ export const MOVE_ORDER_OPTIONS: StepOption[] = [
 	},
 	{
 		id: 'correct',
-		name: 'class Order < ShardRecord\n  belongs_to :company\n  belongs_to :customer\n\n  validates :total, presence: true\nend',
+		name: 'class Order < ShardRecord\n  acts_as_tenant :company\n  belongs_to :customer\n\n  validates :total, presence: true\nend',
 		correct: true,
 	},
 	{
@@ -1357,7 +1357,7 @@ const CROSS_SHARD_OPTIONS: StepOption[] = [
 	},
 	{
 		id: 'correct',
-		name: 'class RevenueReport < ApplicationService\n  SHARDS = [:shard_one, :shard_two, :shard_three]\n\n  def call\n    SHARDS.sum do |shard|\n      ActiveRecord::Base.connected_to(shard: shard) do\n        Order.sum(:total)\n      end\n    end\n  end\nend',
+		name: 'class RevenueReport < ApplicationService\n  SHARDS = [:shard_one, :shard_two, :shard_three]\n\n  def call\n    SHARDS.sum do |shard|\n      ShardRecord.connected_to(shard: shard) do\n        Order.sum(:total)\n      end\n    end\n  end\nend',
 		correct: true,
 	},
 ];
@@ -1381,9 +1381,9 @@ const OPTION_STEP_CONFIG: Record<
 		options: SHARD_KEY_OPTIONS,
 	},
 	3: {
-		title: 'Build ShardResolver Middleware',
+		title: 'Enable Automatic Shard Switching',
 		description:
-			'Each request must route to the correct shard based on the authenticated tenant. The resolver reads the tenant from the request context and switches the database connection. Which implementation is secure and dynamic?',
+			'Each request must route to the correct shard based on the authenticated tenant. Rails ships a built-in shard selector: you give it a resolver that returns the shard for the current request. Which configuration is secure and uses the framework instead of hand-rolled middleware?',
 		options: RESOLVER_OPTIONS,
 	},
 	4: {
@@ -1427,19 +1427,19 @@ production:
     database: app_production
     pool: 50
     # ALL tenants in one database
-    # 2B rows in orders table`,
+    # 1.6B rows in orders table`,
 				highlight: [8, 9],
 			},
 			{
 				filename: 'app/models/order.rb',
 				language: 'ruby',
 				code: `class Order < ApplicationRecord
-  belongs_to :company
+  acts_as_tenant :company
   belongs_to :customer
 
   validates :total, presence: true
   # All tenant orders in one table
-  # 2 billion rows and growing
+  # 1.6 billion rows and growing
 end`,
 				highlight: [6, 7],
 			},
@@ -1524,19 +1524,18 @@ end`,
 		});
 	}
 
-	// Step 3 complete: ShardResolver middleware
+	// Step 3 complete: native shard selector configured
 	if (completedStep >= 3) {
 		files.push({
-			filename: 'app/middleware/shard_resolver.rb',
+			filename: 'config/application.rb',
 			language: 'ruby',
-			code: `class ShardResolver
-  def self.call(request)
-    tenant = ActsAsTenant.current_tenant
-    shard = ShardRouting.shard_for(tenant.id)
-    ActiveRecord::Base.connected_to(shard: shard) { yield }
-  end
+			code: `# Rails' built-in automatic shard swapping
+config.active_record.shard_selector = { lock: true }
+config.active_record.shard_resolver = ->(request) do
+  tenant = ActsAsTenant.current_tenant
+  ShardRouting.shard_for(tenant.id)
 end`,
-			highlight: [3, 4, 5],
+			highlight: [2, 3, 4, 5],
 		});
 	}
 
@@ -1546,7 +1545,7 @@ end`,
 			filename: 'app/models/order.rb',
 			language: 'ruby',
 			code: `class Order < ShardRecord
-  belongs_to :company
+  acts_as_tenant :company
   belongs_to :customer
 
   validates :total, presence: true
@@ -1565,7 +1564,7 @@ end`,
 
   def call
     SHARDS.sum do |shard|
-      ActiveRecord::Base.connected_to(shard: shard) do
+      ShardRecord.connected_to(shard: shard) do
         Order.sum(:total)
       end
     end
@@ -2180,7 +2179,7 @@ export function Level53Sharding({ onComplete }: LevelComponentProps) {
 								completed={isViewingCompletedStep}
 								description={
 									<p className="text-sm text-muted-foreground">
-										All 3 tenants share a single database with 2 billion rows.
+										All 3 tenants share a single database with 1.6 billion rows.
 										Add 3 shard database entries so Rails knows about the
 										separate database servers.
 									</p>
@@ -2311,7 +2310,7 @@ export function Level53Sharding({ onComplete }: LevelComponentProps) {
 							Scenario
 						</h3>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							Three tenants share one PostgreSQL database with 2 billion rows.
+							Three tenants share one PostgreSQL database with 1.6 billion rows.
 							Writes take 200ms+ from lock contention. Index rebuilds take 4+
 							hours. Backups fail because the dump exceeds disk space.
 						</p>
@@ -2319,6 +2318,12 @@ export function Level53Sharding({ onComplete }: LevelComponentProps) {
 							Rails supports horizontal sharding natively. Split each tenant
 							onto its own database so writes, indexes, and maintenance scale
 							independently.
+						</p>
+						<p className="text-sm text-muted-foreground leading-relaxed">
+							Note: wiring up the shards is the easy part. Moving the existing
+							1.6 billion rows onto them (a backfill plus a live cutover) is the
+							hard, risky work, and it happens before this new routing goes
+							live.
 						</p>
 					</div>
 
@@ -2364,13 +2369,14 @@ export function Level53Sharding({ onComplete }: LevelComponentProps) {
 									<div className="flex items-center gap-2">
 										<Database className="w-4 h-4 text-success" />
 										<span className="text-foreground">
-											Each shard holds one tenant
+											Each shard holds one tenant (sizes differ: Acme is the hot
+											shard)
 										</span>
 									</div>
 									<div className="flex items-center gap-2">
 										<ShieldAlert className="w-4 h-4 text-destructive" />
 										<span className="text-foreground">
-											Wrong shard returns empty results
+											A query with no shard key is refused, not guessed
 										</span>
 									</div>
 								</div>

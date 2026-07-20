@@ -84,7 +84,7 @@ const DISCOVERY_DEFS: DiscoveryDef[] = [
 	{ id: 'any-delete', label: 'Any user can delete any product' },
 	{
 		id: 'index-no-filter',
-		label: 'Index returns every product across all users',
+		label: 'Index scoping is hardcoded in the controller, not a policy',
 	},
 	{ id: 'no-authorize', label: 'Controller has no authorize call' },
 ];
@@ -122,7 +122,7 @@ const PROBES: ProbeConfig[] = [
 		label: 'GET index as user_7',
 		command: 'GET /api/products (as user_7)',
 		responseLines: [
-			{ text: 'HTTP/1.1 200 OK', color: 'red' },
+			{ text: 'HTTP/1.1 200 OK', color: 'muted' },
 			{
 				text: '[{"id":1,"name":"Mug","user_id":3},',
 				color: 'muted',
@@ -136,15 +136,19 @@ const PROBES: ProbeConfig[] = [
 				color: 'muted',
 			},
 			{
-				text: 'Product.all returns every product, regardless of who created it.',
+				text: 'A public catalog is fine. The problem: Product.all is hardcoded in the controller.',
+				color: 'yellow',
+			},
+			{
+				text: 'When ownership rules tighten later, there is no single place to change the scope.',
 				color: 'yellow',
 			},
 		],
 		story: [
 			'user_7 hits the products index endpoint.',
-			'The controller runs Product.all with no filtering.',
-			'Every product across every user comes back, including ones owned by user_3.',
-			'There is no central place to scope this when ownership rules tighten later. The query is hardcoded in the controller.',
+			'The controller runs Product.all directly. Returning the whole catalog is the intended behavior today.',
+			'But the scoping decision lives inline in the controller, not in a policy.',
+			'When ownership rules tighten later (drafts, private listings, blocks), every controller that lists products has to be found and edited. There is no central seam.',
 		],
 	},
 	{
@@ -189,7 +193,7 @@ const PROBE_PIPELINE_MAP: Record<
 	},
 	'view-others-products': {
 		policySublabel: 'GET user_7',
-		modelBadge: '200!',
+		modelBadge: 'NO SCOPE',
 	},
 	'patch-nonowner': {
 		policySublabel: 'PATCH user_7',
@@ -206,24 +210,18 @@ const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 		stageId: 'request',
 		title: 'Incoming Request',
 		description:
-			'HTTP requests arrive with a session cookie that identifies the user (authentication). But knowing WHO is requesting says nothing about whether they are ALLOWED to perform the action.',
+			'HTTP requests arrive with a Bearer token in the Authorization header that identifies the user (the authentication you built in L9). But knowing WHO is requesting says nothing about whether they are ALLOWED to perform the action.',
 	},
 	controller: {
 		stageId: 'controller',
 		title: 'ProductsController',
 		description:
-			'The controller finds the product and immediately runs the action. There is no authorize call. Any authenticated user can destroy, update, or read any record.',
+			'The controller finds the product and immediately runs the action. There is no policy class anywhere in the app and no gate between the controller and the model. Any authenticated user can destroy, update, or read any record.',
 		code: `def destroy
   product = Product.find(params[:id])
   product.destroy  # No permission check!
   head :no_content
 end`,
-	},
-	policy: {
-		stageId: 'policy',
-		title: 'Policy (Missing!)',
-		description:
-			'This stage does not exist yet. There is no policy class to check permissions. Requests flow straight through to the model without any authorization gate.',
 	},
 	model: {
 		stageId: 'model',
@@ -235,10 +233,12 @@ end`,
 
 // Map stage IDs to discovery IDs they trigger.
 // Pedagogy rule: each discovery is unlocked by exactly one source.
-// `no-authorize` is owned by the patch-nonowner probe; clicking the
-// controller surfaces inspector text but does not duplicate-unlock.
+// `no-authorize` is owned by the patch-nonowner probe. Clicking the
+// controller (the only stage that reveals the absent policy) unlocks
+// `no-policy`. There is no separate policy node to click because the
+// policy layer does not exist in the observe/before-state.
 const STAGE_DISCOVERY_MAP: Record<string, string> = {
-	policy: 'no-policy',
+	controller: 'no-policy',
 };
 
 // ──────────────────────────────────────────────
@@ -565,10 +565,13 @@ const OPTION_STEP_CONFIG: Record<
 // Pipeline visualization configs
 // ──────────────────────────────────────────────
 
+// Observe topology: request -> controller -> model. There is NO policy node
+// in the before-state (the policy does not exist yet; the player builds it).
+// Showing a placeholder "Policy (missing)" node would violate the
+// "observe shows only what currently exists" pedagogy rule.
 const OBSERVE_CONNECTIONS: PipelineConnection[] = [
 	{ from: 'request', to: 'controller', dots: 'mixed' },
-	{ from: 'controller', to: 'policy', dots: 'mixed' },
-	{ from: 'policy', to: 'model', dots: 'mixed' },
+	{ from: 'controller', to: 'model', dots: 'mixed' },
 ];
 
 const REWARD_CONNECTIONS: PipelineConnection[] = [
@@ -582,13 +585,9 @@ const REWARD_CONNECTIONS: PipelineConnection[] = [
 // Each entry lists the connection keys (`${from}-${to}`) that should
 // flash a single dot pulse when the probe / scenario fires.
 // Observe: every probe shows the request reaching the model with no
-// policy gate enforced (the policy stage exists in the diagram but is
-// "missing", the request flows past it to the model anyway).
-const PROBE_OBSERVE_CONNECTIONS = [
-	'request-controller',
-	'controller-policy',
-	'policy-model',
-];
+// policy gate in between (there is no policy layer yet, so the request
+// flows straight from the controller to the model).
+const PROBE_OBSERVE_CONNECTIONS = ['request-controller', 'controller-model'];
 
 const PROBE_ACTIVE_CONNECTIONS: Record<string, string[]> = {
 	'delete-nonowner': PROBE_OBSERVE_CONNECTIONS,
@@ -633,17 +632,22 @@ end`,
 		return files;
 	}
 
-	// Build / reward phases: show evolving code
-	// furthestStep 0: unprotected controller (before any step completed)
-	// furthestStep 1: Gemfile after bundle add pundit
-	// furthestStep 2: ApplicationController with include Pundit::Authorization
-	// furthestStep 3: ApplicationPolicy after generator
-	// furthestStep 4: ProductPolicy skeleton after choosing class
-	// furthestStep 5: ProductPolicy with destroy? method
-	// furthestStep 6: Controller with authorize
-	// furthestStep 7: Controller with policy_scope + ApplicationController rescue_from
+	// Build / reward phases: show evolving code.
+	// `furthestStep` is the completed-step index (0-based), per the CLAUDE.md
+	// code-preview contract: isCurrentStepCompleted ? currentStep : currentStep - 1.
+	// There are 7 steps (indexes 0..6), so the completed index runs -1..6 and
+	// the finished state must render at furthestStep >= 6 (NOT 7).
+	// furthestStep < 0: unprotected controller (still working on step 0)
+	// furthestStep 0: Gemfile after step 0 (bundle add pundit)
+	// furthestStep 1: ApplicationController with include Pundit::Authorization (step 1)
+	// furthestStep 2: ApplicationPolicy after generator (step 2)
+	// furthestStep 3: ProductPolicy skeleton after choosing class (step 3)
+	// furthestStep 4: ProductPolicy with destroy? method (step 4)
+	// furthestStep 5: Controller with authorize (step 5)
+	// furthestStep 6: Controller with policy_scope + full ProductPolicy +
+	//                 ApplicationController rescue_from (step 6, final)
 
-	if (furthestStep === 0) {
+	if (furthestStep < 0) {
 		files.push({
 			filename: 'app/controllers/api/products_controller.rb',
 			language: 'ruby',
@@ -658,7 +662,7 @@ end`,
 		});
 	}
 
-	if (furthestStep >= 1) {
+	if (furthestStep >= 0) {
 		// After step 0: Gemfile shows pundit added
 		files.push({
 			filename: 'Gemfile',
@@ -674,15 +678,20 @@ gem "pundit"`,
 		});
 	}
 
-	if (furthestStep >= 2) {
+	if (furthestStep >= 1) {
 		// After step 1: ApplicationController with include Pundit::Authorization
 		// Includes Authentication (from L9) and pundit_user override so Pundit
 		// reads Current.user (set by the L9 auth concern).
+		// rescue_from Pundit::NotAuthorizedError -> 403 forbidden is the Pundit
+		// README's recommended handling. Without it, an unauthorized action
+		// raises and Rails returns 500, not the 403 the reward phase claims.
+		// (https://github.com/varvet/pundit README, "Ensuring policies and
+		//  scopes are used" / rescue_from section.)
 		files.push({
 			filename: 'app/controllers/application_controller.rb',
 			language: 'ruby',
 			code:
-				furthestStep >= 7
+				furthestStep >= 6
 					? `class ApplicationController < ActionController::API
   include Authentication
   include Pundit::Authorization
@@ -701,11 +710,11 @@ end`
   include Authentication
   include Pundit::Authorization
 end`,
-			highlight: furthestStep >= 7 ? [3, 5, 6, 7, 11, 12, 13] : [3],
+			highlight: furthestStep >= 6 ? [3, 5, 6, 7, 11, 12, 13] : [3],
 		});
 	}
 
-	if (furthestStep >= 3) {
+	if (furthestStep >= 2) {
 		// After step 2: ApplicationPolicy from generator (Pundit 2.5.x output)
 		files.push({
 			filename: 'app/policies/application_policy.rb',
@@ -767,13 +776,13 @@ end`,
 		});
 	}
 
-	if (furthestStep >= 4) {
+	if (furthestStep >= 3) {
 		// After step 3: ProductPolicy skeleton
 		files.push({
 			filename: 'app/policies/product_policy.rb',
 			language: 'ruby',
 			code:
-				furthestStep >= 7
+				furthestStep >= 6
 					? `# frozen_string_literal: true
 
 class ProductPolicy < ApplicationPolicy
@@ -812,7 +821,7 @@ class ProductPolicy < ApplicationPolicy
     end
   end
 end`
-					: furthestStep >= 5
+					: furthestStep >= 4
 						? `# frozen_string_literal: true
 
 class ProductPolicy < ApplicationPolicy
@@ -836,21 +845,21 @@ class ProductPolicy < ApplicationPolicy
   # record - the Product instance being checked
 end`,
 			highlight:
-				furthestStep >= 7
+				furthestStep >= 6
 					? [19, 20, 21, 25, 26, 27]
-					: furthestStep >= 5
+					: furthestStep >= 4
 						? [7, 8, 9, 13, 14, 15]
 						: [],
 		});
 	}
 
-	if (furthestStep >= 6) {
+	if (furthestStep >= 5) {
 		// After step 5: controller with authorize
 		files.push({
 			filename: 'app/controllers/api/products_controller.rb',
 			language: 'ruby',
 			code:
-				furthestStep >= 7
+				furthestStep >= 6
 					? `class Api::ProductsController < ApplicationController
   def index
     products = policy_scope(Product)
@@ -872,7 +881,7 @@ end`
     head :no_content
   end
 end`,
-			highlight: furthestStep >= 7 ? [3, 9] : [4],
+			highlight: furthestStep >= 6 ? [3, 9] : [4],
 		});
 	}
 
@@ -937,18 +946,10 @@ export function Level11Authorization({ onComplete }: LevelComponentProps) {
 			{
 				id: 'controller',
 				label: 'Controller',
+				sublabel: probeDisplay ? probeDisplay.policySublabel : undefined,
+				variant: (probeDisplay ? 'danger' : 'default') as 'danger' | 'default',
 				inspectable: true,
 				inspected: inspectedStages.has('controller'),
-			},
-			{
-				id: 'policy',
-				label: 'Policy',
-				sublabel: probeDisplay ? probeDisplay.policySublabel : '(missing)',
-				variant: (probeDisplay ? 'danger' : 'inactive') as
-					| 'danger'
-					| 'inactive',
-				inspectable: true,
-				inspected: inspectedStages.has('policy'),
 			},
 			{
 				id: 'model',

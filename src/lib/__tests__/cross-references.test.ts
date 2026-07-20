@@ -63,7 +63,7 @@ const CROSS_REFERENCES: Record<string, string[]> = {
 	'act2-users-security/components/level-11-authorization/Level11Authorization.tsx':
 		['Authentication'],
 	'act2-users-security/components/level-12-validations/Level12Validations.tsx':
-		['Authentication'],
+		['Authentication', 'Encrypted Attributes'],
 	'act2-users-security/components/level-13-strong-params/Level13StrongParams.tsx':
 		['The Controller', 'Authorization', 'Validations'],
 	'act2-users-security/components/level-14-testing/Level14Testing.tsx': [
@@ -148,7 +148,13 @@ const CROSS_REFERENCES: Record<string, string[]> = {
 		'Deployment',
 	],
 	'act7-scale/content/level-52-multi-tenancy.ts': ['Observability'],
-	'act7-scale/content/level-53-sharding.ts': ['Multi-Tenancy'],
+	'act7-scale/content/level-53-sharding.ts': [
+		'Multi-Tenancy',
+		'Multi-Database',
+	],
+	'act7-scale/components/level-53-sharding/Level53Sharding.tsx': [
+		'Multi-Database',
+	],
 	'act7-scale/content/level-57-api-gateway.ts': [
 		'Authentication',
 		'Structured Error Monitoring',

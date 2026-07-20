@@ -96,7 +96,7 @@ rails --version # => Rails 8.1.3`,
 					'ruby -v',
 				],
 				verify:
-					'ruby -v prints the 3.4.x version you just pinned, and a mise config file appeared in the folder.',
+					'ruby -v prints the 3.4.x version you just pinned, and a mise config file appeared in the folder (mise writes mise.toml by default; the game showed the dotted .mise.toml variant, and mise reads either).',
 			},
 			{
 				task: 'Install Rails into that Ruby.',

@@ -11,7 +11,7 @@
  * Phase 2 (HOW - build): 6 steps (2 terminal + 4 OptionCard)
  *   Step 0: bundle add acts_as_tenant (terminal)
  *   Step 1: rails generate migration (terminal)
- *   Step 2: Set current tenant from subdomain/header (OptionCard)
+ *   Step 2: Set current tenant from subdomain + require_tenant (OptionCard)
  *   Step 3: Add acts_as_tenant :company to Product (OptionCard)
  *   Step 4: Add acts_as_tenant :company to Order (OptionCard)
  *   Step 5: Add tenant-scoped unique index (OptionCard)
@@ -199,13 +199,13 @@ const PROBES: ProbeConfig[] = [
 				color: 'red',
 			},
 			{
-				text: "35 products belong to Globex Inc, visible to Acme's API key.",
+				text: '35 products belong to Globex Inc, visible on the acme subdomain.',
 				color: 'red',
 			},
 			{ text: 'No WHERE company_id clause in the query.', color: 'yellow' },
 		],
 		story: [
-			'Acme Corp calls GET /api/v1/products with their API key.',
+			'Acme Corp calls GET /api/v1/products from acme.myapp.com.',
 			'The controller runs Product.all with no tenant scoping.',
 			'47 products returned: 12 from Acme, 35 from Globex.',
 			'Acme can see competitor pricing and unreleased products.',
@@ -224,13 +224,13 @@ const PROBES: ProbeConfig[] = [
 				color: 'red',
 			},
 			{
-				text: "1,114 orders belong to Acme Corp, visible to Globex's session.",
+				text: '1,114 orders belong to Acme Corp, visible on the globex subdomain.',
 				color: 'red',
 			},
 			{ text: 'Customer PII (names, addresses) exposed.', color: 'red' },
 		],
 		story: [
-			'Globex Inc calls GET /api/v1/orders.',
+			'Globex Inc calls GET /api/v1/orders from globex.myapp.com.',
 			'The controller runs Order.all with no tenant scoping.',
 			'1,203 orders returned: 89 from Globex, 1,114 from Acme.',
 			'Globex sees Acme customer names, addresses, and order totals.',
@@ -244,22 +244,22 @@ const PROBES: ProbeConfig[] = [
 		responseLines: [
 			{ text: 'HTTP/1.1 201 Created', color: 'yellow' },
 			{ text: '', color: 'muted' },
-			{ text: 'Product created with company_id: NULL.', color: 'red' },
+			{ text: 'Product created with no owning company.', color: 'red' },
 			{
 				text: 'Orphan record belongs to no tenant.',
 				color: 'red',
 			},
 			{
-				text: 'No automatic company_id assignment on create.',
+				text: 'The table has no way to record who owns a row.',
 				color: 'yellow',
 			},
 		],
 		story: [
 			'Acme Corp creates a new product via the API.',
 			'The controller runs Product.create!(name: "Widget", sku: "W-100").',
-			'No company_id is set because the controller does not assign it.',
+			'The products table has no company column, so ownership cannot be recorded.',
 			'The product is an orphan: it belongs to no company.',
-			'It appears in every tenant query (no company_id to filter on).',
+			'It appears in every tenant query (nothing to filter on).',
 		],
 	},
 	{
@@ -411,8 +411,8 @@ const CREATE_PRODUCT_FRAMES: AnimFrame[] = [
 		},
 	},
 	{
-		acme: { flash: 'red', sublabel: 'Orphan created!', badge: 'NULL' },
-		table: { flash: 'red', sublabel: 'company_id: NULL', badge: 'Orphan!' },
+		acme: { flash: 'red', sublabel: 'Orphan created!', badge: 'No owner' },
+		table: { flash: 'red', sublabel: 'No company column', badge: 'Orphan!' },
 		edgeA: {
 			active: true,
 			reverse: true,
@@ -754,16 +754,16 @@ Order.all
 		stageId: 'table',
 		title: 'Database Tables',
 		description:
-			'Products and orders tables have a company_id column but nothing enforces it. Queries run without WHERE company_id, new records can be inserted with NULL company_id, and Product.find(id) returns any record regardless of tenant.',
-		code: `# Schema
+			'Products and orders tables have no way to tell one company apart from another. There is no company column, so queries run without any tenant filter and Product.find(id) returns any record regardless of who is asking.',
+		code: `# Schema (before)
 create_table :products do |t|
   t.string :name
   t.string :sku
-  t.references :company  # exists but unused
+  # no company column: rows are not tied to a tenant
 end
 
 # No default_scope, no tenant filter
-# No unique index scoped to company_id`,
+# No unique index scoped per company`,
 	},
 };
 
@@ -822,7 +822,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'no-tenant-set',
 		label: 'Request with no tenant set',
-		description: 'API call without X-Tenant header',
+		description: 'API call from an unknown subdomain (no tenant resolved)',
 		method: 'GET',
 		path: '/api/v1/products',
 		actor: 'anonymous',
@@ -901,7 +901,7 @@ const addMigrationCommands: TerminalCommand[] = [
 		command: 'rails generate migration AddTenantIdToProducts tenant_id:integer',
 		correct: false,
 		feedback:
-			'A plain integer column misses the foreign key and index. Use references to get the foreign key constraint and index automatically.',
+			'A plain integer column misses the foreign key constraint and the index. Rails has a column type that adds both automatically.',
 	},
 	{
 		id: 'wrong-no-table',
@@ -960,6 +960,13 @@ const SET_TENANT_OPTIONS: StepOption[] = [
 		correct: true,
 	},
 ];
+
+// Configured in an acts_as_tenant initializer so that any query made
+// with no tenant set raises instead of silently returning all rows.
+const REQUIRE_TENANT_INITIALIZER = `# config/initializers/acts_as_tenant.rb
+ActsAsTenant.configure do |config|
+  config.require_tenant = true
+end`;
 
 const SCOPE_PRODUCT_OPTIONS: StepOption[] = [
 	{
@@ -1034,7 +1041,7 @@ const OPTION_STEP_CONFIG: Record<
 	2: {
 		title: 'Set Current Tenant',
 		description:
-			'The gem is installed and the migration is ready. Now the application controller needs to identify the current tenant on every request and tell the gem which company is active.',
+			'The gem is installed and the migration is ready. Now the application controller needs to identify the current tenant on every request (from the subdomain) and tell the gem which company is active. An initializer also turns on the safety net that refuses any query made with no tenant set.',
 		options: SET_TENANT_OPTIONS,
 	},
 	3: {
@@ -1102,10 +1109,10 @@ end`,
 				filename: 'app/models/product.rb',
 				language: 'ruby',
 				code: `class Product < ApplicationRecord
-  belongs_to :company
+  # No company association yet
   # No tenant scoping at the model layer
 end`,
-				highlight: [3],
+				highlight: [2, 3],
 			},
 			{
 				filename: 'app/controllers/application_controller.rb',
@@ -1163,6 +1170,12 @@ end`,
   end
 end`,
 			highlight: [2, 3, 8, 9, 10, 11],
+		});
+		files.push({
+			filename: 'config/initializers/acts_as_tenant.rb',
+			language: 'ruby',
+			code: REQUIRE_TENANT_INITIALIZER,
+			highlight: [3],
 		});
 	}
 

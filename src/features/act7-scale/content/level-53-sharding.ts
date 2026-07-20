@@ -13,10 +13,10 @@ export const level53Sharding: Level = {
 	startingPipeline: { nodes: [], connections: [] },
 	problem: {
 		observation:
-			'Write throughput plateaued. Largest table has 2 billion rows. Migrations take hours. Backups are failing. Single PostgreSQL instance at maximum IOPS.',
+			'Write throughput plateaued. The orders table has 1.6 billion rows. Migrations take hours. Backups are failing. Single PostgreSQL instance at maximum IOPS.',
 		rootCause:
 			'Single database cannot handle the write volume. Vertical scaling is maxed out. Data must be horizontally partitioned across multiple database servers.',
-		codeExample: `# Current: Single database, 2B rows, write bottleneck
+		codeExample: `# Current: Single database, 1.6B rows, write bottleneck
 class ApplicationRecord < ActiveRecord::Base
   primary_abstract_class
 
@@ -26,7 +26,7 @@ class ApplicationRecord < ActiveRecord::Base
   }
 end
 
-# The orders table alone has 800M rows
+# The orders table has 1.6B rows (Acme 800M + Globex 500M + Initech 300M)
 # INSERT latency: 200ms+ (was 5ms a year ago)
 # Index rebuilds: 4+ hours
 # pg_dump: fails after 6 hours (out of disk)
@@ -49,7 +49,7 @@ end
 
 **The capacity wall (without sharding):**
 \`\`\`
-Orders table:    2 billion rows, 800M in largest table
+Orders table:    1.6 billion rows (Acme 800M + Globex 500M + Initech 300M)
 INSERT latency:  200ms+ (was 5ms a year ago)
 Index rebuilds:  4+ hours
 pg_dump:         Fails after 6 hours (out of disk)
@@ -59,10 +59,13 @@ Even with read replicas → WRITES are the bottleneck
 
 **With sharding (3 shards by tenant_id):**
 \`\`\`
-Each shard:      ~660M rows (manageable)
-INSERT latency:  ~5ms (back to normal)
+Shard sizes:     uneven, because tenants are uneven.
+                 Acme 800M (hot shard), Globex 500M, Initech 300M.
+INSERT latency:  ~5ms (back to normal): each shard is small
+                 enough to vacuum, index, and back up.
 Shard selection: company_id % 3 → shard_one/shard_two/shard_three
 \`\`\`
+Modulo-by-tenant does NOT balance load: a big tenant makes a hot shard (see the trade-offs below). It keeps each tenant on one shard, which is what makes single-tenant queries fast. Rebalancing a hot tenant onto its own shard is a later, deliberate step.
 
 **ShardRecord abstract class pattern:**
 Only sharded models inherit from \`ShardRecord\`. Global models (users, tenants) stay on \`ApplicationRecord\`. This is critical: you cannot shard the users table because login must work cross-shard.
@@ -72,14 +75,21 @@ Only sharded models inherit from \`ShardRecord\`. Global models (users, tenants)
 - User ID: Good for consumer apps, even distribution
 - Geographic region: Good for data sovereignty requirements
 
-**Middleware-based shard switching:**
-Middleware detects company_id from JWT/subdomain, connects to the correct shard before the controller runs. Uses modular hashing: \`company_id % 3\` → shard selection.
+**Automatic shard switching (use the framework, do not hand-roll):**
+Rails ships a built-in shard selector. You give it a resolver that returns the shard for the current request (derived from the authenticated tenant, never client input), and it switches the connection before the controller runs. Hand-rolling Rack middleware for this re-implements what the framework provides (the same trap L51 flagged for read/write splitting).
 
-**Rails 6.1+ native sharding:**
-- \`connects_to\` supports multiple shards
-- \`connected_to(shard: :shard_one) { ... }\` for block-scoped connection
-- \`connected_to(shard: :shard_one, role: :reading) { ... }\` for shard + role
-- Without connecting: \`ActiveRecord::ConnectionNotEstablished\`
+\`\`\`ruby
+config.active_record.shard_selector = { lock: true }
+config.active_record.shard_resolver = ->(request) do
+  ShardRouting.shard_for(ActsAsTenant.current_tenant.id)
+end
+\`\`\`
+
+**Granular vs global connection switching:**
+- \`connects_to shards:\` on \`ShardRecord\` declares the shard mappings.
+- \`ShardRecord.connected_to(shard: :shard_one) { ... }\` switches ONLY the sharded models (granular). This is what you want.
+- \`ActiveRecord::Base.connected_to(shard: ...)\` tries to switch EVERY connection handler globally, including global models (User, Company) that have no shard pool, so it raises \`ActiveRecord::ConnectionNotEstablished\`.
+- \`ShardRecord.connected_to(shard: :shard_one, role: :reading) { ... }\` combines shard + role (only if each shard also has a reading role declared).
 
 **The cost of sharding (from the book):**
 - Analytics requires querying ALL shards + aggregating in memory
@@ -131,13 +141,16 @@ end
 # === ShardRecord abstract class pattern ===
 # Only sharded models inherit from ShardRecord.
 # Global models (users, tenants) stay on ApplicationRecord.
-class ShardRecord < ActiveRecord::Base
+# (Each shard here has a writing role only. Add reading roles
+#  and matching *_replica entries in database.yml if you later
+#  give each shard its own read replica.)
+class ShardRecord < ApplicationRecord
   self.abstract_class = true
 
   connects_to shards: {
-    shard_one: { writing: :primary_shard_one, reading: :primary_shard_one_replica },
-    shard_two: { writing: :primary_shard_two, reading: :primary_shard_two_replica },
-    shard_three: { writing: :primary_shard_three, reading: :primary_shard_three_replica }
+    shard_one: { writing: :primary_shard_one },
+    shard_two: { writing: :primary_shard_two },
+    shard_three: { writing: :primary_shard_three }
   }
 end
 
@@ -151,52 +164,40 @@ class User < ApplicationRecord
   # NOT sharded, lives in the global database
 end
 
-# === Middleware shard switching ===
-# Resolves the shard at the Rack level, before controllers run.
-# app/middleware/shard_resolver.rb
-class ShardResolver
-  SHARD_MAP = {
-    0 => :shard_one,
-    1 => :shard_two,
-    2 => :shard_three
-  }.freeze
-
-  def initialize(app)
-    @app = app
-  end
-
-  def call(env)
-    tenant_id = extract_tenant_id(env)
-    shard = self.class.shard_for(tenant_id)
-
-    ActiveRecord::Base.connected_to(shard: shard) do
-      @app.call(env)
-    end
-  end
+# === Automatic shard switching (Rails built-in) ===
+# Do NOT hand-roll Rack middleware for this (that is the same
+# trap L51 called out for read/write splitting). Rails ships a
+# shard selector: give it a resolver that returns the shard for
+# the current request, and it switches the connection for you.
+# app/lib/shard_routing.rb
+module ShardRouting
+  SHARDS = %i[shard_one shard_two shard_three].freeze
 
   def self.shard_for(tenant_id)
-    shard_index = tenant_id % SHARD_MAP.size
-    SHARD_MAP[shard_index]
-  end
-
-  private
-
-  def extract_tenant_id(env)
-    # From JWT, subdomain, or header (depends on your auth strategy)
-    env['current_tenant_id'] || 0
+    SHARDS[tenant_id % SHARDS.size]
   end
 end
 
 # config/application.rb
-config.middleware.use ShardResolver
+config.active_record.shard_selector = { lock: true }
+config.active_record.shard_resolver = ->(request) do
+  tenant = ActsAsTenant.current_tenant   # from the authenticated tenant, never client input
+  ShardRouting.shard_for(tenant.id)
+end
+
+# Granular switching: ShardRecord.connected_to only moves the
+# sharded models. Global models (User, Company) keep using the
+# primary. ActiveRecord::Base.connected_to would try to move
+# EVERY connection handler, and the global models have no
+# shard_one/two/three pool, so it raises ConnectionNotEstablished.
 
 # Migrations run on ALL shards:
 # lib/tasks/db.rake
 namespace :db do
   task migrate_all_shards: :environment do
-    [:shard_one, :shard_two, :shard_three].each do |shard|
+    ShardRouting::SHARDS.each do |shard|
       puts "Migrating #{shard}..."
-      ActiveRecord::Base.connected_to(shard: shard) do
+      ShardRecord.connected_to(shard: shard) do
         ActiveRecord::MigrationContext.new(
           ActiveRecord::Migrator.migrations_paths
         ).migrate
@@ -208,27 +209,23 @@ end
 # Cross-shard aggregation (admin only, expensive):
 class AdminReportService
   def total_orders_count
-    total = 0
-    [:shard_one, :shard_two, :shard_three].each do |shard|
-      ActiveRecord::Base.connected_to(shard: shard) do
-        total += Order.count
-      end
+    ShardRouting::SHARDS.sum do |shard|
+      ShardRecord.connected_to(shard: shard) { Order.count }
     end
-    total
   end
 end
 
 # Testing with shards:
 RSpec.describe Order do
   it 'routes to correct shard' do
-    tenant = create(:tenant, id: 1)  # shard_two (1 % 3 = 1)
+    tenant = create(:company, id: 1)  # shard_two (1 % 3 = 1)
 
-    ActiveRecord::Base.connected_to(shard: :shard_two) do
-      order = create(:order, tenant: tenant)
+    ShardRecord.connected_to(shard: :shard_two) do
+      order = create(:order, company: tenant)
       expect(Order.find(order.id)).to eq(order)
     end
 
-    ActiveRecord::Base.connected_to(shard: :shard_one) do
+    ShardRecord.connected_to(shard: :shard_one) do
       expect(Order.count).to eq(0)  # Not on this shard
     end
   end
@@ -256,7 +253,7 @@ end`,
 			},
 			{
 				title: 'Rails Scales!, Chapter 6: Horizontal Sharding',
-				url: 'https://pragprog.com/titles/cpscale/rails-scales/',
+				url: 'https://pragprog.com/titles/cpscaling/rails-scales/',
 			},
 		],
 		homework: [
@@ -267,9 +264,9 @@ end`,
 					'db:create reports both shard databases created, and the console loads ShardRecord without connection errors.',
 			},
 			{
-				task: 'Observe shard isolation: load your schema into each shard (the per-database rake tasks appear once database.yml lists them), move a practice model onto ShardRecord, then create a record inside connected_to(shard: :shard_one) and count from the other shard.',
+				task: 'Observe shard isolation: load your schema into each shard (the per-database rake tasks appear once database.yml lists them), move a practice model onto ShardRecord, then create a record inside ShardRecord.connected_to(shard: :shard_one) and count from the other shard.',
 				commands: [
-					"bin/rails runner 'ActiveRecord::Base.connected_to(shard: :shard_two) { puts Order.count }'",
+					"bin/rails runner 'ShardRecord.connected_to(shard: :shard_two) { puts Order.count }'",
 				],
 				verify:
 					'The record created on shard_one is invisible from shard_two: two shards are two fully separate databases.',

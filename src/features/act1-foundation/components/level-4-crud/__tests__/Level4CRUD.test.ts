@@ -35,21 +35,24 @@ interface OptionShape {
 const CREATE_OPTIONS: OptionShape[] = [
 	{
 		id: 'new',
-		label: 'Product.new(name: "Hello", description: "My first product")',
+		label:
+			'Product.new(name: "Keyboard", description: "Ergonomic mechanical keyboard")',
 		correct: false,
 		feedback:
 			'"new" builds the object in memory but doesn\'t save it to the database. You need the method that persists immediately.',
 	},
 	{
 		id: 'insert',
-		label: 'Product.insert(name: "Hello", description: "My first product")',
+		label:
+			'Product.insert(name: "Keyboard", description: "Ergonomic mechanical keyboard")',
 		correct: false,
 		feedback:
 			'"insert" does a raw SQL INSERT, skipping validations and callbacks. For the full lifecycle, pick the method that validates and saves in one step.',
 	},
 	{
 		id: 'create',
-		label: 'Product.create(name: "Hello", description: "My first product")',
+		label:
+			'Product.create(name: "Keyboard", description: "Ergonomic mechanical keyboard")',
 		correct: true,
 	},
 ];
@@ -72,7 +75,7 @@ const READ_OPTIONS: OptionShape[] = [
 		label: 'Product.where(1)',
 		correct: false,
 		feedback:
-			'"where" takes conditions like where(name: "Hello"), not a bare ID. You need the method designed for primary key lookups.',
+			'"where" takes conditions like where(name: "Keyboard"), not a bare ID. You need the method designed for primary key lookups.',
 	},
 ];
 
@@ -105,6 +108,13 @@ const DESTROY_OPTIONS: OptionShape[] = [
 		correct: false,
 		feedback:
 			'"delete" runs SQL directly, skipping callbacks. You need the method that runs lifecycle hooks like dependent associations.',
+	},
+	{
+		id: 'destroy_all',
+		label: 'Product.destroy_all',
+		correct: false,
+		feedback:
+			'destroy_all is a class-level method that removes every row in the table. You only want to remove the one record you already loaded.',
 	},
 	{
 		id: 'destroy',

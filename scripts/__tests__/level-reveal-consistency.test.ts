@@ -97,10 +97,8 @@ function detectConvention(src: string): StepConvention {
  * Adding to this set is forbidden — new levels must not introduce this bug.
  */
 const KNOWN_STRANDED_GUARDS = new Set<string>([
-	'src/features/act1-foundation/components/level-5-associations/Level5Associations.tsx',
-	'src/features/act1-foundation/components/level-6-routes/Level6Routes.tsx',
+	// L5, L6, L11 fixed 2026-07-19 (staff-review off-by-one guard fixes).
 	'src/features/act1-foundation/components/level-7-controller/Level7Controller.tsx',
-	'src/features/act2-users-security/components/level-11-authorization/Level11Authorization.tsx',
 	'src/features/act3-clean-architecture/components/level-18-validation-contracts/Level18ValidationContracts.tsx',
 	'src/features/act3-clean-architecture/components/level-19-query-objects/Level19QueryObjects.tsx',
 	'src/features/act3-clean-architecture/components/level-20-error-handling/Level20ErrorHandling.tsx',
@@ -300,9 +298,9 @@ const PLACEHOLDER_PATTERNS: RegExp[] = [
 ];
 
 const KNOWN_OBSERVE_PHASE_PLACEHOLDERS = new Set<string>([
+	// L11 placeholder "Policy (missing)" node removed 2026-07-19 (staff review).
 	'src/features/act1-foundation/components/level-7-controller/Level7Controller.tsx',
 	'src/features/act2-users-security/components/level-9-authentication/Level9Authentication.tsx',
-	'src/features/act2-users-security/components/level-11-authorization/Level11Authorization.tsx',
 	'src/features/act3-clean-architecture/components/level-20-error-handling/Level20ErrorHandling.tsx',
 	'src/features/act4-performance/components/level-28-caching/Level28Caching.tsx',
 	'src/features/act4-performance/components/level-29-http-caching/Level29HTTPCaching.tsx',

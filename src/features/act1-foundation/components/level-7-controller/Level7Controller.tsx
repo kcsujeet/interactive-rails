@@ -92,17 +92,17 @@ const PROBES: ProbeConfig[] = [
 		story: [
 			'A customer opens the storefront and the app fetches the product catalog.',
 			'GET /api/products hits the router, which matches it to products#index.',
-			'The router tries to instantiate Api::ProductsController.',
-			'The controller file does not exist. Rails raises a NameError.',
-			'The request crashes with a 500. Routes work, but there is nothing behind them.',
+			'The router tries to load Api::ProductsController to handle it.',
+			'The controller file does not exist, so loading the class fails.',
+			'Rails answers 404 and logs "uninitialized constant Api::ProductsController". Routes work, but there is nothing behind them.',
 		],
 		command: 'GET /api/products',
 		responseLines: [
 			{ text: 'Routing... matched products#index', color: 'green' },
-			{ text: 'HTTP/1.1 500 Internal Server Error', color: 'red' },
+			{ text: 'HTTP/1.1 404 Not Found', color: 'red' },
 			{ text: '', color: 'muted' },
 			{
-				text: 'NameError: uninitialized constant Api::ProductsController',
+				text: 'server log: uninitialized constant Api::ProductsController',
 				color: 'red',
 			},
 			{
@@ -118,20 +118,20 @@ const PROBES: ProbeConfig[] = [
 			'A store admin submits a new product through the dashboard.',
 			'The form sends a POST with the product data to /api/products.',
 			'The router matches it to products#create and tries to load the controller.',
-			'Same crash: Api::ProductsController is not defined anywhere.',
-			'The product is never saved. POST crashes with a 500 just like GET.',
+			'Same failure: Api::ProductsController is not defined anywhere.',
+			'The product is never saved. POST returns 404 just like GET.',
 		],
 		command: 'POST /api/products (body: {name: "Laptop Pro"})',
 		responseLines: [
 			{ text: 'Routing... matched products#create', color: 'green' },
-			{ text: 'HTTP/1.1 500 Internal Server Error', color: 'red' },
+			{ text: 'HTTP/1.1 404 Not Found', color: 'red' },
 			{ text: '', color: 'muted' },
 			{
-				text: 'NameError: uninitialized constant Api::ProductsController',
+				text: 'server log: uninitialized constant Api::ProductsController',
 				color: 'red',
 			},
 			{
-				text: 'POST also crashes. Every route points to a missing class.',
+				text: 'POST fails too. Every route points to a missing class.',
 				color: 'yellow',
 			},
 		],
@@ -143,16 +143,16 @@ const PROBES: ProbeConfig[] = [
 			'An admin removes a discontinued product from the catalog.',
 			'DELETE /api/products/1 hits the router, which matches products#destroy.',
 			'Rails tries to load the controller class to handle the deletion.',
-			'NameError again. The controller does not exist for any action.',
+			'Missing class again. The controller does not exist for any action.',
 			'All 5 resourceful routes (index, show, create, update, destroy) are broken.',
 		],
 		command: 'DELETE /api/products/1',
 		responseLines: [
 			{ text: 'Routing... matched products#destroy', color: 'green' },
-			{ text: 'HTTP/1.1 500 Internal Server Error', color: 'red' },
+			{ text: 'HTTP/1.1 404 Not Found', color: 'red' },
 			{ text: '', color: 'muted' },
 			{
-				text: 'NameError: uninitialized constant Api::ProductsController',
+				text: 'server log: uninitialized constant Api::ProductsController',
 				color: 'red',
 			},
 			{
@@ -187,19 +187,19 @@ const PROBE_PIPELINE_MAP: Record<
 		routerSublabel: 'GET -> products#index',
 		routerBadge: 'Matched!',
 		controllerSublabel: 'NameError!',
-		controllerBadge: '500!',
+		controllerBadge: '404!',
 	},
 	'post-create': {
 		routerSublabel: 'POST -> products#create',
 		routerBadge: 'Matched!',
 		controllerSublabel: 'NameError!',
-		controllerBadge: '500!',
+		controllerBadge: '404!',
 	},
 	'delete-destroy': {
 		routerSublabel: 'DELETE -> products#destroy',
 		routerBadge: 'Matched!',
 		controllerSublabel: 'NameError!',
-		controllerBadge: '500!',
+		controllerBadge: '404!',
 	},
 };
 
@@ -244,7 +244,7 @@ end`,
 		stageId: 'response',
 		title: 'Response',
 		description:
-			'Every response is currently a 500 NameError because the controller is missing. No request can complete.',
+			'Every response is currently a 404 because the controller class is missing. Rails cannot load it, so it treats the matched route as not found (the server log shows the uninitialized-constant reason).',
 	},
 };
 
@@ -706,7 +706,7 @@ export function Level7Controller({ onComplete }: LevelComponentProps) {
 			{
 				id: 'response',
 				label: 'Response',
-				sublabel: probeDisplay ? '500 Error' : undefined,
+				sublabel: probeDisplay ? '404 Not Found' : undefined,
 				variant: (probeDisplay ? 'danger' : 'default') as 'danger' | 'default',
 				inspectable: true,
 				inspected: inspectedStages.has('response'),
@@ -906,8 +906,8 @@ export function Level7Controller({ onComplete }: LevelComponentProps) {
 						</h3>
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							In L6, you mapped 5 RESTful routes under /api/products. But
-							hitting any of those URLs returns a 500 error because the
-							controller class does not exist yet.
+							hitting any of those URLs returns a 404 because the controller
+							class does not exist yet (the server log shows why).
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							The router knows WHERE to send requests, but the controller (the

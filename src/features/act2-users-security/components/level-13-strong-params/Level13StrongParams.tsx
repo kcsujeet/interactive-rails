@@ -356,10 +356,13 @@ interface StepOption {
 	feedback?: string;
 }
 
-// Step 0: Replace the to_unsafe_h call with a real filter.
+// Step 0: Pick the FILTERING APPROACH (not the whitelist yet).
 // Rails 8's production-safe default is `params.expect`. The naive
 // `to_unsafe_h` (the status quo from L7-L12) and `permit!` are both
-// wrong-option foils, neither filters anything.
+// wrong-option foils; neither filters anything. The correct option uses an
+// elided key list (`...`) so the actual whitelist is still an open decision
+// in step 1. If step 0 committed the full [:name, :description, :price] list,
+// step 1's whitelist choice would already be made.
 const FILTERING_OPTIONS: StepOption[] = [
 	{
 		id: 'unsafe-h',
@@ -377,7 +380,7 @@ const FILTERING_OPTIONS: StepOption[] = [
 	},
 	{
 		id: 'params-expect',
-		label: 'params.expect(product: [:name, :description, :price])',
+		label: 'params.expect(product: [...])',
 		correct: true,
 	},
 ];
@@ -405,25 +408,31 @@ const WHITELIST_OPTIONS: StepOption[] = [
 	},
 ];
 
-// Step 2: Set Ownership Safely
+// Step 2: Set Ownership Safely.
+// This REAFFIRMS the ownership-via-association pattern the controller has
+// used since L11 (`Current.user.products.new(...)`). user_id is no longer in
+// the whitelist, so ownership must come from the association, exactly as it
+// already does. The correct option matches the controller's existing `.new`
+// call; the foils reintroduce user_id from the request body or drop the
+// association entirely.
 const OWNERSHIP_OPTIONS: StepOption[] = [
 	{
 		id: 'merge-params',
-		label: 'Product.create!(product_params.merge(user_id: params[:user_id]))',
+		label: 'Product.new(product_params.merge(user_id: params[:user_id]))',
 		correct: false,
 		feedback:
 			'That still reads user_id from the request body. An attacker can send any user_id they want.',
 	},
 	{
 		id: 'no-user',
-		label: 'Product.create!(product_params)',
+		label: 'Product.new(product_params)',
 		correct: false,
 		feedback:
-			'That does not set user_id at all. The product will not be associated with any user.',
+			'That does not associate the product with anyone. Ownership is dropped, and the product has no user.',
 	},
 	{
 		id: 'current-user',
-		label: 'Current.user.products.create!(product_params)',
+		label: 'Current.user.products.new(product_params)',
 		correct: true,
 	},
 ];
@@ -452,7 +461,7 @@ const OPTION_STEP_CONFIG: Record<
 	2: {
 		title: 'Set Ownership Safely',
 		description:
-			'user_id is excluded from the whitelist, but products still need an owner. How should the create action associate the product with the current user without trusting the request body?',
+			'user_id is excluded from the whitelist, but products still need an owner. Since L11 the create action has associated the product through Current.user. Confirm the create action keeps building the product through the association (not from the request body).',
 		options: OWNERSHIP_OPTIONS,
 	},
 };
@@ -550,8 +559,10 @@ end`;
 		return files;
 	}
 
-	// Build phase: still showing "before" until step 0 (params.expect) lands.
-	if (furthestStep === 0) {
+	// Build phase: still showing "before" (to_unsafe_h) while working on
+	// step 0. `furthestStep` is the completed-step index (-1 when working on
+	// step 0), per the code-preview contract.
+	if (furthestStep < 0) {
 		files.push({
 			filename: 'app/controllers/api/products_controller.rb',
 			language: 'ruby',
@@ -560,8 +571,47 @@ end`;
 		});
 	}
 
-	// After step 0 (filter introduced), the controller centralizes the
-	// whitelist into product_params and both create and update call it.
+	// After step 0 (filtering APPROACH chosen): the controller centralizes the
+	// call into product_params using params.expect, but the whitelist itself is
+	// still an open decision (elided as [...]). Step 1 fills it in. The elided
+	// list keeps step 1's whitelist choice a real decision (no leak of the
+	// concrete key list into step 0's completed preview).
+	if (furthestStep === 0) {
+		files.push({
+			filename: 'app/controllers/api/products_controller.rb',
+			language: 'ruby',
+			code: `class Api::ProductsController < ApplicationController
+  def create
+    product = Current.user.products.new(product_params)
+    authorize product
+    if product.save
+      render json: product, status: :created
+    else
+      render json: { errors: product.errors.full_messages }, status: :unprocessable_entity
+    end
+  end
+
+  def update
+    product = Product.find(params[:id])
+    authorize product
+    if product.update(product_params)
+      render json: product
+    else
+      render json: { errors: product.errors.full_messages }, status: :unprocessable_entity
+    end
+  end
+
+  private
+
+  def product_params
+    params.expect(product: [...])  # whitelist decided next
+  end
+end`,
+			highlight: [3, 14, 24],
+		});
+	}
+
+	// After step 1 (whitelist decided): the concrete key list is in place.
 	if (furthestStep >= 1) {
 		files.push({
 			filename: 'app/controllers/api/products_controller.rb',

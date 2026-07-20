@@ -191,7 +191,7 @@ product.destroy          # => reviews go with it, no orphans left behind`,
 				task: 'Add `has_many :reviews, dependent: :destroy` to app/models/product.rb, then prove the cascade delete works in the console.',
 				commands: [
 					'bin/rails console',
-					'product = Product.create!(name: "Mug", price: 12.5)',
+					'product = Product.create!(name: "Mug", price: "12.50")',
 					'product.reviews.create!(rating: 5, body: "Great")',
 					'product.destroy',
 					'Review.count',

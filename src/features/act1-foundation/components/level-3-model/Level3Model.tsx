@@ -6,7 +6,7 @@
  */
 
 import { ArrowRight } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
 	buildTerminalHistory,
 	CenterPanel,
@@ -29,6 +29,7 @@ import { Button } from '@/components/ui/Button';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { registerLevelCode } from '@/lib/codebase-registry';
 import type { LevelComponentProps } from '@/lib/levels-registry';
+import { shuffleOptions } from '@/lib/shuffleOptions';
 
 registerLevelCode('act1-level3-model', () => [
 	{
@@ -259,6 +260,13 @@ export function Level3Model({ onComplete }: LevelComponentProps) {
 	const isViewingCompletedStep = stepper.isCurrentStepCompleted;
 	const hasNextStep = stepper.currentStep < STEP_DEFS.length - 1;
 
+	// Step 0 options: shuffle so the correct model name is never first
+	// (keyed to step index 0 for a stable-per-session order).
+	const shuffledModelNames = useMemo(
+		() => shuffleOptions(MODEL_NAME_OPTIONS, 0),
+		[],
+	);
+
 	// Step 2: Drag types onto field slots
 	const allSlotsCorrect = slots.every((s) => s.assignedType === s.correctType);
 
@@ -283,7 +291,7 @@ export function Level3Model({ onComplete }: LevelComponentProps) {
 			// Wrong type feedback
 			const feedbackMap: Record<string, Record<string, string>> = {
 				name: {
-					text: '"text" is for long-form content. "name" is a short field (under 255 characters).',
+					text: '"text" is the type for long bodies of content. "name" is a short label, so the convention is the type meant for short labels.',
 					boolean: '"name" stores text, not true/false.',
 					integer: '"name" stores text, not numbers.',
 					decimal: '"name" stores text, not monetary values.',
@@ -291,7 +299,7 @@ export function Level3Model({ onComplete }: LevelComponentProps) {
 				},
 				description: {
 					string:
-						'"string" maxes out at 255 characters. "description" needs to hold full product details and paragraphs.',
+						'"string" is the type for short labels. "description" needs to hold full product details and paragraphs, so reach for the type meant for long bodies of content.',
 					boolean: '"description" stores content, not true/false.',
 					integer: '"description" stores content, not numbers.',
 					decimal: '"description" stores content, not monetary values.',
@@ -334,22 +342,30 @@ export function Level3Model({ onComplete }: LevelComponentProps) {
 	const getCodeFiles = () => {
 		const files = [];
 
-		// After naming the model (step 0) - show the generator command being built
+		// After naming the model (step 0) - show the generator command being built.
+		// While the player is still choosing the generator command (before step 2
+		// completes), we must NOT print the full field:type list: that list is
+		// exactly what discriminates the generator options, so showing it would
+		// spoil the choice. Only reveal field:type pairs once the generator step
+		// itself is completed (furthestStep >= 3).
 		if (stepper.furthestStep >= 1) {
 			const attrArgs = slots
 				.filter((s) => s.assignedType)
 				.map((s) => `${s.field}:${s.assignedType}`)
 				.join(' ');
+			const fieldNames = slots.map((s) => s.field).join(', ');
 			files.push({
 				filename: 'Generator Command',
 				language: 'bash',
-				code: `$ rails generate ${stepper.furthestStep >= 3 ? 'model' : '<which generator?>'} Product${attrArgs ? ` ${attrArgs}` : ' ...'}`,
+				code:
+					stepper.furthestStep >= 3
+						? `$ rails generate model Product ${attrArgs}`
+						: `# Ready to generate the Product model.
+# Fields to include: ${fieldNames}
+# Pick the generator command below (mind the types).`,
 				highlight: [1],
 			});
 		}
-
-		// After defining attributes (step 1) - update the command with all types
-		// (already reflected above via slots state)
 
 		// After running generator (step 2) - show generated files
 		if (stepper.furthestStep >= 3) {
@@ -466,7 +482,7 @@ end`,
 								</p>
 								{isViewingCompletedStep ? (
 									<div className="grid grid-cols-2 gap-3">
-										{MODEL_NAME_OPTIONS.map((opt) => (
+										{shuffledModelNames.map((opt) => (
 											<Button
 												className={`h-auto py-4 text-lg font-mono ${opt.correct ? 'border-success text-success' : 'opacity-50'}`}
 												disabled
@@ -479,7 +495,7 @@ end`,
 									</div>
 								) : (
 									<div className="grid grid-cols-2 gap-3">
-										{MODEL_NAME_OPTIONS.map((opt) => (
+										{shuffledModelNames.map((opt) => (
 											<Button
 												className="h-auto py-4 text-lg font-mono"
 												key={opt.label}

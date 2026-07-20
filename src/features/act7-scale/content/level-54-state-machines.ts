@@ -46,27 +46,33 @@ order.update!(status: "pending")  # Oops, no error raised!
 	decisionModals: [
 		{
 			trigger: { sourceType: 'model', targetType: 'state_machine' },
-			question: 'Which state machine approach?',
+			question:
+				'This level teaches AASM. Which approach keeps the state machine on the Order model itself?',
 			options: [
 				{
 					label: 'Plain enum',
 					value: 'enum',
 					preview: 'ActiveRecord enum with manual guard methods',
-					consequence: 'Simple column-based approach, no transition logic',
+					consequence:
+						'Names the legal values but enforces no transition rules or guards, which is exactly the gap this level closes',
 					correct: false,
 				},
 				{
 					label: 'AASM',
 					value: 'aasm',
-					preview: 'Declarative DSL with guards, callbacks, and scopes',
-					consequence: 'Adds state machine DSL to ActiveRecord models',
+					preview:
+						'Declarative DSL declared inline on the model, with guards, callbacks, and scopes',
+					consequence:
+						'Keeps states, events, and guards on the Order model: the lightest fit for one model at this scale',
 					correct: true,
 				},
 				{
 					label: 'Statesman',
 					value: 'statesman',
-					preview: 'History-based state machine with audit trail built in',
-					consequence: 'Stores full transition history in a separate table',
+					preview:
+						'Also a solid state machine (guards, and a persisted transition history via its ActiveRecord adapter)',
+					consequence:
+						'Moves the machine into a separate class and a transitions table: a heavier setup, better when you need many machines or a first-class history model',
 					correct: false,
 				},
 			],

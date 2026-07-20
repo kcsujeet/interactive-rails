@@ -37,32 +37,36 @@ const STEPS: TerminalStep[] = [
 		commands: [
 			{
 				id: 'new',
-				label: 'Product.new(name: "Hello", description: "My first product")',
-				command: 'Product.new(name: "Hello", description: "My first product")',
+				label:
+					'Product.new(name: "Keyboard", description: "Ergonomic mechanical keyboard")',
+				command:
+					'Product.new(name: "Keyboard", description: "Ergonomic mechanical keyboard")',
 				correct: false,
 				feedback:
 					'"new" builds the object in memory but doesn\'t save it to the database. You need the method that persists immediately.',
 			},
 			{
 				id: 'insert',
-				label: 'Product.insert(name: "Hello", description: "My first product")',
+				label:
+					'Product.insert(name: "Keyboard", description: "Ergonomic mechanical keyboard")',
 				command:
-					'Product.insert(name: "Hello", description: "My first product")',
+					'Product.insert(name: "Keyboard", description: "Ergonomic mechanical keyboard")',
 				correct: false,
 				feedback:
 					'"insert" does a raw SQL INSERT, skipping validations and callbacks. For the full lifecycle, pick the method that validates and saves in one step.',
 			},
 			{
 				id: 'create',
-				label: 'Product.create(name: "Hello", description: "My first product")',
+				label:
+					'Product.create(name: "Keyboard", description: "Ergonomic mechanical keyboard")',
 				command:
-					'Product.create(name: "Hello", description: "My first product")',
+					'Product.create(name: "Keyboard", description: "Ergonomic mechanical keyboard")',
 				correct: true,
 			},
 		],
 		outputLines: [
 			{
-				text: '=> #<Product id: 1, name: "Hello", description: "My first product">',
+				text: '=> #<Product id: 1, name: "Keyboard", description: "Ergonomic mechanical keyboard">',
 				color: 'cyan',
 			},
 		],
@@ -96,12 +100,12 @@ const STEPS: TerminalStep[] = [
 				command: 'Product.where(1)',
 				correct: false,
 				feedback:
-					'"where" takes conditions like where(name: "Hello"), not a bare ID. You need the method designed for primary key lookups.',
+					'"where" takes conditions like where(name: "Keyboard"), not a bare ID. You need the method designed for primary key lookups.',
 			},
 		],
 		outputLines: [
 			{
-				text: '=> #<Product id: 1, name: "Hello", description: "My first product">',
+				text: '=> #<Product id: 1, name: "Keyboard", description: "Ergonomic mechanical keyboard">',
 				color: 'cyan',
 			},
 		],
@@ -158,6 +162,14 @@ const STEPS: TerminalStep[] = [
 					'"delete" runs SQL directly, skipping callbacks. You need the method that runs lifecycle hooks like dependent associations.',
 			},
 			{
+				id: 'destroy_all',
+				label: 'Product.destroy_all',
+				command: 'Product.destroy_all',
+				correct: false,
+				feedback:
+					'destroy_all is a class-level method that removes every row in the table. You only want to remove the one record you already loaded.',
+			},
+			{
 				id: 'destroy',
 				label: 'product.destroy',
 				command: 'product.destroy',
@@ -166,7 +178,7 @@ const STEPS: TerminalStep[] = [
 		],
 		outputLines: [
 			{
-				text: '=> #<Product id: 1, name: "Updated", description: "My first product">',
+				text: '=> #<Product id: 1, name: "Updated", description: "Ergonomic mechanical keyboard">',
 				color: 'cyan',
 			},
 		],
@@ -215,7 +227,7 @@ function getCodeFiles({ furthestStep }: { furthestStep: number }) {
 
 	if (furthestStep >= 1) {
 		sections.push(`# CREATE - Make new records
-Product.create(name: "Hello", description: "World")`);
+Product.create(name: "Keyboard", description: "Ergonomic mechanical keyboard")`);
 	}
 	if (furthestStep >= 2) {
 		sections.push(`# READ - Fetch records
@@ -256,7 +268,7 @@ product.destroy       # Runs callbacks`);
 
 function getDbState(furthestStep: number) {
 	if (furthestStep === 0) return 'No records yet';
-	if (furthestStep >= 1 && furthestStep <= 2) return '#1 "Hello"';
+	if (furthestStep >= 1 && furthestStep <= 2) return '#1 "Keyboard"';
 	if (furthestStep === 3) return '#1 "Updated"';
 	return 'Table is empty (Product.count => 0)';
 }

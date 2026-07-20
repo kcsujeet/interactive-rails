@@ -76,39 +76,53 @@ Project.where(company_id: current_company.id, status: 'active')
 
 **PostgreSQL Row Level Security (belt and suspenders for row-level):**
 
-Even with \`acts_as_tenant\`, a forgotten scope on an unscoped query is a leak. RLS lets the database enforce the scope, regardless of whether the application remembered it:
+Even with \`acts_as_tenant\`, a forgotten scope on an unscoped query is a leak. RLS lets the database enforce the scope, regardless of whether the application remembered it. Two details matter for this to actually work in Rails:
+
+1. PostgreSQL lets the table owner bypass row security by default. Rails usually connects as the role that owns the tables (the role that ran the migrations), so plain \`ENABLE ROW LEVEL SECURITY\` would do nothing for your app. You need \`FORCE ROW LEVEL SECURITY\` (which subjects the owner too) or, better, an application role that is not the table owner and lacks \`BYPASSRLS\`.
+2. \`current_setting(name)\` raises if the setting was never set. Pass the second argument (\`true\`, "missing is ok") so it returns NULL instead of erroring.
 
 \`\`\`sql
 ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
+ALTER TABLE projects FORCE ROW LEVEL SECURITY; -- owner is not exempt
 CREATE POLICY tenant_isolation ON projects
-  USING (company_id = current_setting('app.current_tenant')::int);
+  USING (
+    company_id = current_setting('app.current_tenant', true)::int
+  );
 \`\`\`
 
-Then in Rails, set the tenant on the connection at the start of each request:
+Then in Rails, set the tenant on the connection for the current request only. A bare \`SET\` persists on a pooled connection and would leak into the next request that borrows it, so use \`SET LOCAL\` inside a transaction (it resets when the transaction ends):
 
 \`\`\`ruby
 class ApplicationController < ActionController::API
-  before_action :set_tenant_on_connection
+  around_action :with_tenant_connection
 
   private
 
-  def set_tenant_on_connection
-    ActiveRecord::Base.connection.execute(
-      "SET app.current_tenant = #{current_user.company_id.to_i}"
-    )
+  def with_tenant_connection
+    ActiveRecord::Base.transaction do
+      ActiveRecord::Base.connection.execute(
+        "SET LOCAL app.current_tenant = #{current_user.company_id.to_i}"
+      )
+      yield
+    end
   end
 end
 \`\`\`
 
-Now even a raw \`Project.find_by_sql("SELECT * FROM projects")\` returns only the current tenant's rows. The application layer can have a bug; the database is still right. RLS is what turns row-level isolation from "we promise" to "the DB will not let it happen."
+Now even a raw \`Project.find_by_sql("SELECT * FROM projects")\` returns only the current tenant's rows (as long as the app connects as a non-owner role, or the table is FORCEd). RLS is what turns row-level isolation from "we promise" to "the DB will not let it happen."
 
-**\`connects_to\` for database-per-tenant:**
+**\`connects_to shards:\` for database-per-tenant:**
 
-Rails 6+ ships connection switching at the model level. For a DB-per-tenant deployment, you read each tenant's DSN from a registry table and switch the connection per request:
+Rails ships connection switching at the model level. \`connected_to(database:)\` was removed in Rails 7.0, so the modern DB-per-tenant pattern models each tenant as a shard: declare every tenant database under \`connects_to shards:\`, then switch with \`connected_to(shard:)\` per request. (See the multiple-databases guide.)
 
 \`\`\`ruby
 class ApplicationRecord < ActiveRecord::Base
   self.abstract_class = true
+
+  connects_to shards: {
+    acme:   { writing: :acme },
+    globex: { writing: :globex }
+  }
 end
 
 # Switch the connection per-request based on the tenant
@@ -117,16 +131,14 @@ class ApplicationController < ActionController::API
 
   private
 
-  def switch_tenant_database
-    tenant = Tenant.find(request.headers["X-Tenant-Id"])
-    ActiveRecord::Base.connected_to(database: tenant.db_name) do
-      yield
-    end
+  def switch_tenant_database(&)
+    tenant = Company.find_by!(subdomain: request.subdomains.first)
+    ApplicationRecord.connected_to(shard: tenant.shard_name, &)
   end
 end
 \`\`\`
 
-Pair with \`config/database.yml\` entries (or runtime configuration) so each tenant has \`primary\` and \`primary_replica\` connections. Background jobs need the tenant set the same way before \`perform\` runs (jobs do not inherit the request's connection scope).
+For a large tenant fleet you would generate the \`shards:\` map from a registry table at boot rather than hand-listing each one. Background jobs need the shard set the same way before \`perform\` runs (jobs do not inherit the request's connection scope).
 
 **Noisy neighbors (the row-level pain point):**
 
@@ -271,10 +283,6 @@ end`,
 			{
 				title: 'Rails Multiple Databases (`connects_to`, `connected_to`)',
 				url: 'https://guides.rubyonrails.org/active_record_multiple_databases.html',
-			},
-			{
-				title: 'Stripe: How we built a multi-tenant SaaS',
-				url: 'https://stripe.com/blog/online-migrations',
 			},
 		],
 		homework: [

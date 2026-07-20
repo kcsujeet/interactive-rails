@@ -276,7 +276,7 @@ Rails 8.1.3
 
 # You now have:
 #   ruby 3.4.9 (managed by mise)
-#   rails 8.1.3 (installed as a system gem)
+#   rails 8.1.3 (installed into the mise-managed Ruby's gems)
 #
 # Next: rails new <appname> creates a project,
 # which generates its own Gemfile listing the
