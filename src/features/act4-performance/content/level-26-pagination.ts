@@ -91,7 +91,7 @@ end
 # 1. Database loads 50K rows into memory
 # 2. Ruby serializes 50K objects (12MB JSON)
 # 3. No pagination headers, no way to request "page 2"`,
-		goal: 'Add pagination to your API with configurable page sizes and RFC 5988 Link headers so clients can navigate large result sets efficiently.',
+		goal: 'Add pagination to your API with configurable page sizes and RFC 8288 Link headers so clients can navigate large result sets efficiently.',
 		thresholds: { maxLatency: 100 },
 	},
 	successConditions: [{ type: 'pagination_implemented' }],
@@ -100,7 +100,7 @@ end
 	unlockedNodes: [],
 	learningContent: {
 		title: 'Pagination: Pagy, Cursor-Based & Link Headers',
-		goal: `In this level, you'll:\n- learn how to paginate API responses so clients don't download thousands of records at once.\n- compare offset pagination (simple page numbers) with cursor-based pagination (consistent performance on deep pages).\n- return standard pagination links in HTTP headers following RFC 5988.`,
+		goal: `In this level, you'll:\n- learn how to paginate API responses so clients don't download thousands of records at once.\n- compare offset pagination (simple page numbers) with cursor-based pagination (consistent performance on deep pages).\n- return standard pagination links in HTTP headers following RFC 8288.`,
 		conceptExplanation: `Three pagination strategies, each with trade-offs:
 
 **Offset pagination** (page numbers):
@@ -122,10 +122,10 @@ Offset-based: GET /products?page=500
             (DB must skip over 12,475 rows before returning 25)
   Time:     Real 1.097s | User 391.5ms
 
-Cursor-based: GET /products?cursor=eyJpZCI6MTI0NzZ9
-  SQL:      SELECT * FROM products WHERE id > 12476 LIMIT 25
-            (DB uses index to jump directly to id=12476)
-  Time:     Real 0.327s | User 163.1ms → 2.4x faster
+Cursor-based: GET /products?cursor=eyJpZCI6MTI0NzV9
+  SQL:      SELECT * FROM products WHERE id > 12475 LIMIT 25
+            (DB uses index to jump directly past id=12475)
+  Time:     Real 0.327s | User 116.5ms → 3.4x faster
 \`\`\`
 
 **Why cursor-based is faster:** \`OFFSET 12475\` tells the DB "skip the first 12,475 rows"; it still reads and discards them. \`WHERE id > last_seen_id\` gives the DB engine extra context to traverse the B-tree index directly, with no wasted reads regardless of page depth.
@@ -135,7 +135,7 @@ Cursor-based: GET /products?cursor=eyJpZCI6MTI0NzZ9
 **The timestamp gotcha:** IDs are unique, but timestamps are NOT. A bulk import of 10,000 products with identical \`created_at\` means \`WHERE created_at > X\` can skip records with duplicate values. Fix: always add a secondary sort key on a unique column: \`ORDER BY created_at DESC, id DESC\`.
 
 **API pagination with Link headers:**
-- Follow RFC 5988: pagination info in response headers, not body
+- Follow RFC 8288: pagination info in response headers, not body
 - \`Link: <url?page=2>; rel="next", <url?page=100>; rel="last"\`
 - Keeps the JSON body clean
 
@@ -199,8 +199,8 @@ end`,
 				url: 'https://github.com/xing/rails_cursor_pagination',
 			},
 			{
-				title: 'RFC 5988 - Web Linking',
-				url: 'https://tools.ietf.org/html/rfc5988',
+				title: 'RFC 8288 - Web Linking',
+				url: 'https://www.rfc-editor.org/rfc/rfc8288',
 			},
 			{
 				title: 'Book: "Rails Scales!", Chapter 4: Cursor-Based Pagination',

@@ -335,7 +335,11 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		expectedResult: 'allowed',
 		responseLines: [
 			{ text: '200 OK  X-Cache: HIT  2ms', color: 'green' },
-			{ text: 'Served from Solid Cache. DB not touched.', color: 'green' },
+			{
+				text: 'One cheap MAX(updated_at) for the key, then a cache hit.',
+				color: 'green',
+			},
+			{ text: 'The 512ms ranking query is skipped entirely.', color: 'green' },
 		],
 	},
 	{

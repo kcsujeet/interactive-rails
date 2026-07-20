@@ -8,11 +8,11 @@ export const level24Indexing: Level = {
 	trigger: {
 		type: 'performance_alert',
 		description:
-			'Fire EXPLAIN probes to watch sequential scans crawl through every row, then add the right indexes to make the database jump straight to the answer.',
+			'Login is timing out at 820ms and profile pages are crawling. The database is reading every single row for lookups that should be instant, because the columns being filtered have no indexes. Add the right indexes so these queries jump straight to the answer.',
 	},
 	problem: {
 		observation:
-			'`GET /api/users?email=...` does a full table scan on 10,000 rows. EXPLAIN shows Seq Scan with no index usage.',
+			'`GET /api/users?email=...` does a full table scan on 2,000,000 rows. EXPLAIN shows Seq Scan with no index usage.',
 		rootCause:
 			'No database index on the email column. The database must scan every row to find a match.',
 		codeExample: `# app/services/user_lookup.rb
@@ -29,14 +29,15 @@ end
 # result = UserLookup.call(email: params[:email])
 
 # EXPLAIN ANALYZE output:
-# Seq Scan on users  (cost=0.00..245.00 rows=1 width=128)
+# Seq Scan on users  (cost=0.00..48000.00 rows=1 width=128)
 #   Filter: ((email)::text = 'alice@example.com'::text)
-#   Rows Removed by Filter: 9999
+#   Rows Removed by Filter: 1999999
 #   Planning Time: 0.1ms
-#   Execution Time: 82.3ms
+#   Execution Time: 820ms
 #
-# A sequential scan checks EVERY row. With 10K users this is
-# slow. With 1M users it will be catastrophic.
+# A sequential scan checks EVERY row. Across 2M users a login
+# lookup takes 820ms. An index turns it into a sub-millisecond
+# jump straight to the matching row.
 
 # Common queries that need indexes:
 User.find_by(email: params[:email])          # WHERE email = ?
@@ -57,8 +58,8 @@ Product.where(published: true).order(:created_at) # Composite query`,
 
 **Production benchmarks (before vs after index):**
 \`\`\`
-No index:  Seq Scan on users  (cost=0.00..245.00 rows=50000) | Time: ~800ms
-With index: Index Scan using index_users_on_email on users  (cost=0.00..8.27 rows=1) | Time: ~2ms → 400x faster
+No index:  Seq Scan on users  (cost=0.00..48000.00 rows=2000000) | Time: ~820ms
+With index: Index Scan using index_users_on_email on users  (cost=0.00..8.27 rows=1) | Time: ~0.05ms
 \`\`\`
 
 **When to add an index:**
@@ -70,7 +71,7 @@ With index: Index Scan using index_users_on_email on users  (cost=0.00..8.27 row
 
 **Index types:**
 - **B-tree** (default): Works for equality and range queries. Handles =, <, >, BETWEEN, IN, LIKE 'prefix%'
-- **Unique**: Enforces uniqueness at the database level. Faster than regular B-tree for lookups
+- **Unique**: A B-tree index that also enforces uniqueness at the database level. Same lookup speed as a regular B-tree; the difference is the constraint, not the speed
 - **Composite**: Multiple columns in one index. Column order matters critically (leftmost prefix rule)
 - **Partial**: Index only a subset of rows. Smaller and faster for common filtered queries
 
@@ -90,8 +91,9 @@ An index on \`[status, created_at]\` is like a dictionary sorted by last name th
 Filtering by status AND ordering by created_at:
   No index:                    Real 28.59ms
   [status, created_at] index:  Real 11.25ms → 2.5x faster
-  [created_at] only (wrong):   Real 67.73ms → WORSE! Wrong index hurts
-\`\`\``,
+  [created_at] only (wrong):   Real 67.73ms → WORSE than no index!
+\`\`\`
+The [created_at]-only index is worse than no index here because the planner walks the whole index in created_at order to satisfy the sort, then pays random-access I/O jumping back to the heap for each row to check status = true. A plain seq scan reads the heap sequentially, which is cheaper.`,
 		railsCodeExample: `# Single column index
 class AddEmailIndexToUsers < ActiveRecord::Migration[8.0]
   def change
@@ -130,12 +132,20 @@ User.where(email: "alice@example.com").explain
 # Index Scan using index_users_on_email on users
 #   Index Cond: ((email)::text = 'alice@example.com'::text)
 #   Planning Time: 0.1ms
-#   Execution Time: 0.05ms  (was 82ms!)
+#   Execution Time: 0.05ms  (was 820ms!)
 
-# Concurrent index creation (no downtime)
-add_index :users, :email, algorithm: :concurrently`,
+# Concurrent index creation (no downtime).
+# CREATE INDEX CONCURRENTLY cannot run inside a transaction,
+# so the migration must disable the DDL transaction wrapper.
+class AddEmailIndexConcurrently < ActiveRecord::Migration[8.0]
+  disable_ddl_transaction!
+
+  def change
+    add_index :users, :email, algorithm: :concurrently
+  end
+end`,
 		commonMistakes: [
-			'Not adding indexes to foreign key columns (Rails does not do this automatically)',
+			'Leaving foreign key columns unindexed (t.references adds one, but a hand-added bare column like t.bigint :user_id does not)',
 			'Wrong column order in composite indexes (leftmost prefix rule)',
 			'Adding too many indexes (slows down writes)',
 			'Not using EXPLAIN to verify index usage',

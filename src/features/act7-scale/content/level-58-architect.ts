@@ -54,12 +54,12 @@ dependencies:
 		conceptExplanation: `This is the capstone, and it is a design exercise: the artifact is the plan, and every step is a decision with real alternatives.
 
 **1. The judgment call (extract or not).**
-Extraction is a cost: a second app to deploy, monitor, and page on, plus a network where a method call used to be. It is justified by structural evidence, not by fashion. The evidence here: billing has its own deploy cadence (hotfixes cannot wait for the monolith pipeline), its own workload profile (month-end batch writes), and a blast radius the rest of the app should not share. One pack shows that evidence, so one pack leaves. As Jason Warner (former GitHub CTO) put it: "One of the biggest architectural mistakes of the past decade was going full microservice." Stick with the monolith as long as possible, and no longer.
+Extraction is a cost: a second app to deploy, monitor, and page on, plus a network where a method call used to be. It is justified by structural evidence, not by fashion. The evidence here: billing has its own deploy cadence (hotfixes cannot wait for the monolith pipeline), its own workload profile (month-end batch writes), and a blast radius the rest of the app should not share. One pack shows that evidence, so one pack leaves. The rule from the monolith philosophy still holds: extract only the domain the evidence points at, and keep everything else in the monolith.
 
 **2. The strangler fig (how it moves).**
 Martin Fowler's strangler fig pattern: grow the new system around the edges of the old, moving behavior incrementally while the old system keeps serving ([source](https://martinfowler.com/bliki/StranglerFigApplication.html)). Big-bang rewrites fail for documented reasons: "replacements seem easy to specify, but often it's hard to figure out the details of existing behavior," and users cannot wait. The transitional architecture (dual paths, a routing gate, parity checks) looks like waste and is not: "the reduced risk and earlier value from the gradual approach outweigh its costs."
 
-The seams were already built, level by level: the gateway (Act 7, Level 57) means clients see one stable URL whichever half serves them. The event bus (Act 7, Level 56) means order facts can reach billing without a blocking call. The flag gate (Act 6, Level 50) means traffic moves by percentage, not by deploy.
+The seams were already built, level by level: the gateway (Act 7, Level 57) means clients see one stable URL whichever half serves them. The event bus (Act 7, Level 56) already decoupled checkout from its side effects, so giving that bus an out-of-process backend lets order facts reach the extracted billing service without a blocking call. The flag gate (Act 6, Level 50) means traffic moves by percentage, not by deploy.
 
 **3. The data migration (backfill + dual-write + verify).**
 History crosses in batches (backfill). New records are written to BOTH databases for the whole migration window (dual-write), so neither side falls behind. An automated parity job compares the two sides continuously; reads cut over only after sustained parity. The property that matters: every step is reversible until the moment you decide it is finished. A one-night copy script has no way back the morning after.
@@ -74,12 +74,12 @@ Flag-gated: 5% -> 25% -> 50% -> 100%, each step held until the parity check and 
 
 **1. Multi-Database (Act 7, Level 51):** the billing service gets its own writer and replica.
 **2. State Machines (Act 7, Level 54):** the payment lifecycle guards travel with the billing code.
-**3. Multi-Tenancy (Act 7, Level 53):** tenant scoping applies inside the service exactly as it did in the pack.
+**3. Multi-Tenancy (Act 7, Level 52):** tenant scoping applies inside the service exactly as it did in the pack.
 **4. Observability (Act 6, Level 47):** parity metrics and error budgets are what make the gradual cutover decidable.
 **5. Modular Monolith (Act 7, Level 55):** the enforced package boundary is why the extraction has a clean edge to cut along.
-**6. Domain Events (Act 7, Level 56):** the bus carries order facts across the process boundary unchanged.
+**6. Domain Events (Act 7, Level 56):** the in-process Wisper bus does not reach across a process boundary on its own, so the extraction gives it an out-of-process backend (Kafka via Karafka): checkout publishes the same order facts, and the billing service consumes them from the topic in its own process.
 **7. API Gateway (Act 7, Level 57):** the seam that makes extraction invisible: shipped apps already call one stable URL, so billing can move out behind it. Auth stays at the edge, and the billing section swaps from an in-process package reader to a call to the new service without clients noticing.
-**8. Sharding (Act 7, Level 52):** billing data keeps its tenant-keyed layout in its new home.
+**8. Sharding (Act 7, Level 53):** billing data keeps its tenant-keyed layout in its new home.
 
 **A note on the modular monolith (from the book):**
 Eileen Uchitelle's keynote ("The Myth of the Modular Monolith", Rails World 2024) argues that modularity can't fully solve human problems, but it delivers value by reorganizing complexity in ways humans can better understand. The key insight: enforce boundaries with tools (Packwerk, CODEOWNERS), not just conventions. This level is the payoff of that discipline: because the boundary was enforced for three acts, the extraction has a seam to cut along instead of a tangle to unpick.`,

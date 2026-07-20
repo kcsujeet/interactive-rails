@@ -719,7 +719,7 @@ const REWARD_ROLLBACK_FRAMES: AnimFrame[] = [
 		zones: {
 			flagGate: {
 				flash: 'amber',
-				sublabel: 'flag -> 0%. No deploy.',
+				sublabel: 'new path blocked. flag -> 0%. No deploy.',
 				badge: '0%',
 			},
 		},
@@ -855,17 +855,17 @@ export const STRESS_SCENARIOS: StressScenario[] = [
 	},
 	{
 		id: 'instant-rollback',
-		label: 'Parity fails: flip the flag back',
-		description: 'Mismatch found; flag to 0% instantly, no deploy',
+		label: 'Parity fails: flag blocks the new path',
+		description: 'Mismatch found; new-service traffic blocked at 0%, no deploy',
 		method: 'POST',
-		path: 'flag: billing_service -> 0%',
+		path: 'flag: billing_service -> 0% (new path closed)',
 		actor: 'billing team',
 		expectedResult: 'blocked',
 		story: [
 			'The parity check finds a rounding mismatch between the two paths.',
-			'The flag drops to 0%: every billing request routes back through the monolith, instantly, with no deploy.',
-			'Customers never see the discrepancy; the canary bought information, not an outage.',
-			'Fix the mismatch, then retry the canary. That is the whole point of the gradual path.',
+			'The flag drops to 0%: the new service path is blocked, and every billing request routes back through the monolith, instantly, with no deploy.',
+			'Blocking the canary is the safety mechanism working, not an outage: customers never see the discrepancy.',
+			'Fix the mismatch, then reopen the canary. That is the whole point of the gradual path.',
 		],
 	},
 ];

@@ -73,6 +73,7 @@ const CROSS_REFERENCES: Record<string, string[]> = {
 	],
 	'act3-clean-architecture/content/level-18-validation-contracts.ts': [
 		'Service Objects',
+		'Error Handling',
 	],
 	'act3-clean-architecture/content/level-20-error-handling.ts': [
 		'API Versioning',
@@ -85,8 +86,13 @@ const CROSS_REFERENCES: Record<string, string[]> = {
 	],
 	'act3-clean-architecture/components/level-18-validation-contracts/Level18ValidationContracts.tsx':
 		['Service Objects'],
+	'act4-performance/components/level-21-n1-problem/Level21N1Problem.tsx': [
+		'Eager Loading',
+	],
 	'act4-performance/content/level-22-eager-loading.ts': ['The N+1 Problem'],
 	'act4-performance/components/level-22-eager-loading/Level22EagerLoading.tsx':
+		['The N+1 Problem'],
+	'act4-performance/components/level-25-counter-caches/Level25CounterCaches.tsx':
 		['The N+1 Problem'],
 	'act4-performance/components/level-27-search/Level27Search.tsx': [
 		'Service Objects',

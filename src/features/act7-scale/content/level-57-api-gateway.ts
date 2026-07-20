@@ -13,7 +13,7 @@ export const level57APIGateway: Level = {
 	startingPipeline: { nodes: [], connections: [] },
 	problem: {
 		observation:
-			'One dashboard screen costs six round trips (2.4s on 4G), 480KB of payload for 6KB of pixels, and a blank screen if any single call fails. Renaming one internal route 404s every installed app until an app-store release lands.',
+			'One dashboard screen costs six round trips, each repeating auth and connection setup (even fired in parallel, the screen waits on the slowest), 480KB of payload for 6KB of pixels, and a blank screen if any single call fails. Renaming one internal route 404s every installed app until an app-store release lands.',
 		rootCause:
 			'There is no entry point that belongs to the screen. Clients talk to six resource endpoints directly, so latency, payload shape, failure handling, and URL stability are all the client app’s problem, and the client is the one thing you cannot redeploy quickly.',
 		codeExample: `# How the shipped app renders the dashboard today:
@@ -25,7 +25,9 @@ export const level57APIGateway: Level = {
 #   GET /api/v1/billing/summary   (line items: 88KB)
 #   GET /api/v1/metrics           (every datapoint: 80KB)
 #
-# Six sequential 4G round trips (~400ms each) = 2.4s spinner.
+# Six round trips (~400ms each on 4G). A smart client can
+# fire them in parallel, but each still opens its own
+# connection and re-runs the same auth, six times per screen.
 # 480KB downloaded; the screen displays about 6KB.
 # One failed call = blank dashboard (no per-section handling).
 # Six paths hardcoded in the shipped binary = the backend
@@ -44,7 +46,7 @@ export const level57APIGateway: Level = {
 		conceptExplanation: `An API gateway is a single entry point that owns the conversation with clients, so the rest of the backend does not have to.
 
 **The core trade it makes:**
-Six client-side calls become one. Round trips over the phone network are the expensive part (hundreds of milliseconds each); calls inside your own app are microseconds. Moving the stitching from the client to the server converts five slow network hops into five cheap method calls.
+Six client-side calls become one. A modern client can fire independent calls in parallel, so the gateway is not mainly a latency trick: the durable wins are that identity is checked once instead of six times, the payload is shaped for the screen instead of six whole resources, one failing section degrades gracefully instead of blanking the screen, and clients depend on one stable URL instead of six internal paths. It also collapses six connections into one and moves the stitching (which the un-redeployable client used to own) onto the server, where calls inside your own app are microseconds instead of network hops.
 
 **What lives at the gateway:**
 - **One auth check per screen:** identity is established once at the entry point, then passed to each section.

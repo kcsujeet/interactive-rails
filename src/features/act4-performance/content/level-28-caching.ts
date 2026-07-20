@@ -114,7 +114,7 @@ end
 **Production benchmarks:**
 \`\`\`
 No caching (with preloading):  ~3,800ms (sheer data volume + ranking)
-Fragment cache (cache hit):    17ms → 317x faster
+Fragment cache (cache hit):    17ms → 224x faster
 \`\`\`
 
 **Application-level caching layers (from fastest to slowest):**
@@ -122,7 +122,7 @@ Fragment cache (cache hit):    17ms → 317x faster
 1. **Fragment caching**: Cache rendered view/JSON fragments
    - Wrap a view section in a \`cache\` block. Cache version auto-generated from \`MAX(updated_at)\` + \`COUNT(*)\`
    - On cache hit, the entire serialization step is skipped. Rails returns pre-computed JSON directly
-   - The 317x improvement comes from avoiding all object allocation, serializer logic, and JSON generation
+   - The 224x improvement comes from avoiding all object allocation, serializer logic, and JSON generation
 
 2. **Russian doll caching**: Nested cache blocks
    - Outer collection cache + inner per-record cache
@@ -157,6 +157,8 @@ Fragment cache (cache hit):    17ms → 317x faster
 At low traffic, when a hot cache key expires, the next request recomputes and stores the new value. Easy. At high traffic, the moment that hot key expires, every concurrent request sees a miss at the same time and they ALL recompute simultaneously. Your database goes from one query to N parallel queries in a single tick.
 
 The fix is \`race_condition_ttl: 10.seconds\` on the \`Rails.cache.fetch\` call. After expiry, exactly ONE request rebuilds the cache while every other concurrent request continues serving the slightly-stale value (for up to the race_condition_ttl window). The rebuilt value replaces the stale one once the rebuild completes. The database sees one query instead of N.
+
+One important boundary: race_condition_ttl only helps when the SAME key's TTL lapses with no data change (the 5-minute timer). When a review touches a product, the versioned key ROTATES to a new updated_at, so every request sees a brand-new empty key and race_condition_ttl offers no coordination there. That is intended: a rotation means the data actually changed, so recomputing is the correct behavior. race_condition_ttl protects the steady state, not invalidation.
 
 \`\`\`ruby
 Rails.cache.fetch(

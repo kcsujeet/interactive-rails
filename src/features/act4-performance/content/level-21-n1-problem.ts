@@ -101,19 +101,19 @@ class ProductSerializer < BaseSerializer
   attribute :name
   attribute :description
 
-  attribute :author_name do |product|
+  attribute :seller_name do |product|
     product.user.name  # <-- triggers a query PER PRODUCT
   end
 end
 
-# Database log:
-#   Product Load (2.1ms)  SELECT "products".* FROM "products"
-#   User Load (0.3ms)  SELECT "users".* FROM "users" WHERE "users"."id" = 1
-#   User Load (0.2ms)  SELECT "users".* FROM "users" WHERE "users"."id" = 2
-#   User Load (0.3ms)  SELECT "users".* FROM "users" WHERE "users"."id" = 3
+# Database log (each round trip costs ~2ms):
+#   Product Load (2.0ms)  SELECT "products".* FROM "products"
+#   User Load (2.0ms)  SELECT "users".* FROM "users" WHERE "users"."id" = 1
+#   User Load (2.0ms)  SELECT "users".* FROM "users" WHERE "users"."id" = 2
+#   User Load (2.0ms)  SELECT "users".* FROM "users" WHERE "users"."id" = 3
 #   ... 97 more queries
 #
-# Total: 101 queries, 850ms`,
+# Total: 101 queries, ~202ms (101 round trips x ~2ms)`,
 		goal: 'Explore the pipeline to find the N+1 pattern. Then add automatic N+1 detection and prevent lazy-loading regressions at the model level.',
 		thresholds: { maxQueriesPerRequest: 5 },
 	},

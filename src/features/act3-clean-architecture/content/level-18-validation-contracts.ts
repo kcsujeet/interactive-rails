@@ -9,7 +9,7 @@ export const level18ValidationContracts: Level = {
 	trigger: {
 		type: 'new_feature',
 		description:
-			'The registration service creates a User, Profile, and NotificationPrefs in one call. Validations are scattered inline with early returns, and cross-field rules like "creator accounts must enable weekly digest" are buried between model checks.',
+			'The registration service creates a User from a rich signup payload (credentials, profile fields, notification preferences). Validations are scattered inline with early returns, and cross-field rules like "creator accounts must enable the weekly digest" are buried between the field checks.',
 	},
 	startingPipeline: {
 		nodes: [
@@ -27,25 +27,9 @@ export const level18ValidationContracts: Level = {
 				id: 'user-model',
 				type: 'model',
 				x: 680,
-				y: 120,
-				locked: true,
-				config: { label: 'User' },
-			},
-			{
-				id: 'profile-model',
-				type: 'model',
-				x: 680,
 				y: 250,
 				locked: true,
-				config: { label: 'Profile' },
-			},
-			{
-				id: 'notif-pref-model',
-				type: 'model',
-				x: 680,
-				y: 380,
-				locked: true,
-				config: { label: 'NotificationPref' },
+				config: { label: 'User' },
 			},
 			{ id: 'database-node', type: 'database', x: 880, y: 250, locked: true },
 		],
@@ -57,65 +41,44 @@ export const level18ValidationContracts: Level = {
 				targetNodeId: 'controller-node',
 			},
 			{ id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'user-model' },
-			{
-				id: 'c4',
-				sourceNodeId: 'controller-node',
-				targetNodeId: 'profile-model',
-			},
-			{
-				id: 'c5',
-				sourceNodeId: 'controller-node',
-				targetNodeId: 'notif-pref-model',
-			},
-			{ id: 'c6', sourceNodeId: 'user-model', targetNodeId: 'database-node' },
-			{
-				id: 'c7',
-				sourceNodeId: 'profile-model',
-				targetNodeId: 'database-node',
-			},
-			{
-				id: 'c8',
-				sourceNodeId: 'notif-pref-model',
-				targetNodeId: 'database-node',
-			},
+			{ id: 'c4', sourceNodeId: 'user-model', targetNodeId: 'database-node' },
 		],
 	},
 	problem: {
 		observation:
-			'The registration service (from L16) validates User, Profile, and NotificationPrefs with scattered inline checks. Cross-field rules like "creator role requires weekly digest" are buried between model checks. Only one error is returned per request.',
+			'The registration service (from L16) validates a rich signup payload (credentials, profile fields, notification preferences) with scattered inline checks. Cross-field rules like "creator role requires the weekly digest" are buried between the field checks. Only one error is returned per request.',
 		rootCause:
-			'No validation contract to encapsulate multi-model validation. Scattered inline checks inside the service instead of composable schemas with cross-field rules.',
+			'No validation contract to encapsulate the whole payload. Scattered inline checks inside the service instead of reusable schemas with cross-field rules.',
 		codeExample: `# app/services/user_registration.rb
 # (Service exists from L16, but validations are scattered inline!)
 class UserRegistration < ApplicationService
+  Result = Data.define(:success?, :user, :errors)
+
   def call
-    # User validations -- scattered inside the service!
-    if @params[:email].blank?
-      return Result.new(success?: false, errors: ["Email required"])
+    # Credential validations -- scattered inside the service!
+    if @params[:email_address].blank?
+      return Result.new(success?: false, user: nil, errors: ["Email required"])
     end
     if @params[:password].length < 8
-      return Result.new(success?: false, errors: ["Too short"])
+      return Result.new(success?: false, user: nil, errors: ["Too short"])
     end
 
     # Profile validations -- more scattered checks!
     if @params[:display_name].blank?
-      return Result.new(success?: false, errors: ["Name required"])
+      return Result.new(success?: false, user: nil, errors: ["Name required"])
     end
 
     # Notification prefs -- one error per check, not composable
-    unless %w[daily weekly monthly never].include?(@params[:digest])
-      return Result.new(success?: false, errors: ["Bad digest"])
+    unless %w[daily weekly monthly never].include?(@params[:email_digest])
+      return Result.new(success?: false, user: nil, errors: ["Bad digest"])
     end
 
-    # Cross-field rule -- buried between model checks!
-    if @params[:role] == "creator" && @params[:digest] != "weekly"
-      return Result.new(success?: false, errors: ["Creators need weekly"])
+    # Cross-field rule -- buried between the field checks!
+    if @params[:role] == "creator" && @params[:email_digest] != "weekly"
+      return Result.new(success?: false, user: nil, errors: ["Creators need weekly"])
     end
 
-    user = User.create!(email: @params[:email], password: @params[:password])
-    Profile.create!(user: user, display_name: @params[:display_name])
-    NotificationPref.create!(user: user, email_digest: @params[:digest])
-
+    user = User.create!(@params)
     Result.new(success?: true, user: user, errors: [])
   end
 end
@@ -123,9 +86,9 @@ end
 # Problems:
 # 1. One error per request (early returns)
 # 2. Can't reuse validations in another endpoint
-# 3. Cross-field rules buried between model checks
+# 3. Cross-field rules buried between the field checks
 # 4. Can't test validations without running the whole service`,
-		goal: 'Extract scattered validations into composable schemas with cross-field rules that can be tested independently.',
+		goal: 'Extract scattered validations into reusable schemas with cross-field rules that can be tested independently.',
 		thresholds: {},
 	},
 	successConditions: [{ type: 'form_object_created' }],
@@ -144,24 +107,28 @@ end
 - **No Rails coupling:** Works in service objects, CLI tools, anywhere
 
 **Structure:**
-1. Define reusable \`Dry::Schema.Params\` in \`app/schemas/\` (one per model or concern)
-2. Create a \`Dry::Validation::Contract\` in \`app/contracts/\` that composes schemas with \`&\`
+1. Define reusable \`Dry::Schema.Params\` in \`app/schemas/\` (one per concern)
+2. Create a \`Dry::Validation::Contract\` in \`app/contracts/\` that reuses those schemas by passing them to \`params\`
 3. \`rule\` blocks define cross-field business logic (runs after all schemas pass)
-4. A separate service wraps persistence in a transaction
+4. The service calls the contract, then persists the validated data
 
 **Key concepts:**
-- \`Dry::Schema.Params { required(:email).filled(:string) }\`: reusable schema (shape + types)
-- \`params(UserSchema & ProfileSchema)\`: compose schemas in a contract
+- \`Dry::Schema.Params { required(:email_address).filled(:string) }\`: reusable schema (shape + types)
+- \`params(CredentialsSchema, ProfileSchema)\`: reuse several predefined schemas in one contract by passing them as arguments
 - \`rule(:role, :email_digest) { ... }\`: business rules that span multiple fields
 - \`key.failure("message")\`: attach errors to specific fields
-- \`contract.call(params)\` returns a \`Result\` (success or failure with errors)`,
-		railsCodeExample: `# Gemfile
-gem "dry-validation"
-gem "dry-schema"
+- \`contract.call(params)\` returns a result (success or failure with errors)
 
-# app/schemas/user_schema.rb
-UserSchema = Dry::Schema.Params do
-  required(:email).filled(:string, format?: URI::MailTo::EMAIL_REGEXP)
+**Contract vs model validation: pick a layer (do not duplicate).**
+The contract validates the *request*: is the payload the right shape, are the types right, do the cross-field business rules hold at the boundary? The model keeps the *data-integrity* rules that must hold no matter who writes the row (uniqueness, presence, referential rules), enforced the same way for a signup, an admin edit, or a console session. When a check could live in both, put it where it is cheapest to enforce and hardest to bypass: shape and type checks in the schema (so malformed requests never reach the model), data-integrity guarantees on the model (so no code path can write an invalid row). This is the same "one place for each rule" guidance as L20's Result-vs-rescue_from paragraph: decide the layer, document it, and do not re-implement the same check in both. In this level the contract owns request shape plus the cross-field creator/digest rule; the model still owns email uniqueness and presence.`,
+		railsCodeExample: `# Gemfile
+gem "dry-validation"  # dry-schema comes along as a dependency
+
+# app/schemas/credentials_schema.rb
+# Shape + type checks for the request. Email uniqueness stays on
+# the model (data integrity), not here.
+CredentialsSchema = Dry::Schema.Params do
+  required(:email_address).filled(:string, format?: URI::MailTo::EMAIL_REGEXP)
   required(:password).filled(:string, min_size?: 8)
   optional(:role).filled(:string)
 end
@@ -183,8 +150,9 @@ end
 
 # app/contracts/registration_contract.rb
 class RegistrationContract < Dry::Validation::Contract
-  # Compose reusable schemas - each can be shared across contracts
-  params(UserSchema & ProfileSchema & NotifPrefsSchema)
+  # Reuse predefined schemas by passing them to params (comma-separated).
+  # dry-validation merges them; there is no & operator here.
+  params(CredentialsSchema, ProfileSchema, NotifPrefsSchema)
 
   # Rules: cross-field business logic (runs after all schemas pass)
   rule(:role, :email_digest) do
@@ -195,49 +163,35 @@ class RegistrationContract < Dry::Validation::Contract
 end
 
 # app/services/user_registration.rb (updated from L16)
-# Now delegates validation to the contract instead of inline checks
+# Now delegates request validation to the contract instead of inline checks.
+# UserRegistration defines its own initialize; ApplicationService (from L16)
+# only provides self.call, so there is no super initializer to call.
 class UserRegistration < ApplicationService
   Result = Data.define(:success?, :user, :errors)
 
-  def initialize(params, contract: RegistrationContract.new)
-    super(params)
-    @contract = contract
+  def initialize(params)
+    @params = params
   end
 
   def call
-    validation = @contract.call(@params)
+    validation = RegistrationContract.new.call(@params)
     unless validation.success?
       return Result.new(success?: false, user: nil,
                         errors: validation.errors.to_h)
     end
 
-    attrs = validation.to_h
-
-    ActiveRecord::Base.transaction do
-      user = User.create!(
-        email: attrs[:email],
-        password: attrs[:password],
-        role: attrs[:role]
-      )
-      Profile.create!(
-        user: user,
-        display_name: attrs[:display_name],
-        bio: attrs[:bio]
-      )
-      NotificationPref.create!(
-        user: user,
-        email_digest: attrs[:email_digest],
-        push_enabled: attrs[:push_enabled]
-      )
-
-      Result.new(success?: true, user: user, errors: [])
-    end
+    # The model still owns data-integrity rules (email uniqueness,
+    # presence). create! raises if the model rejects the row.
+    user = User.create!(validation.to_h)
+    Result.new(success?: true, user: user, errors: [])
   end
 end
 
 # Controller stays thin (unchanged from L16):
-# app/controllers/api/registrations_controller.rb
-class Api::RegistrationsController < ApplicationController
+# app/controllers/users_controller.rb
+class UsersController < ApplicationController
+  allow_unauthenticated_access only: :create
+
   def create
     result = UserRegistration.call(registration_params)
 
@@ -251,8 +205,8 @@ class Api::RegistrationsController < ApplicationController
   private
 
   def registration_params
-    params.expect(registration: [
-      :email, :password, :role,
+    params.expect(user: [
+      :email_address, :password, :role,
       :display_name, :bio,
       :email_digest, :push_enabled
     ])
@@ -265,7 +219,7 @@ class RegistrationContractTest < ActiveSupport::TestCase
 
   test "valid params pass" do
     result = @contract.call(
-      email: "alice@example.com", password: "secure1234",
+      email_address: "alice@example.com", password: "secure1234",
       role: "member",
       display_name: "Alice", email_digest: "weekly"
     )
@@ -275,7 +229,7 @@ class RegistrationContractTest < ActiveSupport::TestCase
 
   test "creator without weekly digest fails" do
     result = @contract.call(
-      email: "bob@example.com", password: "secure1234",
+      email_address: "bob@example.com", password: "secure1234",
       role: "creator",
       display_name: "Bob", email_digest: "monthly"
     )
@@ -292,18 +246,18 @@ class RegistrationContractTest < ActiveSupport::TestCase
     )
 
     assert result.failure?
-    assert result.errors[:email].any?
+    assert result.errors[:email_address].any?
   end
 end`,
 		commonMistakes: [
-			'Forgetting to wrap persistence in a transaction (partial failures leave orphaned records)',
-			'Inlining all validations in the contract params block instead of extracting reusable schemas to app/schemas/',
+			'Re-implementing model data-integrity rules (uniqueness, presence) in the contract instead of letting the model own them (the contract validates request shape; the model guards the row)',
+			'Inlining all validations in the contract params block instead of reusing schemas from app/schemas/',
 			'Mixing schema checks and business rules in the same layer (dry-validation separates them)',
-			'Not checking result.failure? before using the validated data',
-			'Putting cross-model validations in a model callback instead of a contract rule',
+			'Not checking validation.failure? before using the validated data',
+			'Putting a cross-field business rule in a model callback instead of a contract rule',
 		],
 		whenToUse:
-			'Any endpoint that creates or updates multiple models, or where cross-field validations are needed that do not belong on any single model.',
+			'Any endpoint with a rich request payload, or where cross-field validations are needed that describe the request rather than the integrity of a single row.',
 		furtherReading: [
 			{
 				title: 'dry-validation',
@@ -322,7 +276,7 @@ end`,
 					'The Gemfile lists dry-validation and the bundle resolves without conflicts.',
 			},
 			{
-				task: 'Create a reusable UserSchema in app/schemas (email_address format and password minimum length) and a RegistrationContract in app/contracts that takes the schema via params and adds one cross-field rule block. Exercise it from the console.',
+				task: 'Create a reusable CredentialsSchema in app/schemas (email_address format and password minimum length) and a RegistrationContract in app/contracts that reuses the schema via params and adds one cross-field rule block. Exercise it from the console.',
 				commands: ['bin/rails console'],
 				verify:
 					'RegistrationContract.new.call(email_address: "", password: "short") returns a failure whose errors include entries for BOTH fields at once, not just the first one.',
@@ -336,6 +290,6 @@ end`,
 	},
 	hint: {
 		delay: 25,
-		text: 'Add a Validation Contract node between the Controller and the models. The contract validates all inputs, then a service persists them in a single transaction.',
+		text: 'Add a Validation Contract between the Controller and the model. The contract validates the whole request payload at once, then the service persists the validated data.',
 	},
 };

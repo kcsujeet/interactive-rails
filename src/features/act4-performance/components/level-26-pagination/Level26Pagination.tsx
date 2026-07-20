@@ -353,7 +353,10 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		expectedResult: 'blocked',
 		responseLines: [
 			{ text: 'Pagy::OverflowError: page 99999 out of 1..2000', color: 'red' },
-			{ text: 'Returned: []  (empty array)', color: 'red' },
+			{
+				text: 'Rescued in ApplicationController: render 404 Not Found',
+				color: 'red',
+			},
 		],
 	},
 ];
@@ -519,7 +522,7 @@ const HEADERS_OPTIONS: StepOption[] = [
 		label: 'render json: { data: @products, meta: { page: @pagy.page } }',
 		correct: false,
 		feedback:
-			'Embedding pagination in the JSON body is non-standard. RFC 5988 specifies Link headers so the payload stays clean.',
+			'Embedding pagination in the JSON body is non-standard. RFC 8288 specifies Link headers so the payload stays clean.',
 	},
 	{
 		id: 'correct',
@@ -531,7 +534,7 @@ const HEADERS_OPTIONS: StepOption[] = [
 		label: 'response.headers["X-Pagination"] = @pagy.to_json',
 		correct: false,
 		feedback:
-			'Custom headers are non-standard. Pagy has built-in support for RFC 5988 Link headers via headers_hash.',
+			'Custom headers are non-standard. Pagy has built-in support for RFC 8288 Link headers via headers_hash.',
 	},
 ];
 
@@ -564,7 +567,7 @@ const OPTION_STEP_CONFIG: Record<
 	4: {
 		title: 'Add Navigation Headers',
 		description:
-			'API clients need to know how to fetch the next page. RFC 5988 headers are the standard way to communicate pagination URLs without polluting the JSON body.',
+			'API clients need to know how to fetch the next page. RFC 8288 headers are the standard way to communicate pagination URLs without polluting the JSON body.',
 		options: HEADERS_OPTIONS,
 	},
 };
@@ -1108,7 +1111,7 @@ export function Level26Pagination({ onComplete }: LevelComponentProps) {
 		if (isOverflow) {
 			return {
 				text: 'Page out of range',
-				detail: 'Pagy::OverflowError, returned []',
+				detail: 'Pagy::OverflowError rescued, 404 Not Found',
 				variant: 'danger',
 			};
 		}
@@ -1592,7 +1595,7 @@ export function Level26Pagination({ onComplete }: LevelComponentProps) {
 						phase === 'observe'
 							? 'Product.includes(:user).all loads every row. The 12MB JSON response has no pagination headers and no way to request a subset.'
 							: phase === 'reward'
-								? 'Pagy paginates with offset strategy, 25 per page, and sends RFC 5988 Link headers so clients can navigate pages.'
+								? 'Pagy paginates with offset strategy, 25 per page, and sends RFC 8288 Link headers so clients can navigate pages.'
 								: 'A page of results plus enough metadata for the client to ask for the next one.'
 					}
 				>
@@ -1632,7 +1635,7 @@ export function Level26Pagination({ onComplete }: LevelComponentProps) {
 												@pagy.headers_hash
 											</span>
 											<div className="text-muted-foreground">
-												RFC 5988 Link headers for API navigation
+												RFC 8288 Link headers for API navigation
 											</div>
 										</div>
 									</div>

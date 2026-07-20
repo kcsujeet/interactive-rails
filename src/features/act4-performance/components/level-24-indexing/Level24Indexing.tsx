@@ -111,7 +111,7 @@ const QUERY_LANES: QueryLane[] = [
 		table: 'users',
 		sql: "SELECT * FROM users WHERE email = 'alice@example.com'",
 		icon: Search,
-		totalRows: 10000,
+		totalRows: 2000000,
 	},
 	{
 		id: 'fk',
@@ -119,7 +119,7 @@ const QUERY_LANES: QueryLane[] = [
 		table: 'products',
 		sql: 'SELECT * FROM products WHERE user_id = 42',
 		icon: Table2,
-		totalRows: 50000,
+		totalRows: 5000000,
 	},
 	{
 		id: 'composite',
@@ -127,7 +127,7 @@ const QUERY_LANES: QueryLane[] = [
 		table: 'products',
 		sql: 'SELECT * FROM products WHERE published = true ORDER BY created_at',
 		icon: Database,
-		totalRows: 50000,
+		totalRows: 5000000,
 	},
 ];
 
@@ -166,7 +166,7 @@ const INDEX_LOOKUP_DATA: Record<
 			{ value: 'alice@example.com', row: 'row #4231', highlight: true },
 			{ value: 'bob@dev.io', row: 'row #1892' },
 			{ value: 'carol@startup.co', row: 'row #892' },
-			{ value: '...', row: '(9,996 more)' },
+			{ value: '...', row: '(~2M more, sorted)' },
 		],
 	},
 	fk: {
@@ -181,9 +181,9 @@ const INDEX_LOOKUP_DATA: Record<
 	composite: {
 		name: 'index_products_on_published_created_at',
 		entries: [
-			{ value: 'false, 2024-01-01', row: 'rows #1..25000' },
-			{ value: 'true, 2024-01-01', row: 'row #25001', highlight: true },
-			{ value: 'true, 2024-01-02', row: 'row #25002' },
+			{ value: 'false, 2024-01-01', row: 'rows #1..2.5M' },
+			{ value: 'true, 2024-01-01', row: 'row #2500001', highlight: true },
+			{ value: 'true, 2024-01-02', row: 'row #2500002' },
 			{ value: '(pre-sorted by created_at)', row: 'no Sort needed' },
 		],
 	},
@@ -215,20 +215,20 @@ const PROBES: ProbeConfig[] = [
 			"EXPLAIN ANALYZE SELECT * FROM users WHERE email = 'alice@example.com'",
 		responseLines: [
 			{
-				text: 'Seq Scan on users  (cost=0.00..245.00 rows=1 width=72)',
+				text: 'Seq Scan on users  (cost=0.00..48000.00 rows=1 width=72)',
 				color: 'red',
 			},
 			{
 				text: "  Filter: ((email)::text = 'alice@example.com'::text)",
 				color: 'muted',
 			},
-			{ text: '  Rows Removed by Filter: 9999', color: 'yellow' },
+			{ text: '  Rows Removed by Filter: 1999999', color: 'yellow' },
 			{ text: '  Execution Time: 820.00 ms', color: 'red' },
 		],
 		story: [
 			'A user logs in by entering their email address.',
-			'PostgreSQL runs a sequential scan across all 10,000 rows in the users table.',
-			'It checks every single row, discarding 9,999 non-matches.',
+			'PostgreSQL runs a sequential scan across all 2,000,000 rows in the users table.',
+			'It checks every single row, discarding 1,999,999 non-matches.',
 			'Login takes 820ms because there is no index on the email column.',
 		],
 	},
@@ -238,18 +238,18 @@ const PROBES: ProbeConfig[] = [
 		command: 'EXPLAIN ANALYZE SELECT * FROM products WHERE user_id = 42',
 		responseLines: [
 			{
-				text: 'Seq Scan on products  (cost=0.00..1125.00 rows=25 width=128)',
+				text: 'Seq Scan on products  (cost=0.00..112500.00 rows=25 width=128)',
 				color: 'red',
 			},
 			{ text: '  Filter: (user_id = 42)', color: 'muted' },
-			{ text: '  Rows Removed by Filter: 49975', color: 'yellow' },
+			{ text: '  Rows Removed by Filter: 4999975', color: 'yellow' },
 			{ text: '  Execution Time: 450.00 ms', color: 'red' },
 		],
 		story: [
 			'A user visits a profile page, which loads all their products.',
 			'The query filters products by user_id, a foreign key column.',
-			'Without an index, PostgreSQL scans all 50,000 rows to find 25 matches.',
-			'49,975 rows are examined and discarded, taking 450ms.',
+			'Without an index, PostgreSQL scans all 5,000,000 rows to find 25 matches.',
+			'4,999,975 rows are examined and discarded, taking 450ms.',
 		],
 	},
 	{
@@ -259,17 +259,17 @@ const PROBES: ProbeConfig[] = [
 			'EXPLAIN ANALYZE SELECT * FROM products WHERE published = true ORDER BY created_at',
 		responseLines: [
 			{
-				text: 'Sort  (cost=1850.00..1862.50 rows=25000 width=128)',
+				text: 'Sort  (cost=185000.00..191250.00 rows=2500000 width=128)',
 				color: 'red',
 			},
 			{ text: '  Sort Key: created_at', color: 'muted' },
-			{ text: '  ->  Seq Scan on products  (rows=25000)', color: 'red' },
+			{ text: '  ->  Seq Scan on products  (rows=2500000)', color: 'red' },
 			{ text: '        Filter: (published = true)', color: 'muted' },
 			{ text: '  Execution Time: 650.00 ms', color: 'red' },
 		],
 		story: [
 			'The homepage displays published products sorted by date.',
-			'PostgreSQL scans 25,000 published rows, then sorts them all by created_at.',
+			'PostgreSQL scans 2,500,000 published rows, then sorts them all by created_at.',
 			'Both the filter and the sort require full table scans without an index.',
 			'No single-column index can serve the filter and the sort together.',
 		],
@@ -295,24 +295,24 @@ const OBSERVE_SCAN_DATA: Record<string, ScanResult> = {
 		scanType: 'seq',
 		plan: 'Seq Scan on users',
 		time: '820ms',
-		rowsScanned: 10000,
-		totalRows: 10000,
-		rowsRemoved: 9999,
+		rowsScanned: 2000000,
+		totalRows: 2000000,
+		rowsRemoved: 1999999,
 	},
 	fk: {
 		scanType: 'seq',
 		plan: 'Seq Scan on products',
 		time: '450ms',
-		rowsScanned: 50000,
-		totalRows: 50000,
-		rowsRemoved: 49975,
+		rowsScanned: 5000000,
+		totalRows: 5000000,
+		rowsRemoved: 4999975,
 	},
 	composite: {
 		scanType: 'seq',
 		plan: 'Sort + Seq Scan on products',
 		time: '650ms',
-		rowsScanned: 50000,
-		totalRows: 50000,
+		rowsScanned: 5000000,
+		totalRows: 5000000,
 		sortKey: 'created_at',
 	},
 };
@@ -337,13 +337,13 @@ CREATE TABLE users (
 
 CREATE TABLE products (
   id bigint PRIMARY KEY,
-  user_id bigint REFERENCES users(id),
+  user_id bigint NOT NULL,
   title varchar,
   body text,
   published boolean DEFAULT false,
   created_at timestamp
 );
--- No index on user_id!
+-- user_id is a bare column, no index!
 -- published and created_at have nothing to lean on!`,
 };
 
@@ -359,25 +359,25 @@ const LANE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 SELECT * FROM users WHERE email = 'alice@example.com'
 
 -- EXPLAIN output:
-Seq Scan on users  (cost=0.00..245.00)
+Seq Scan on users  (cost=0.00..48000.00)
   Filter: ((email) = 'alice@example.com')
-  Rows Removed by Filter: 9999
-  -- Scanned all 10,000 rows to find 1 match!`,
+  Rows Removed by Filter: 1999999
+  -- Scanned all 2,000,000 rows to find 1 match!`,
 	},
 	fk: {
 		stageId: 'fk',
 		title: 'Foreign Key Lookup Query',
 		description:
-			'UserProductsLoader.call(user_id:) calls Product.where(user_id: @user_id) inside the service. This filters products by a foreign key. Rails does NOT automatically create indexes on foreign key columns.',
+			'UserProductsLoader.call(user_id:) calls Product.where(user_id: @user_id) inside the service. This filters products by user_id. That column was hand-added as a bare bigint (t.references would have added an index, but this one is missing).',
 		code: `-- UserProductsLoader service calls Product.where(user_id: @user_id)
 -- Generated SQL:
 SELECT * FROM products WHERE user_id = 42
 
 -- EXPLAIN output:
-Seq Scan on products  (cost=0.00..1125.00)
+Seq Scan on products  (cost=0.00..112500.00)
   Filter: (user_id = 42)
-  Rows Removed by Filter: 49975
-  -- Scanned all 50,000 products to find 25!`,
+  Rows Removed by Filter: 4999975
+  -- Scanned all 5,000,000 products to find 25!`,
 	},
 	composite: {
 		stageId: 'composite',
@@ -391,7 +391,7 @@ SELECT * FROM products
   ORDER BY created_at
 
 -- EXPLAIN output:
-Sort  (cost=1850.00..1862.50)
+Sort  (cost=185000.00..191250.00)
   Sort Key: created_at
   ->  Seq Scan on products
       Filter: (published = true)
@@ -421,7 +421,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 				text: "  Index Cond: (email = 'alice@example.com')",
 				color: 'yellow',
 			},
-			{ text: '  Rows Scanned: 1 of 10,000', color: 'green' },
+			{ text: '  Rows Scanned: 1 of 2,000,000', color: 'green' },
 			{ text: '  Execution Time: 0.05 ms (was 820ms)', color: 'green' },
 		],
 	},
@@ -439,7 +439,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 				color: 'green',
 			},
 			{ text: '  Index Cond: (user_id = 42)', color: 'yellow' },
-			{ text: '  Rows Scanned: 25 of 50,000', color: 'green' },
+			{ text: '  Rows Scanned: 25 of 5,000,000', color: 'green' },
 			{ text: '  Execution Time: 0.10 ms (was 450ms)', color: 'green' },
 		],
 	},
@@ -477,7 +477,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		expectedResult: 'blocked',
 		responseLines: [
 			{
-				text: 'Seq Scan on products  (cost=0.00..1125.00)',
+				text: 'Seq Scan on products  (cost=0.00..112500.00)',
 				color: 'red',
 			},
 			{
@@ -501,7 +501,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		expectedResult: 'allowed',
 		responseLines: [
 			{
-				text: 'Seq Scan on users  (cost=0.00..245.00)',
+				text: 'Seq Scan on users  (cost=0.00..48000.00)',
 				color: 'yellow',
 			},
 			{
@@ -513,7 +513,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 				color: 'green',
 			},
 			{
-				text: '  Execution Time: 12.00 ms (acceptable for admin)',
+				text: '  Execution Time: 810.00 ms (no index would help here)',
 				color: 'green',
 			},
 		],
@@ -531,7 +531,7 @@ const REWARD_SCAN_DATA: Record<
 		plan: 'Index Scan using index_users_on_email',
 		time: '0.05ms',
 		rowsScanned: 1,
-		totalRows: 10000,
+		totalRows: 2000000,
 	},
 	'fk-lookup': {
 		laneId: 'fk',
@@ -539,31 +539,31 @@ const REWARD_SCAN_DATA: Record<
 		plan: 'Index Scan using index_products_on_user_id',
 		time: '0.10ms',
 		rowsScanned: 25,
-		totalRows: 50000,
+		totalRows: 5000000,
 	},
 	'composite-query': {
 		laneId: 'composite',
 		scanType: 'index',
 		plan: 'Index Scan using index_products_on_published_and_created_at',
 		time: '0.20ms',
-		rowsScanned: 25000,
-		totalRows: 50000,
+		rowsScanned: 2500000,
+		totalRows: 5000000,
 	},
 	'created-at-only': {
 		laneId: 'composite',
 		scanType: 'seq',
 		plan: 'Seq Scan on products (leftmost prefix violation)',
 		time: '650ms',
-		rowsScanned: 50000,
-		totalRows: 50000,
+		rowsScanned: 5000000,
+		totalRows: 5000000,
 	},
 	'admin-all-users': {
 		laneId: 'email',
 		scanType: 'seq',
 		plan: 'Seq Scan on users (no WHERE clause, expected)',
-		time: '12ms',
-		rowsScanned: 10000,
-		totalRows: 10000,
+		time: '810ms',
+		rowsScanned: 2000000,
+		totalRows: 2000000,
 		expected: true,
 		sqlOverride: 'SELECT * FROM users',
 		labelOverride: 'Admin: All Users',
@@ -716,7 +716,7 @@ const OPTION_STEP_CONFIG: Record<
 	1: {
 		title: 'Unique Index on Email',
 		description:
-			'UserLookup calls User.find_by!(email: @email), which triggers a Seq Scan across 10,000 rows. Each email must be unique. Which index definition belongs in the migration?',
+			'UserLookup calls User.find_by!(email: @email), which triggers a Seq Scan across 2,000,000 rows. Each email must be unique. Which index definition belongs in the migration?',
 		options: [
 			{
 				id: 'wrong-plain',
@@ -742,7 +742,7 @@ const OPTION_STEP_CONFIG: Record<
 	2: {
 		title: 'Foreign Key Index',
 		description:
-			'UserProductsLoader calls Product.where(user_id: @user_id), which scans all 50,000 products. Rails does not automatically index foreign keys. Which index fixes this?',
+			'UserProductsLoader calls Product.where(user_id: @user_id), which scans all 5,000,000 products. This user_id column was added as a bare bigint with no index. Which index fixes this?',
 		options: [
 			{
 				id: 'wrong-composite',
@@ -813,7 +813,9 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
   # No index on email!
 
   create_table "products" do |t|
-    t.references "user", foreign_key: true
+    # user_id was hand-added as a bare column, so it has
+    # no index (t.references would have added one).
+    t.bigint "user_id", null: false
     t.string "title"
     t.text "body"
     t.boolean "published", default: false
@@ -822,7 +824,7 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
   # No index on user_id!
   # published and created_at have nothing to lean on!
 end`,
-			highlight: [7, 16, 17],
+			highlight: [7, 12, 18, 19],
 		});
 		files.push({
 			filename: 'app/services/user_lookup.rb',
@@ -836,7 +838,7 @@ end`,
 
   def call
     user = User.find_by!(email: @email)
-    # Seq Scan: 820ms on 10K rows!
+    # Seq Scan: 820ms on 2M rows!
     Result.new(success?: true, user: user, errors: [])
   rescue ActiveRecord::RecordNotFound
     Result.new(success?: false, user: nil, errors: ["not found"])
@@ -1625,7 +1627,7 @@ export function Level24Indexing({ onComplete }: LevelComponentProps) {
 						</h3>
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							GET /api/users?email=alice@example.com takes 820ms. The EXPLAIN
-							output shows a sequential scan across 10,000 rows. Without
+							output shows a sequential scan across 2,000,000 rows. Without
 							database indexes, every query reads every row in the table.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">

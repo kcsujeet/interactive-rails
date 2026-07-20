@@ -5,7 +5,7 @@
  * Each phase occupies the full center panel. One thing at a time.
  *
  * Phase 1 (WHY - intro): Static annotated code display (Type 2).
- *   Three consumer zones (Admin Controller, API Controller, CSV Job) each
+ *   Three consumer zones (Admin Controller, API Controller, CSV Export PORO) each
  *   showing the same inline query chain with destructive left borders.
  *   Callout states the structural problem. "Build the Fix" always visible.
  * Phase 2 (HOW - build): 3 OptionCard steps
@@ -77,13 +77,13 @@ const ADMIN_SECTIONS: AnnotatedSection[] = [
 		id: 'admin-published',
 		label: 'Duplicated: Listed Filter',
 		variant: 'duplicated',
-		code: 'if params[:listed].present?\n  @products = @products.where.not(listed_at: nil)\nend',
+		code: 'if params[:listed].present?\n  @products = @products.where(status: "listed")\nend',
 	},
 	{
 		id: 'admin-author',
 		label: 'Duplicated: Seller Filter',
 		variant: 'duplicated',
-		code: 'if params[:seller_id].present?\n  @products = @products.where(seller_id: params[:seller_id])\nend',
+		code: 'if params[:user_id].present?\n  @products = @products.where(user_id: params[:user_id])\nend',
 	},
 	{
 		id: 'admin-reviews',
@@ -92,10 +92,10 @@ const ADMIN_SECTIONS: AnnotatedSection[] = [
 		code: 'if params[:min_reviews].present?\n  @products = @products.left_joins(:reviews)\n    .group(:id)\n    .having("COUNT(reviews.id) >= ?", ...)\nend',
 	},
 	{
-		id: 'admin-tag',
-		label: 'Duplicated: Tag Filter',
+		id: 'admin-featured',
+		label: 'Duplicated: Featured Filter',
 		variant: 'duplicated',
-		code: 'if params[:tag].present?\n  @products = @products.joins(:tags)\n    .where(tags: { name: params[:tag] })\nend',
+		code: 'if params[:featured].present?\n  @products = @products.where(featured: true)\nend',
 	},
 ];
 
@@ -110,19 +110,19 @@ const API_SECTIONS: AnnotatedSection[] = [
 		id: 'api-published',
 		label: 'Duplicated: Listed Filter',
 		variant: 'duplicated',
-		code: 'products = products.where.not(listed_at: nil) if params[:listed]',
+		code: 'products = products.where(status: "listed") if params[:listed]',
 	},
 	{
 		id: 'api-author',
 		label: 'Duplicated: Seller Filter',
 		variant: 'duplicated',
-		code: 'products = products.where(seller_id: params[:seller_id]) if params[:seller_id]',
+		code: 'products = products.where(user_id: params[:user_id]) if params[:user_id]',
 	},
 	{
-		id: 'api-tag',
-		label: 'Duplicated: Tag Filter',
+		id: 'api-featured',
+		label: 'Duplicated: Featured Filter',
 		variant: 'duplicated',
-		code: 'products = products.joins(:tags).where(tags: { name: params[:tag] }) if params[:tag]',
+		code: 'products = products.where(featured: true) if params[:featured]',
 	},
 ];
 
@@ -137,7 +137,7 @@ const CSV_SECTIONS: AnnotatedSection[] = [
 		id: 'csv-published',
 		label: 'Duplicated: Listed Filter',
 		variant: 'duplicated',
-		code: 'products = products.where.not(listed_at: nil) if filters[:listed]',
+		code: 'products = products.where(status: "listed") if filters[:listed]',
 	},
 	{
 		id: 'csv-since',
@@ -151,7 +151,7 @@ const CSV_SECTIONS: AnnotatedSection[] = [
 // Step definitions (3 OptionCard steps)
 // ──────────────────────────────────────────────
 
-const STEP_DEFS: StepDef[] = [
+export const STEP_DEFS: StepDef[] = [
 	{ id: 'extraction-pattern', title: 'Choose Extraction Pattern' },
 	{ id: 'filter-method', title: 'Define Filter Method Pattern' },
 	{ id: 'wire-controller', title: 'Wire Controller to Query Object' },
@@ -168,7 +168,7 @@ interface StepOption {
 	feedback?: string;
 }
 
-const PATTERN_OPTIONS: StepOption[] = [
+export const PATTERN_OPTIONS: StepOption[] = [
 	{
 		id: 'model-scope',
 		label: 'Add scopes to the Product model for each filter',
@@ -197,7 +197,7 @@ const PATTERN_OPTIONS: StepOption[] = [
 	},
 ];
 
-const FILTER_METHOD_OPTIONS: StepOption[] = [
+export const FILTER_METHOD_OPTIONS: StepOption[] = [
 	{
 		id: 'return-array',
 		label: 'Each method calls .to_a and returns an Array of records',
@@ -222,21 +222,21 @@ const FILTER_METHOD_OPTIONS: StepOption[] = [
 		label: 'Each method modifies @scope but returns nil',
 		correct: false,
 		feedback:
-			'Returning nil breaks the chaining pattern. Callers could not write .by_author(3).by_tag("rails").results because the first call returns nil.',
+			'Returning nil breaks the chaining pattern. Callers could not write .by_seller(3).featured(true).results because the first call returns nil.',
 	},
 ];
 
-const WIRE_OPTIONS: StepOption[] = [
+export const WIRE_OPTIONS: StepOption[] = [
 	{
 		id: 'pass-params-hash',
 		label: 'ProductQuery.new(params).results',
 		correct: false,
 		feedback:
-			'Passing the entire params hash to the query object couples it to the controller. Background jobs and rake tasks do not have a params object.',
+			'Passing the entire params hash to the query object couples it to the controller. Rake tasks and plain callers do not have a params object.',
 	},
 	{
 		id: 'call-class-method',
-		label: 'ProductQuery.filter(params[:listed], params[:seller_id])',
+		label: 'ProductQuery.filter(params[:listed], params[:user_id])',
 		correct: false,
 		feedback:
 			'A single class method with positional arguments is not composable. Adding a new filter means changing the method signature everywhere it is called.',
@@ -244,7 +244,7 @@ const WIRE_OPTIONS: StepOption[] = [
 	{
 		id: 'chain-methods',
 		label:
-			'ProductQuery.new.listed(params[:listed]).by_seller(params[:seller_id]).sorted.results',
+			'ProductQuery.new.listed(params[:listed]).by_seller(params[:user_id]).sorted.results',
 		correct: true,
 	},
 ];
@@ -266,7 +266,7 @@ const OPTION_STEP_CONFIG: Record<
 	1: {
 		title: 'Define Filter Method Pattern',
 		description:
-			'Each filter method (published, by_author, by_tag, with_min_reviews) needs to be chainable so callers can combine any subset of filters. What should each method return?',
+			'Each filter method (listed, by_seller, since, with_min_reviews, featured) needs to be chainable so callers can combine any subset of filters. What should each method return?',
 		options: FILTER_METHOD_OPTIONS,
 	},
 	2: {
@@ -345,7 +345,7 @@ function AnnotatedCodeBlock({
 // Code preview helper
 // ──────────────────────────────────────────────
 
-function getCodeFiles(phase: Phase, furthestStep: number) {
+export function getCodeFiles(phase: Phase, furthestStep: number) {
 	const files = [];
 
 	if (phase === 'intro') {
@@ -357,11 +357,11 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
     @products = Product.all
 
     if params[:listed].present?
-      @products = @products.where.not(listed_at: nil)
+      @products = @products.where(status: "listed")
     end
 
-    if params[:seller_id].present?
-      @products = @products.where(seller_id: params[:seller_id])
+    if params[:user_id].present?
+      @products = @products.where(user_id: params[:user_id])
     end
 
     if params[:since].present?
@@ -375,9 +375,8 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
                 params[:min_reviews])
     end
 
-    if params[:tag].present?
-      @products = @products.joins(:tags)
-        .where(tags: { name: params[:tag] })
+    if params[:featured].present?
+      @products = @products.where(featured: true)
     end
 
     @products = @products.order(listed_at: :desc)
@@ -388,7 +387,7 @@ end
 
 # Same logic copy-pasted in:
 # app/controllers/api/products_controller.rb
-# app/jobs/csv_export_job.rb`,
+# app/exports/csv_product_export.rb`,
 			highlight: [5, 6, 9, 10, 13, 14, 17, 18, 19, 20, 21, 24, 25, 26],
 		});
 		return files;
@@ -403,11 +402,11 @@ end
     @products = Product.all
 
     if params[:listed].present?
-      @products = @products.where.not(listed_at: nil)
+      @products = @products.where(status: "listed")
     end
 
-    if params[:seller_id].present?
-      @products = @products.where(seller_id: params[:seller_id])
+    if params[:user_id].present?
+      @products = @products.where(user_id: params[:user_id])
     end
 
     if params[:min_reviews].present?
@@ -434,17 +433,20 @@ end
 			code:
 				furthestStep >= 3
 					? `class ProductQuery < ApplicationQuery
+  SORTABLE_COLUMNS = %w[listed_at created_at name].freeze
+  SORT_DIRECTIONS = %w[asc desc].freeze
+
   def listed(flag)
     return self if flag.blank?
 
-    @scope = @scope.where.not(listed_at: nil)
+    @scope = @scope.where(status: "listed")
     self
   end
 
-  def by_seller(seller_id)
-    return self if seller_id.blank?
+  def by_seller(user_id)
+    return self if user_id.blank?
 
-    @scope = @scope.where(seller_id: seller_id)
+    @scope = @scope.where(user_id: user_id)
     self
   end
 
@@ -465,16 +467,18 @@ end
     self
   end
 
-  def by_tag(tag_name)
-    return self if tag_name.blank?
+  def featured(flag)
+    return self if flag.blank?
 
-    @scope = @scope.joins(:tags)
-      .where(tags: { name: tag_name })
+    @scope = @scope.where(featured: true)
     self
   end
 
   def sorted(column = :listed_at, dir = :desc)
-    @scope = @scope.order(column => dir)
+    # Allowlist: raw params to .order() is SQL injection
+    col = SORTABLE_COLUMNS.include?(column.to_s) ? column : :listed_at
+    d = SORT_DIRECTIONS.include?(dir.to_s) ? dir : :desc
+    @scope = @scope.order(col => d)
     self
   end
 
@@ -489,14 +493,14 @@ end`
   def listed(flag)
     return self if flag.blank?
 
-    @scope = @scope.where.not(listed_at: nil)
+    @scope = @scope.where(status: "listed")
     self  # returns self for chaining
   end
 
-  def by_seller(seller_id)
-    return self if seller_id.blank?
+  def by_seller(user_id)
+    return self if user_id.blank?
 
-    @scope = @scope.where(seller_id: seller_id)
+    @scope = @scope.where(user_id: user_id)
     self
   end
 
@@ -521,7 +525,7 @@ end`
 end`,
 			highlight:
 				furthestStep >= 3
-					? [2, 6, 9, 14, 44, 49]
+					? [5, 12, 19, 27, 36, 44]
 					: furthestStep >= 2
 						? [5, 6, 7, 14, 15]
 						: [2, 3],
@@ -536,10 +540,10 @@ end`,
   def index
     products = ProductQuery.new
       .listed(params[:listed])
-      .by_seller(params[:seller_id])
+      .by_seller(params[:user_id])
       .since(params[:since])
       .with_min_reviews(params[:min_reviews])
-      .by_tag(params[:tag])
+      .featured(params[:featured])
       .sorted
       .results
 
@@ -548,10 +552,10 @@ end`,
 end
 
 # Reuse in API controller:
-# ProductQuery.new(Product.where.not(listed_at: nil))
-#   .by_tag(params[:tag]).sorted.results
+# ProductQuery.new(Product.where(status: "listed"))
+#   .featured(params[:featured]).sorted.results
 
-# Reuse in background job:
+# Reuse in a plain CSV export object (a PORO, no HTTP):
 # ProductQuery.new.listed(true).since(date).results`,
 			highlight: [3, 4, 5, 6, 7, 8, 9, 10],
 		});
@@ -622,7 +626,7 @@ export function Level19QueryObjects({ onComplete }: LevelComponentProps) {
 								.where().joins().group().order()
 							</code>{' '}
 							chains. The same filtering logic is copy-pasted in the API
-							controller and CSV export job.
+							controller and a CSV export object.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							Move the query logic into one shared home that every consumer
@@ -690,7 +694,7 @@ export function Level19QueryObjects({ onComplete }: LevelComponentProps) {
 									/>
 									<AnnotatedCodeBlock
 										borderColor="destructive"
-										fileName="CSV Export Job"
+										fileName="CSV Export (PORO)"
 										lineCount="35 lines"
 										sections={CSV_SECTIONS}
 									/>
@@ -701,7 +705,7 @@ export function Level19QueryObjects({ onComplete }: LevelComponentProps) {
 									<p className="text-sm text-destructive font-medium">
 										Same query chain in 3 places. Change the filter logic?
 										Update it everywhere. Add a new filter? Copy-paste across
-										all consumers. The CSV job already has a bug ({'>'} vs{' '}
+										all consumers. The CSV export already has a bug ({'>'} vs{' '}
 										{'>='}) that diverged from the controllers.
 									</p>
 								</div>
@@ -816,7 +820,7 @@ export function Level19QueryObjects({ onComplete }: LevelComponentProps) {
 											</Badge>
 											<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">
 												ProductQuery.new{'\n'} .listed(params[:listed])
-												{'\n'} .by_seller(params[:seller_id]){'\n'}{' '}
+												{'\n'} .by_seller(params[:user_id]){'\n'}{' '}
 												.sorted.results
 											</pre>
 										</div>
@@ -838,8 +842,8 @@ export function Level19QueryObjects({ onComplete }: LevelComponentProps) {
 												Delegates to ProductQuery
 											</Badge>
 											<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">
-												ProductQuery.new{'\n'} .by_tag(params[:tag]){'\n'}{' '}
-												.sorted.results
+												ProductQuery.new{'\n'} .featured(params[:featured])
+												{'\n'} .sorted.results
 											</pre>
 										</div>
 										<div className="mt-1 text-xs text-success font-medium px-3">
@@ -847,10 +851,10 @@ export function Level19QueryObjects({ onComplete }: LevelComponentProps) {
 										</div>
 									</div>
 
-									{/* CSV Job (clean) */}
+									{/* CSV Export PORO (clean) */}
 									<div className="space-y-1.5">
 										<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-											CSV Export Job
+											CSV Export (PORO)
 										</div>
 										<div className="border-l-2 border-l-success bg-success/5 dark:bg-success/10 rounded-r-md px-3 py-2">
 											<Badge
@@ -884,7 +888,7 @@ export function Level19QueryObjects({ onComplete }: LevelComponentProps) {
 												Filters
 											</Badge>
 											<pre className="text-[10px] font-mono text-foreground/70 whitespace-pre-wrap">
-												.listed(flag){'\n'}.by_seller(id){'\n'}.by_tag(name)
+												.listed(flag){'\n'}.by_seller(id){'\n'}.featured(flag)
 											</pre>
 										</div>
 										<div className="border-l-2 border-l-success bg-success/5 dark:bg-success/10 rounded-r-md px-2 py-1.5">
@@ -970,7 +974,7 @@ export function Level19QueryObjects({ onComplete }: LevelComponentProps) {
 					files={getCodeFiles(
 						phase,
 						phase === 'reward'
-							? STEP_DEFS.length - 1
+							? STEP_DEFS.length
 							: stepper.isCurrentStepCompleted
 								? stepper.currentStep
 								: stepper.currentStep - 1,

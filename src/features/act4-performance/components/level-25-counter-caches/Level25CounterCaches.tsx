@@ -101,7 +101,7 @@ const PROBES: ProbeConfig[] = [
 		command: 'GET /api/products?limit=20',
 		responseLines: [
 			{
-				text: 'Product Load (1.2ms)  SELECT "products".* FROM "products" LIMIT 20',
+				text: 'Product Load (2.0ms)  SELECT "products".* FROM "products" LIMIT 20',
 				color: 'green',
 			},
 			{
@@ -109,19 +109,19 @@ const PROBES: ProbeConfig[] = [
 				color: 'muted',
 			},
 			{
-				text: '  (0.4ms)  SELECT COUNT(*) FROM "reviews" WHERE "product_id" = 1',
+				text: '  (2.0ms)  SELECT COUNT(*) FROM "reviews" WHERE "product_id" = 1',
 				color: 'red',
 			},
 			{
-				text: '  (0.3ms)  SELECT COUNT(*) FROM "reviews" WHERE "product_id" = 2',
+				text: '  (2.0ms)  SELECT COUNT(*) FROM "reviews" WHERE "product_id" = 2',
 				color: 'red',
 			},
 			{
-				text: '  ... 18 more COUNT(*) queries',
+				text: '  ... 18 more COUNT(*) queries (~2ms each)',
 				color: 'red',
 			},
 			{
-				text: '  Total: 21 queries for 20 products',
+				text: '  Total: 21 queries for 20 products (~42ms)',
 				color: 'red',
 			},
 		],
@@ -280,7 +280,7 @@ const RESET_OPTIONS: StepOption[] = [
 		label: 'Product.find_each { |p| p.update(reviews_count: p.reviews.count) }',
 		correct: false,
 		feedback:
-			'This works but fires N+1 queries and skips the counter cache mechanism. Rails has a dedicated method that uses efficient SQL.',
+			'This re-runs the exact COUNT(*) per product that you are trying to eliminate, and writes the counter column by hand. Rails recommends treating counter columns as read-only and provides a dedicated method to recompute them from the source.',
 	},
 	{
 		id: 'reset-counters',
@@ -484,7 +484,7 @@ end`,
 				code: `class ProductSerializer
   include JSONAPI::Serializer
 
-  attribute :review_count do |product|
+  attribute :reviews_count do |product|
     product.reviews.count  # COUNT(*) every time!
   end
 end`,
@@ -520,7 +520,7 @@ end`,
 				code: `class ProductSerializer
   include JSONAPI::Serializer
 
-  attribute :review_count do |product|
+  attribute :reviews_count do |product|
     product.reviews.count  # N+1 COUNT(*)
   end
 end
@@ -649,7 +649,7 @@ end`,
 				code: `class ProductSerializer
   include JSONAPI::Serializer
 
-  attribute :review_count do |product|
+  attribute :reviews_count do |product|
     product.reviews.count  # Still using .count!
   end
 end
@@ -693,7 +693,7 @@ end`,
 			code: `class ProductSerializer
   include JSONAPI::Serializer
 
-  attribute :review_count do |product|
+  attribute :reviews_count do |product|
     product.reviews.size  # Uses counter cache!
   end
 end
@@ -1122,7 +1122,7 @@ export function Level25CounterCaches({ onComplete }: LevelComponentProps) {
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							{phase === 'observe'
-								? 'Fire requests at different scales to see the query explosion grow linearly.'
+								? 'The Prosopite detector you set up in Level 21 is what surfaced this: it raised on the products index because of these repeated COUNT queries. Fire requests at different scales to see the explosion grow linearly.'
 								: phase === 'build'
 									? 'Add a counter cache column so Rails tracks the count automatically.'
 									: phase === 'reward'

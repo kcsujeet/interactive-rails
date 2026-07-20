@@ -132,7 +132,7 @@ const PROBES: ProbeConfig[] = [
 			{ text: '', color: 'muted' },
 			{ text: 'Seq Scan on products (cost=0.00..1250.00)', color: 'red' },
 			{
-				text: "Filter: (title ~~ '%rails%' OR body ~~ '%rails%')",
+				text: "Filter: (name ~~ '%rails%' OR description ~~ '%rails%')",
 				color: 'muted',
 			},
 			{ text: 'Rows Removed by Filter: 49,500', color: 'muted' },
@@ -154,15 +154,15 @@ const PROBES: ProbeConfig[] = [
 			{ text: '', color: 'muted' },
 			{ text: '0 results for "running"', color: 'red' },
 			{
-				text: 'Product named "Running Tests in RSpec" not found.',
+				text: 'Trail Shoe ("built to run on rough terrain") not found.',
 				color: 'muted',
 			},
 			{ text: 'LIKE has no stemming: "running" != "run"', color: 'red' },
 		],
 		story: [
-			'A customer searches for "running" expecting to find a product named "Running Tests in RSpec."',
+			'A customer searches for "running" expecting to find the Trail Shoe, described as "built to run on rough terrain."',
 			'LIKE performs exact substring matching with no linguistic awareness.',
-			'The word "running" does not match "run" in the title.',
+			'The word "running" is not a substring of "run", so LIKE never matches it.',
 			'The search returns 0 results, even though a relevant product exists.',
 		],
 	},
@@ -178,7 +178,7 @@ const PROBES: ProbeConfig[] = [
 				color: 'red',
 			},
 			{
-				text: 'A title match and a body mention are ranked equally.',
+				text: 'A name match and a description mention are ranked equally.',
 				color: 'muted',
 			},
 			{ text: 'No relevance scoring with LIKE queries.', color: 'red' },
@@ -186,7 +186,7 @@ const PROBES: ProbeConfig[] = [
 		story: [
 			'A customer searches for "database" to find the most relevant product.',
 			'LIKE returns matches in insertion order, not by relevance.',
-			'A product with "database" in the title ranks the same as one with a passing mention.',
+			'A product with "database" in the name ranks the same as one with a passing mention.',
 			'Without relevance scoring, the best results are buried in the list.',
 		],
 	},
@@ -264,7 +264,7 @@ const CONTROLLER_INSPECTOR: StageInspectorData = {
     return Result.new(...) if validation.failure?
 
     products = Product.where(
-      "title LIKE :q OR body LIKE :q",
+      "name LIKE :q OR description LIKE :q",
       q: "%#{@query}%"
     )
     Result.new(success?: true, products: products, errors: [])
@@ -274,7 +274,7 @@ end
 # Problems:
 # 1. LIKE '%query%' cannot use B-tree indexes
 # 2. No stemming: "running" won't match "run"
-# 3. No ranking: title match = body match`,
+# 3. No ranking: name match = description match`,
 };
 
 // ──────────────────────────────────────────────
@@ -395,7 +395,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'ranked-results',
 		label: 'Ranked results',
-		description: 'Title matches ranked higher than body',
+		description: 'Frequent matches ranked higher than passing mentions',
 		method: 'GET',
 		path: '/api/products?q=database',
 		actor: 'user',
@@ -406,7 +406,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 				color: 'green',
 			},
 			{
-				text: "  ts_rank: title(A) > body(B) for 'databas'",
+				text: "  ts_rank(searchable, 'databas'): frequent > passing",
 				color: 'yellow',
 			},
 			{ text: '  Rows: 7, sorted by relevance', color: 'green' },
@@ -459,7 +459,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'yellow' },
 			{
-				text: "  plainto_tsquery sanitized input: '' | '1' | '1'",
+				text: "  plainto_tsquery sanitized input: '1' & '1'",
 				color: 'green',
 			},
 			{ text: '  0 results (no matching stems)', color: 'green' },
@@ -619,12 +619,12 @@ const generateMigrationCommands: TerminalCommand[] = [
 		correct: true,
 	},
 	{
-		id: 'wrong-no-gin',
-		label: 'rails generate migration AddSearchToProducts searchable:tsvector',
-		command: 'rails generate migration AddSearchToProducts searchable:tsvector',
+		id: 'wrong-string-col',
+		label: 'rails generate migration AddSearchToProducts searchable:string',
+		command: 'rails generate migration AddSearchToProducts searchable:string',
 		correct: false,
 		feedback:
-			'Passing the column type on the command line only adds the column. You need to manually add the GIN index and trigger in the migration file.',
+			'A plain text column cannot store parsed search documents and cannot back a GIN index. Full-text search needs the specialized column type Postgres provides for it.',
 	},
 ];
 
@@ -733,25 +733,33 @@ const INCLUDE_OPTIONS: StepOption[] = [
 ];
 
 // Step 4: Configure pg_search_scope
+// The migration already built a `searchable` tsvector column, kept fresh by a
+// trigger, and a GIN index on it. The scope must point the gem at that
+// precomputed column so the GIN index is actually used. Per the pg_search
+// README, `tsvector_column` under `using: { tsearch: ... }` does exactly this;
+// the `:against` argument is ignored when `tsvector_column` is present but is
+// still required syntactically.
+// https://github.com/Casecommons/pg_search#using-tsvector-columns
 const SCOPE_OPTIONS: StepOption[] = [
 	{
 		id: 'wrong-like-scope',
-		label: 'scope :search, ->(q) {\n  where("title LIKE ?", "%#{q}%")\n}',
+		label: 'scope :search, ->(q) {\n  where("name LIKE ?", "%#{q}%")\n}',
 		correct: false,
 		feedback:
-			'That is the same LIKE approach you are replacing. The gem provides a DSL that uses tsvector under the hood.',
+			'That is the same LIKE approach you are replacing. The gem provides a DSL that reads the tsvector column you already indexed.',
 	},
 	{
-		id: 'wrong-no-weights',
-		label: 'pg_search_scope :search,\n  against: [:title, :body]',
+		id: 'wrong-recompute',
+		label:
+			"pg_search_scope :search,\n  against: [:name, :description],\n  using: {\n    tsearch: { dictionary: 'english' }\n  }",
 		correct: false,
 		feedback:
-			'Passing columns as an array gives them equal weight. Title matches should rank higher than body matches for better relevance.',
+			'This recomputes to_tsvector(name, description) on every query, so the GIN index you built is never used and the scan stays slow. Point the scope at the column the trigger keeps in sync.',
 	},
 	{
 		id: 'correct',
 		label:
-			"pg_search_scope :search,\n  against: { title: 'A', body: 'B' },\n  using: {\n    tsearch: { dictionary: 'english' }\n  }",
+			"pg_search_scope :search,\n  against: :searchable,\n  using: {\n    tsearch: {\n      tsvector_column: 'searchable',\n      dictionary: 'english'\n    }\n  }",
 		correct: true,
 	},
 ];
@@ -760,7 +768,8 @@ const SCOPE_OPTIONS: StepOption[] = [
 const SERVICE_OPTIONS: StepOption[] = [
 	{
 		id: 'wrong-keep-like',
-		label: 'Product.where("title LIKE :q OR body LIKE :q", q: "%#{@query}%")',
+		label:
+			'Product.where("name LIKE :q OR description LIKE :q", q: "%#{@query}%")',
 		correct: false,
 		feedback:
 			'That is the same LIKE query you are replacing. You just defined a search scope on the model that uses the GIN index.',
@@ -796,7 +805,7 @@ const OPTION_STEP_CONFIG: Record<
 	4: {
 		title: 'Define Search Scope',
 		description:
-			'Define how the gem indexes your content. Title matches should rank higher than body matches. Use the English dictionary for stemming.',
+			'Point the search scope at the tsvector column your migration built and its trigger keeps in sync, so the GIN index does the work. Use the English dictionary for stemming.',
 		options: SCOPE_OPTIONS,
 	},
 	5: {
@@ -845,7 +854,7 @@ end`,
     end
 
     products = Product.where(
-      "title LIKE :q OR body LIKE :q",
+      "name LIKE :q OR description LIKE :q",
       q: "%#{@query}%"
     )
     Result.new(success?: true, products: products, errors: [])
@@ -854,7 +863,7 @@ end
 
 # EXPLAIN for LIKE '%rails%':
 # Seq Scan on products  (cost=0.00..1250.00)
-#   Filter: (title ~~ '%rails%')
+#   Filter: (name ~~ '%rails%')
 #   Rows Removed by Filter: 49,500
 #   Execution Time: 3,200ms`,
 			highlight: [17, 18, 19],
@@ -900,7 +909,7 @@ end`,
     end
 
     products = Product.where(
-      "title LIKE :q OR body LIKE :q",
+      "name LIKE :q OR description LIKE :q",
       q: "%#{@query}%"
     )
     Result.new(success?: true, products: products, errors: [])
@@ -939,7 +948,7 @@ gem "pg_search"`,
       FOR EACH ROW EXECUTE FUNCTION
         tsvector_update_trigger(
           searchable, 'pg_catalog.english',
-          title, body
+          name, description
         );
     SQL
   end
@@ -974,15 +983,18 @@ end`,
   include PgSearch::Model
 
   pg_search_scope :search,
-    against: { title: 'A', body: 'B' },
+    against: :searchable,
     using: {
-      tsearch: { dictionary: 'english' }
+      tsearch: {
+        tsvector_column: 'searchable',
+        dictionary: 'english'
+      }
     }
 end`
 					: `class Product < ApplicationRecord
   include PgSearch::Model
 end`,
-			highlight: furthestStep >= 5 ? [4, 5, 6, 7, 8] : [2],
+			highlight: furthestStep >= 5 ? [4, 5, 6, 7, 8, 9, 10, 11] : [2],
 		});
 	}
 
@@ -1689,11 +1701,11 @@ export function Level27Search({ onComplete }: LevelComponentProps) {
 									{lastProbeId && (
 										<p className="text-xs font-mono text-muted-foreground mb-2 truncate">
 											{lastProbeId === 'search-rails' &&
-												"WHERE title LIKE '%rails%' OR body LIKE '%rails%'"}
+												"WHERE name LIKE '%rails%' OR description LIKE '%rails%'"}
 											{lastProbeId === 'search-running' &&
-												"WHERE title LIKE '%running%' OR body LIKE '%running%'"}
+												"WHERE name LIKE '%running%' OR description LIKE '%running%'"}
 											{lastProbeId === 'search-database' &&
-												"WHERE title LIKE '%database%' OR body LIKE '%database%'"}
+												"WHERE name LIKE '%database%' OR description LIKE '%database%'"}
 										</p>
 									)}
 

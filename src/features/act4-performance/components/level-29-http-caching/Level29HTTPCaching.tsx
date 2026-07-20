@@ -69,9 +69,16 @@ type Phase = 'observe' | 'build' | 'reward';
 
 const DISCOVERY_DEFS: DiscoveryDef[] = [
 	{ id: 'no-cache-headers', label: 'No Cache-Control headers on responses' },
-	{ id: 'no-etag', label: 'No ETag or conditional GET support' },
+	{
+		id: 'etag-after-work',
+		label:
+			'Stock ETag saves bandwidth, but only after the full response is rebuilt',
+	},
 	{ id: 'origin-every-time', label: 'Every request hits the origin server' },
-	{ id: 'assets-uncached', label: 'Static assets re-downloaded every visit' },
+	{
+		id: 'assets-uncached',
+		label: 'No CDN edge caching for the public catalog',
+	},
 ];
 
 // ──────────────────────────────────────────────
@@ -88,7 +95,7 @@ const PROBES: ProbeConfig[] = [
 			{ text: 'Request 2: 200 OK in 200ms (origin)', color: 'red' },
 			{ text: '', color: 'muted' },
 			{
-				text: 'Same 200ms both times. No caching, no 304.',
+				text: 'No Cache-Control header, so no cache may store this.',
 				color: 'yellow',
 			},
 			{
@@ -100,7 +107,7 @@ const PROBES: ProbeConfig[] = [
 			'A customer visits the product listing, then navigates back to it seconds later.',
 			'Both requests return 200 OK with the full response body.',
 			'The server recomputed the exact same response from scratch both times.',
-			'No HTTP caching headers are set, so the browser cannot cache anything.',
+			'No Cache-Control header is set, so no browser or CDN may store the response.',
 		],
 	},
 	{
@@ -109,42 +116,50 @@ const PROBES: ProbeConfig[] = [
 		command: 'GET /api/products/42 (first), then GET /api/products/42 (second)',
 		responseLines: [
 			{ text: 'Request 1: 200 OK in 21ms (query + serialize)', color: 'red' },
-			{ text: 'Request 2: 200 OK in 21ms (query + serialize)', color: 'red' },
+			{
+				text: 'Request 2: 304 Not Modified in 20ms (still queried + serialized)',
+				color: 'yellow',
+			},
 			{ text: '', color: 'muted' },
 			{
-				text: 'No ETag header. Browser cannot send If-None-Match.',
+				text: 'Stock Rack::ETag hashed the body, so the 304 saved bandwidth.',
 				color: 'yellow',
 			},
 			{
-				text: 'Product unchanged, but full response generated again.',
+				text: 'But the full query + serialize ran first to build that body.',
 				color: 'red',
 			},
 		],
 		story: [
 			'A customer views a product detail page, then refreshes the page.',
-			'The product has not changed, yet the server generates the full response again.',
-			'No ETag header was sent, so the browser cannot send If-None-Match.',
-			'A 304 Not Modified response would have saved bandwidth and server time.',
+			'The product has not changed. Stock Rails ships Rack::ETag, so it hashes the response body and returns 304 the second time.',
+			'The 304 saves download bandwidth, but the server still ran the full query and serialization to build the body it then hashed.',
+			'A validator derived from the record could skip all that work before rendering.',
 		],
 	},
 	{
-		id: 'static-asset',
-		label: 'GET static asset (reload)',
-		command: 'GET /assets/app-a1b2c3.js (after reload)',
+		id: 'catalog-no-cdn',
+		label: 'GET products from 3 regions',
+		command: 'GET /api/products from Tokyo, Sydney, London',
 		responseLines: [
-			{ text: 'Request 1: 200 OK in 50ms', color: 'red' },
-			{ text: 'Request 2: 200 OK in 50ms (full re-download)', color: 'red' },
+			{ text: 'Tokyo:  200 OK in 180ms (origin, Virginia)', color: 'red' },
+			{ text: 'Sydney: 200 OK in 220ms (origin, Virginia)', color: 'red' },
+			{ text: 'London: 200 OK in 90ms  (origin, Virginia)', color: 'red' },
 			{ text: '', color: 'muted' },
 			{
-				text: 'No Cache-Control on static assets. Browser re-fetches every time.',
+				text: 'No s-maxage, so a CDN edge is not allowed to cache this.',
 				color: 'yellow',
+			},
+			{
+				text: 'Every user in every region pays the full round-trip to origin.',
+				color: 'red',
 			},
 		],
 		story: [
-			'A customer reloads a page that includes a fingerprinted JavaScript bundle.',
-			'The asset file has a content hash in its name, meaning it never changes.',
-			'Without Cache-Control headers, the browser re-downloads the full file.',
-			'Static assets with fingerprints should be cached indefinitely by the browser.',
+			'Customers in Tokyo, Sydney, and London all open the public product catalog.',
+			'The catalog is identical for every user and changes only about once an hour.',
+			'With no s-maxage directive, a CDN edge is not permitted to cache the response.',
+			'Every request travels all the way to the origin server in Virginia.',
 		],
 	},
 ];
@@ -152,8 +167,8 @@ const PROBES: ProbeConfig[] = [
 // Map probe IDs to discovery IDs they trigger
 const PROBE_DISCOVERY_MAP: Record<string, string> = {
 	'repeat-products': 'origin-every-time',
-	'repeat-product': 'no-etag',
-	'static-asset': 'assets-uncached',
+	'repeat-product': 'etag-after-work',
+	'catalog-no-cdn': 'assets-uncached',
 };
 
 // Map probe IDs to pipeline node display during observe
@@ -162,15 +177,15 @@ const PROBE_PIPELINE_MAP: Record<
 	{ cacheSublabel: string; serverBadge: string }
 > = {
 	'repeat-products': {
-		cacheSublabel: 'MISS (no headers)',
+		cacheSublabel: 'MISS (no Cache-Control)',
 		serverBadge: '200',
 	},
 	'repeat-product': {
-		cacheSublabel: 'MISS (no ETag)',
-		serverBadge: '200',
+		cacheSublabel: 'full work, then 304',
+		serverBadge: '304',
 	},
-	'static-asset': {
-		cacheSublabel: 'MISS (no max-age)',
+	'catalog-no-cdn': {
+		cacheSublabel: 'MISS (no s-maxage)',
 		serverBadge: '200',
 	},
 };
@@ -194,26 +209,28 @@ const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 	},
 	cache: {
 		stageId: 'cache',
-		title: 'HTTP Cache Layer (Missing)',
+		title: 'HTTP Cache Layer (No Cache-Control)',
 		description:
-			'No Cache-Control headers are set. Browsers and CDNs cannot cache responses. Every request goes to Rails and recomputes the full response.',
-		code: `# No caching headers set:
+			'No Cache-Control header is set, so browsers and CDNs are not allowed to store responses. Stock Rails does add a weak ETag (see the server stage), but without Cache-Control nothing is cached and every request still reaches Rails.',
+		code: `# What the response carries today:
 response.headers
-# => { "Content-Type" => "application/json" }
-# Missing: Cache-Control, ETag, Last-Modified`,
+# => { "Content-Type" => "application/json",
+#      "ETag" => "W/\\"<hash of body>\\"" }
+# Present: weak ETag (added by Rack::ETag)
+# Missing: Cache-Control (max-age / s-maxage)`,
 	},
 	server: {
 		stageId: 'server',
 		title: 'Rails Origin Server',
 		description:
-			'Every request hits the server. The service fetches data, but the controller has no HTTP caching. Full query + serialize on every request, even when nothing changed.',
-		code: `# app/services/product_detail.rb
-result = ProductDetail.call(id: params[:id])
-
-# Controller: no stale? check, no expires_in
+			'Stock Rails wraps every response in Rack::ETag, which hashes the finished body and returns 304 when it matches. That saves download bandwidth, but the full query and serialization run first to produce the body being hashed. A stale?(record) check derives the validator from the record and returns 304 before any of that work happens.',
+		code: `# app/controllers/api/products_controller.rb
 def show
   result = ProductDetail.call(id: params[:id])
-  render json: result.product  # Full response every time
+  # No stale? / fresh_when: the body is always built.
+  # Rack::ETag then hashes it and may return 304,
+  # but query + serialize already ran.
+  render json: result.product
 end`,
 	},
 };
@@ -221,7 +238,7 @@ end`,
 // Map stage IDs to discovery IDs they trigger
 const STAGE_DISCOVERY_MAP: Record<string, string> = {
 	cache: 'no-cache-headers',
-	server: 'no-etag',
+	server: 'etag-after-work',
 };
 
 // ──────────────────────────────────────────────
@@ -259,15 +276,18 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	},
 	{
 		id: 'static-immutable',
-		label: 'GET static asset (cached)',
-		description: 'Fingerprinted JS file served from browser cache',
+		label: 'GET regions (cached)',
+		description: 'Versioned reference endpoint served from browser cache',
 		method: 'GET',
-		path: '/assets/app-a1b2c3.js',
+		path: '/api/v1/regions',
 		actor: 'any user',
 		expectedResult: 'allowed',
 		responseLines: [
 			{ text: 'from disk cache (0ms)', color: 'green' },
-			{ text: 'Cache-Control: immutable, max-age=31536000', color: 'yellow' },
+			{
+				text: 'Cache-Control: public, max-age=31536000, immutable',
+				color: 'yellow',
+			},
 			{ text: 'No network request at all.', color: 'green' },
 		],
 	},
@@ -386,10 +406,10 @@ const OPTION_STEP_CONFIG: Record<
 			},
 			{
 				id: 'fresh-when',
-				label: 'fresh_when last_modified: @product.updated_at',
+				label: 'fresh_when @product',
 				correct: false,
 				feedback:
-					'Last-Modified only has 1-second precision. If the product is updated twice in the same second, the second update could be missed.',
+					'fresh_when sets the validator but only halts Rails implicit rendering. This action renders JSON explicitly, so you need the form that returns a boolean you can branch on to skip the explicit render.',
 			},
 			{
 				id: 'stale',
@@ -399,23 +419,23 @@ const OPTION_STEP_CONFIG: Record<
 		],
 	},
 	2: {
-		title: 'Fingerprinted Static Assets',
+		title: 'Immutable Reference Data',
 		description:
-			'CSS/JS bundles with fingerprinted filenames (e.g., app-a1b2c3.js). New deploy = new filename. Which Cache-Control header?',
+			'A versioned reference endpoint (e.g. GET /api/v1/regions) whose payload never changes for a given version: a new version means a new URL. Which Cache-Control header lets the CDN and browser hold it as long as possible?',
 		options: [
 			{
 				id: 'max-age-1day',
 				label: 'Cache-Control: public, max-age=86400',
 				correct: false,
 				feedback:
-					'Only caches for 1 day. Fingerprinted assets can be cached forever since the URL changes on every deploy.',
+					'Only caches for 1 day. A versioned resource whose URL changes when the data changes can be cached far longer than that.',
 			},
 			{
 				id: 'no-cache',
 				label: 'Cache-Control: no-cache',
 				correct: false,
 				feedback:
-					'Forces revalidation on every request, completely defeats the purpose of fingerprinted filenames which guarantee uniqueness.',
+					'Forces revalidation on every request, which defeats the point of a versioned URL that is guaranteed never to change its contents.',
 			},
 			{
 				id: 'immutable',
@@ -518,12 +538,13 @@ end`,
 			code: `class Api::ProductsController < ApplicationController
   def show
     result = ProductDetail.call(id: params[:id])
-    # No stale? check, no ETags
-    # Full query + serialize every time
+    # No stale? check. Rack::ETag still hashes the
+    # body and may return 304, but only after the
+    # full query + serialize has already run.
     render json: result.product
   end
 end`,
-			highlight: [4, 5],
+			highlight: [4, 5, 6],
 		});
 		return files;
 	}
@@ -585,20 +606,20 @@ end`,
 
 	if (furthestStep >= 3) {
 		files.push({
-			filename: 'config/environments/production.rb',
+			filename: 'app/controllers/api/regions_controller.rb',
 			language: 'ruby',
-			code: `# config/environments/production.rb
-Rails.application.configure do
-  # Fingerprinted assets are immutable
-  config.public_file_server.headers = {
-    "Cache-Control" => "public, max-age=31536000, immutable"
-  }
+			code: `class Api::V1::RegionsController < ApplicationController
+  def index
+    # Versioned, immutable reference data.
+    # A new version means a new URL, so the CDN
+    # and browser can hold it for a year.
+    expires_in 1.year, public: true
+    response.headers["Cache-Control"] += ", immutable"
 
-  # Asset pipeline adds fingerprints:
-  # app-a1b2c3.js  (new hash on each deploy)
-  # style-d4e5f6.css
+    render json: Region.all
+  end
 end`,
-			highlight: [4, 5],
+			highlight: [6, 7],
 		});
 	}
 
@@ -726,8 +747,9 @@ export function Level29HTTPCaching({ onComplete }: LevelComponentProps) {
 
 		// Determine what type of cache response this is
 		const isCdnHit = scenario?.id === 'public-catalog-hit';
-		const is304 =
-			scenario?.id === 'product-304' || scenario?.id === 'stale-product';
+		const is304 = scenario?.id === 'product-304';
+		// The product was updated: ETag no longer matches, full 200 response.
+		const isFullResponse = scenario?.id === 'stale-product';
 		const isBrowserCache =
 			scenario?.id === 'static-immutable' || scenario?.id === 'private-browser';
 
@@ -755,11 +777,17 @@ export function Level29HTTPCaching({ onComplete }: LevelComponentProps) {
 					? 'rejected'
 					: is304
 						? '304 Not Modified'
-						: isBrowserCache
-							? 'from cache (0ms)'
-							: 'cache active',
-				variant: wasBlocked ? ('danger' as const) : ('active' as const),
-				badge: is304 ? '304' : undefined,
+						: isFullResponse
+							? 'ETag changed, 200'
+							: isBrowserCache
+								? 'from cache (0ms)'
+								: 'cache active',
+				variant: wasBlocked
+					? ('danger' as const)
+					: isFullResponse
+						? ('default' as const)
+						: ('active' as const),
+				badge: is304 ? '304' : isFullResponse ? '200' : undefined,
 			},
 			{
 				id: 'server',
@@ -769,8 +797,10 @@ export function Level29HTTPCaching({ onComplete }: LevelComponentProps) {
 					: isCdnHit || isBrowserCache
 						? 'skipped'
 						: is304
-							? 'ETag check only'
-							: undefined,
+							? 'stale? short-circuit, no render'
+							: isFullResponse
+								? 'full render (product changed)'
+								: undefined,
 			},
 		];
 	}, [lastResult]);

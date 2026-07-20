@@ -144,7 +144,7 @@ const PROBES: ProbeConfig[] = [
 		label: 'GET /products (100 products)',
 		command: 'GET /api/products (100 products in DB)',
 		responseLines: [
-			{ text: 'HTTP/1.1 200 OK (850ms)', color: 'yellow' },
+			{ text: 'HTTP/1.1 200 OK (202ms)', color: 'yellow' },
 			{ text: '', color: 'muted' },
 			{ text: 'SQL queries executed: 101', color: 'red' },
 			{
@@ -154,19 +154,19 @@ const PROBES: ProbeConfig[] = [
 			{ text: '  SELECT * FROM users WHERE id = ... (x100)', color: 'red' },
 			{ text: '', color: 'muted' },
 			{
-				text: '101 queries, one at a time. Each round trip to the database costs ~8ms.',
+				text: '101 queries, one at a time. Each round trip to the database costs ~2ms.',
 				color: 'red',
 			},
 			{
-				text: '101 round trips x ~8ms = 850ms. Each product.user call fires a query.',
+				text: '101 round trips x ~2ms = 202ms. Each product.user call fires a query.',
 				color: 'red',
 			},
 		],
 		story: [
 			'The product catalog grows to 100 items.',
 			'Same endpoint, same code. Now 101 queries fire on every request.',
-			'Each query pays a full ~8ms network round trip before the next one can start.',
-			'101 round trips, one at a time, add up to 850ms.',
+			'Each query pays a full ~2ms network round trip before the next one can start.',
+			'101 round trips, one at a time, add up to 202ms.',
 			'The N+1 pattern scales linearly: more products means more queries.',
 		],
 	},
@@ -175,22 +175,22 @@ const PROBES: ProbeConfig[] = [
 		label: 'GET /products (1000 products)',
 		command: 'GET /api/products (1000 products in DB)',
 		responseLines: [
-			{ text: 'HTTP/1.1 200 OK (8412ms)', color: 'red' },
+			{ text: 'HTTP/1.1 200 OK (2002ms)', color: 'red' },
 			{ text: '', color: 'muted' },
 			{ text: 'SQL queries executed: 1001', color: 'red' },
 			{
-				text: '1001 round trips x ~8ms = 8.4 seconds. The page is unusable.',
+				text: '1001 round trips x ~2ms = 2.0 seconds. The page is unusable.',
 				color: 'red',
 			},
 			{
-				text: 'Memory: 48 MB | Objects allocated: 361,042',
+				text: 'Memory: 18 MB | Objects allocated: 210,000',
 				color: 'red',
 			},
 		],
 		story: [
 			'Production traffic hits the endpoint with 1,000 products in the database.',
-			'1,001 queries fire, taking over 8 seconds to complete.',
-			'Memory climbs to nearly 50 MB for a single request as Rails allocates hundreds of thousands of objects.',
+			'1,001 queries fire, taking about 2 seconds to complete.',
+			'Memory climbs to roughly 18 MB for a single request: 1,000 product objects plus 1,000 seller objects, each with attribute overhead.',
 			'The page is completely unusable. The N+1 problem has become a crisis.',
 		],
 	},
@@ -215,25 +215,25 @@ interface ProbeZoneData {
 }
 
 const PROBE_ZONE_MAP: Record<string, ProbeZoneData> = {
-	// Timing model: each query pays a ~8ms network round trip,
-	// so total time ~= query count x 8ms on every surface.
+	// Timing model: each query pays a ~2ms network round trip,
+	// so total time ~= query count x 2ms on every surface.
 	'get-products-5': {
 		controllerBadge: '1 query',
 		serializerCount: 5,
 		dbTotalQueries: 6,
-		dbTime: '~50ms',
+		dbTime: '~12ms',
 	},
 	'get-products-100': {
 		controllerBadge: '1 query',
 		serializerCount: 100,
 		dbTotalQueries: 101,
-		dbTime: '~850ms',
+		dbTime: '~202ms',
 	},
 	'get-products-1000': {
 		controllerBadge: '1 query',
 		serializerCount: 1000,
 		dbTotalQueries: 1001,
-		dbTime: '~8.4s',
+		dbTime: '~2.0s',
 	},
 };
 
@@ -641,6 +641,23 @@ end`,
 end`,
 			highlight: [5],
 		});
+		// strict_loading_by_default now raises if the service forgets to
+		// preload. Add includes(:user) so this endpoint works. Level 22
+		// generalizes the strategy choice (includes / preload / eager_load).
+		files.push({
+			filename: 'app/services/product_list.rb',
+			language: 'ruby',
+			code: `class ProductList < ApplicationService
+  Result = Data.define(:success?, :products, :errors)
+
+  def call
+    contract = ListContract.new.call(params)
+    products = Product.includes(:user)  # preloaded, no N+1
+    Result.new(success?: true, products:, errors: [])
+  end
+end`,
+			highlight: [6],
+		});
 	}
 
 	return files;
@@ -887,15 +904,18 @@ export function Level21N1Problem({ onComplete }: LevelComponentProps) {
 				icon: ZONE_ICON_MAP[zoneId],
 			};
 
-			// Controller is always green when active
+			// Controller reacts to the fired scenario: eager-loaded (2 queries)
+			// when allowed, or a single unscoped load when the fix is bypassed.
 			if (zoneId === 'controller') {
 				if (isActive) {
 					zone.highlighted = true;
 					zone.highlightColor = 'green';
 				}
 				zone.codeLine = 'ProductList.call(params:)';
-				if (isActive) {
-					zone.badge = { text: '2 queries (eager loaded)', color: 'green' };
+				if (isActive && lastRewardResult) {
+					zone.badge = isBlocked
+						? { text: '1 query, no includes', color: 'red' }
+						: { text: '2 queries (eager loaded)', color: 'green' };
 				}
 			} else if (zoneId === 'serializer') {
 				if (isActive && lastRewardResult) {
@@ -1058,7 +1078,7 @@ export function Level21N1Problem({ onComplete }: LevelComponentProps) {
 							Your ProductList service loads products for the API index
 							endpoint. Response times have crept above 2 seconds. The database
 							log reveals a devastating pattern: 1 query for products, then 1
-							query for EACH author.
+							query for EACH seller.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							The{' '}

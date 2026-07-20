@@ -59,7 +59,7 @@ const PROBES = [
 			{ text: '', color: 'muted' },
 			{ text: '0 results for "running"', color: 'red' },
 			{
-				text: 'Product named "Running Tests in RSpec" not found.',
+				text: 'Trail Shoe ("built to run on rough terrain") not found.',
 				color: 'muted',
 			},
 			{ text: 'LIKE has no stemming: "running" != "run"', color: 'red' },
@@ -152,7 +152,7 @@ const STRESS_SCENARIOS = [
 				color: 'green',
 			},
 			{
-				text: "  ts_rank: name(A) > description(B) for 'databas'",
+				text: "  ts_rank(searchable, 'databas'): frequent > passing",
 				color: 'yellow',
 			},
 			{ text: '  Rows: 7, sorted by relevance', color: 'green' },
@@ -193,7 +193,7 @@ const STRESS_SCENARIOS = [
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'yellow' },
 			{
-				text: "  plainto_tsquery sanitized input: '' | '1' | '1'",
+				text: "  plainto_tsquery sanitized input: '1' & '1'",
 				color: 'green',
 			},
 			{ text: '  0 results (no matching stems)', color: 'green' },
@@ -291,11 +291,11 @@ const generateMigrationCommands = [
 		correct: true,
 	},
 	{
-		id: 'wrong-no-gin',
-		label: 'rails generate migration AddSearchToProducts searchable:tsvector',
+		id: 'wrong-string-col',
+		label: 'rails generate migration AddSearchToProducts searchable:string',
 		correct: false,
 		feedback:
-			'Passing the column type on the command line only adds the column. You need to manually add the GIN index and trigger in the migration file.',
+			'A plain text column cannot store parsed search documents and cannot back a GIN index. Full-text search needs the specialized column type Postgres provides for it.',
 	},
 ];
 
@@ -342,19 +342,20 @@ const SCOPE_OPTIONS = [
 		label: 'scope :search, ->(q) {\n  where("name LIKE ?", "%#{q}%")\n}',
 		correct: false,
 		feedback:
-			'That is the same LIKE approach you are replacing. The gem provides a DSL that uses tsvector under the hood.',
+			'That is the same LIKE approach you are replacing. The gem provides a DSL that reads the tsvector column you already indexed.',
 	},
 	{
-		id: 'wrong-no-weights',
-		label: 'pg_search_scope :search,\n  against: [:name, :description]',
+		id: 'wrong-recompute',
+		label:
+			"pg_search_scope :search,\n  against: [:name, :description],\n  using: {\n    tsearch: { dictionary: 'english' }\n  }",
 		correct: false,
 		feedback:
-			'Passing columns as an array gives them equal weight. Name matches should rank higher than description matches for better relevance.',
+			'This recomputes to_tsvector(name, description) on every query, so the GIN index you built is never used and the scan stays slow. Point the scope at the column the trigger keeps in sync.',
 	},
 	{
 		id: 'correct',
 		label:
-			"pg_search_scope :search,\n  against: { name: 'A', description: 'B' },\n  using: {\n    tsearch: { dictionary: 'english' }\n  }",
+			"pg_search_scope :search,\n  against: :searchable,\n  using: {\n    tsearch: {\n      tsvector_column: 'searchable',\n      dictionary: 'english'\n    }\n  }",
 		correct: true,
 	},
 ];

@@ -238,7 +238,7 @@ const HEADERS_OPTIONS: StepOption[] = [
 		label: 'render json: { data: @products, meta: { page: @pagy.page } }',
 		correct: false,
 		feedback:
-			'Embedding pagination in the JSON body is non-standard. RFC 5988 specifies Link headers so the payload stays clean.',
+			'Embedding pagination in the JSON body is non-standard. RFC 8288 specifies Link headers so the payload stays clean.',
 	},
 	{
 		id: 'correct',
@@ -250,7 +250,7 @@ const HEADERS_OPTIONS: StepOption[] = [
 		label: 'response.headers["X-Pagination"] = @pagy.to_json',
 		correct: false,
 		feedback:
-			'Custom headers are non-standard. Pagy has built-in support for RFC 5988 Link headers via headers_hash.',
+			'Custom headers are non-standard. Pagy has built-in support for RFC 8288 Link headers via headers_hash.',
 	},
 ];
 
@@ -343,7 +343,10 @@ const STRESS_SCENARIOS: StressScenario[] = [
 				text: 'Pagy::OverflowError: page 99999 out of 1..2000',
 				color: 'red',
 			},
-			{ text: 'Returned: []  (empty array)', color: 'red' },
+			{
+				text: 'Rescued in ApplicationController: render 404 Not Found',
+				color: 'red',
+			},
 		],
 	},
 ];

@@ -8,7 +8,7 @@ export const level22EagerLoading: Level = {
 	trigger: {
 		type: 'optimization',
 		description:
-			'Compare four loading strategies (includes, preload, eager_load, joins) across three scenarios to discover which strategy fits which situation.',
+			'The N+1 net you installed in Level 21 now raises on three different endpoints: the product list, the reviews feed, and the tag filter. Each one forgot to preload a different association. Find the right loading strategy for each so the endpoints work again.',
 	},
 	problem: {
 		observation:
@@ -28,13 +28,10 @@ class ProductList < ApplicationService
   end
 end
 
-# Rails provides three strategies:
-Product.includes(:user)     # Smart default: 2 queries or JOIN
-Product.preload(:user)      # Always 2 separate queries
-Product.eager_load(:user)   # Always LEFT OUTER JOIN (1 query)
-
-# Common trap: joins does NOT prevent N+1!
-Product.joins(:user)  # INNER JOINs but does NOT load user records`,
+# Rails offers several ways to load associations in bulk.
+# Some run separate queries, some force a single JOIN, and
+# one of them looks right but does NOT prevent N+1 at all.
+# Your job: match the right strategy to each scenario.`,
 		goal: 'Test four loading strategies against three scenarios, discover why each strategy fits different situations, then apply the right fix for basic includes, nested associations, and filtered queries.',
 		thresholds: { maxQueriesPerRequest: 3, maxLatency: 50 },
 	},
@@ -60,7 +57,7 @@ Product.joins(:user)  # INNER JOINs but does NOT load user records`,
 
 **\`eager_load\`** (force JOIN, 20x faster, MORE memory):
 - Always uses LEFT OUTER JOIN in a single query
-- Required when filtering/ordering by the association (\`Product.eager_load(:user).where(users: {role: 'admin'})\`)
+- Use when you want to force a single JOIN explicitly. When you filter/order by the association, \`includes\` already auto-promotes to the same JOIN, so reaching for \`eager_load\` there just adds words
 - Allocates more objects because the JOIN returns wider result rows
 
 **\`joins\`** (NEVER for preventing N+1):
@@ -94,10 +91,14 @@ Eager Load: Real 16.898s → 16x faster
 		railsCodeExample: `# === Decision tree: which method to use? ===
 #
 # Do you filter/sort by the associated table?
-#   YES → eager_load (needs JOIN for WHERE/ORDER BY)
+#   YES → includes (it auto-promotes to a LEFT OUTER JOIN)
 #   NO  → Do you need ActiveRecord objects?
 #         YES → preload (separate queries, less memory)
 #         NO  → pluck (raw arrays, minimal memory)
+#
+# eager_load: reach for it only when you want to force
+# a single JOIN explicitly (includes already does it when
+# you filter, so this is rarely needed).
 
 # includes: smart default (use this most of the time)
 Product.includes(:user)
@@ -115,9 +116,11 @@ Product.preload(:user)
 # Always 2 separate queries, even with .where
 # 148K objects vs 250K for eager_load
 
-# eager_load: force JOIN (required for filtering)
+# eager_load: force a single JOIN explicitly
 Product.eager_load(:user).where(users: { active: true })
-# Always 1 query with LEFT OUTER JOIN
+# Always 1 query with LEFT OUTER JOIN.
+# includes(:user).where(users: { active: true }) produces
+# the same SQL, so eager_load here is rarely needed.
 
 # joins: DOES NOT prevent N+1 (common mistake!)
 Product.joins(:user).where(users: { role: 'admin' })

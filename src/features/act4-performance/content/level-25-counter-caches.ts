@@ -35,13 +35,13 @@ class ProductSerializer < BaseSerializer
   end
 end
 
-# Database log for 100 products:
-#   Product Load (1.2ms)  SELECT "products".* FROM "products"
-#   (0.4ms)  SELECT COUNT(*) FROM "reviews" WHERE product_id = 1
-#   (0.3ms)  SELECT COUNT(*) FROM "reviews" WHERE product_id = 2
-#   ... 97 more COUNT queries
+# Database log for 100 products (each query is a ~2ms round trip):
+#   Product Load (2.0ms)  SELECT "products".* FROM "products"
+#   (2.0ms)  SELECT COUNT(*) FROM "reviews" WHERE product_id = 1
+#   (2.0ms)  SELECT COUNT(*) FROM "reviews" WHERE product_id = 2
+#   ... 98 more COUNT queries
 #
-# includes(:reviews) loads ALL records just to count them!`,
+# 101 queries, ~202ms total. One COUNT per product on the page.`,
 		goal: 'Eliminate expensive COUNT queries by storing pre-computed counts directly on the parent table, then update the serializer to use the cached column.',
 		thresholds: { maxQueriesPerRequest: 3 },
 	},
@@ -65,11 +65,11 @@ end
 \`\`\`
 WITHOUT counter_cache (COUNT query per product):
   Queries: 101 (1 for products + 100 COUNT queries)
-  Time:    1,551ms
+  Time:    ~202ms (101 round trips x ~2ms each)
 
 WITH counter_cache:
   Queries: 1
-  Time:    27ms → 57x faster
+  Time:    ~2ms → about 100x faster
 \`\`\`
 
 **How it works under the hood:**

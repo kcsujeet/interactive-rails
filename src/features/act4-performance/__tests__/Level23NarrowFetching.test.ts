@@ -22,7 +22,7 @@ const PROBES = [
 		responseLines: [
 			{ text: 'SELECT * FROM users;', color: 'yellow' },
 			{ text: '-- 30 columns loaded, only 2 needed (id, email)', color: 'red' },
-			{ text: '-- big_text_column: 75 KB per row', color: 'red' },
+			{ text: '-- big_text_column: 60 KB per row', color: 'red' },
 			{ text: 'Memory: 681 MB for 10K rows', color: 'red' },
 			{ text: 'Needed: 2.35 MB (id + email only)', color: 'green' },
 		],
@@ -35,8 +35,11 @@ const PROBES = [
 			{ text: 'categories = Category.all', color: 'yellow' },
 			{ text: 'categories.map { |c| [c.id, c.name] }', color: 'yellow' },
 			{ text: '-- 10K ActiveRecord objects instantiated', color: 'red' },
-			{ text: '-- Each object: 2.5 KB overhead for 2 values', color: 'red' },
-			{ text: 'Plain arrays would use 80 bytes each', color: 'green' },
+			{
+				text: '-- 2.5 KB overhead x 10K = 25 MB for 2 values',
+				color: 'red',
+			},
+			{ text: 'Plain arrays (80 bytes each) would use 0.8 MB', color: 'green' },
 		],
 	},
 	{
@@ -240,7 +243,7 @@ const STRESS_SCENARIOS = [
 		responseLines: [
 			{ text: 'User.all', color: 'yellow' },
 			{ text: '-- SELECT * FROM users (30 columns, 50K rows)', color: 'red' },
-			{ text: '-- big_text_column: 75 KB per row', color: 'red' },
+			{ text: '-- big_text_column: 60 KB per row', color: 'red' },
 			{ text: 'Memory: 3.4 GB, server OOM killed', color: 'red' },
 		],
 	},
@@ -261,7 +264,7 @@ const STRESS_MEMORY: Record<string, { label: string; pct: number }> = {
 	'dropdown-pluck': { label: '0.8 MB', pct: 0.12 },
 	'api-select': { label: '12.1 MB', pct: 1.8 },
 	'batch-sync': { label: '~50 MB/batch', pct: 7.3 },
-	'wide-fetch': { label: '681 MB', pct: 100 },
+	'wide-fetch': { label: '3.4 GB', pct: 100 },
 };
 
 // ──────────────────────────────────────────────

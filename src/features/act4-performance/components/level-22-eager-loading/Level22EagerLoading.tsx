@@ -165,11 +165,11 @@ const PROBES: ProbeConfig[] = [
 			},
 			{ text: '', color: 'muted' },
 			{
-				text: 'eager_load(:tags).where(tags: { active: true }) => 1 JOIN query',
+				text: 'includes(:tags).where(tags: { active: true }) => 1 JOIN query (auto-promoted)',
 				color: 'green',
 			},
 			{
-				text: 'includes(:tags).where(...)  => works (auto-switches to JOIN)',
+				text: 'eager_load(:tags).where(...) => same JOIN, forced explicitly',
 				color: 'yellow',
 			},
 			{
@@ -177,14 +177,14 @@ const PROBES: ProbeConfig[] = [
 				color: 'red',
 			},
 			{
-				text: 'When filtering on associations, you need a JOIN strategy.',
+				text: 'When filtering on associations, includes is idiomatic: it auto-promotes to a JOIN.',
 				color: 'yellow',
 			},
 		],
 		story: [
 			'An admin filters products by active tags using a WHERE clause on the tags table.',
-			'eager_load works because it uses a JOIN, making the tags columns available.',
-			'includes auto-detects the WHERE clause and switches to JOIN mode.',
+			'includes auto-detects the WHERE clause and promotes itself to a LEFT OUTER JOIN, so it is the idiomatic pick.',
+			'eager_load reaches the same JOIN, but forcing it explicitly just adds words for the same SQL.',
 			'preload crashes because it runs separate queries and cannot filter across them.',
 		],
 	},
@@ -492,12 +492,12 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		expectedResult: 'allowed',
 	},
 	{
-		id: 'filtered-eager',
+		id: 'filtered-includes',
 		label: 'Filtered by active tags',
 		description: 'Load products filtered by association column',
 		method: 'GET',
 		path: '/api/products?tag=active',
-		actor: 'eager_load(:tags)',
+		actor: 'includes(:tags)',
 		expectedResult: 'allowed',
 	},
 	{
@@ -550,8 +550,8 @@ const REWARD_LANE_DATA: Record<
 		totalLabel: '3 queries',
 		result: 'works',
 	},
-	'filtered-eager': {
-		strategy: 'eager_load(:tags).where(...)',
+	'filtered-includes': {
+		strategy: 'includes(:tags).where(...)',
 		blocks: [
 			{
 				label: 'SELECT products LEFT JOIN tags WHERE active',
@@ -559,7 +559,7 @@ const REWARD_LANE_DATA: Record<
 				wide: true,
 			},
 		],
-		totalLabel: '1 query (JOIN)',
+		totalLabel: '1 query (auto-JOIN)',
 		result: 'works',
 	},
 	'no-eager-basic': {
@@ -771,9 +771,9 @@ end`,
       Product.includes(reviews: :user)
       # 3 queries instead of 1001
     when :tagged
-      Product.eager_load(:tags)
+      Product.includes(:tags)
           .where(tags: { active: filters[:tag_active] })
-      # 1 query with LEFT OUTER JOIN
+      # includes auto-promotes to 1 LEFT OUTER JOIN
     end
 
     Result.new(success?: true, products: products, errors: [])
@@ -861,11 +861,12 @@ end`,
   has_many :reviews
   has_many :tags
 
-  # strict_loading catches forgotten eager loads
-  # Raises error if you access a non-loaded association
-  # self.strict_loading_by_default = true
+  # Enabled in Level 21: raises if you access a
+  # non-preloaded association, so forgotten eager
+  # loads fail loudly instead of silently N+1ing.
+  self.strict_loading_by_default = true
 end`,
-			highlight: [2, 3, 4],
+			highlight: [9],
 		});
 	}
 
@@ -1653,7 +1654,7 @@ export function Level22EagerLoading({ onComplete }: LevelComponentProps) {
 			<RightPanel>
 				<CodePreviewPanel
 					files={getCodeFiles(phase, stepper.furthestStep)}
-					learningGoal="includes is usually right. Use eager_load when filtering on associations. Use preload when you need separate queries."
+					learningGoal="includes is usually right, and it auto-promotes to a JOIN when you filter on the association. Use preload when you want separate queries; reach for eager_load only to force a single JOIN explicitly."
 				>
 					{phase === 'reward' && (
 						<>
@@ -1688,8 +1689,9 @@ export function Level22EagerLoading({ onComplete }: LevelComponentProps) {
 									</div>
 								</div>
 								<div className="text-xs text-muted-foreground mt-2">
-									Memory: 681MB (no eager) to 45MB (with includes) for 10K
-									records
+									10K records: N+1 fires 10,001 queries (1,564 MB, 5.3M
+									objects). includes fires 2 queries (682 MB, 149K objects). The
+									query collapse is the win.
 								</div>
 							</div>
 

@@ -361,8 +361,8 @@ end`,
 			{
 				task: 'Curl your API into each failure mode and read the shapes side by side: a missing record, then a request body without the product key.',
 				commands: [
-					'curl http://localhost:3000/api/v1/products/999999 -H "Authorization: Bearer <token>"',
-					'curl -X POST http://localhost:3000/api/v1/products -H "Authorization: Bearer <token>" -H "Content-Type: application/json" -d "{}"',
+					'curl http://localhost:3000/api/products/999999 -H "Authorization: Bearer <token>"',
+					'curl -X POST http://localhost:3000/api/products -H "Authorization: Bearer <token>" -H "Content-Type: application/json" -d "{}"',
 				],
 				verify:
 					'The missing record returns 404 and the missing key returns 400, both in the same JSON error shape with a code field, and never an HTML stack trace.',

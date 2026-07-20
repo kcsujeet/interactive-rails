@@ -70,9 +70,9 @@ export const level29HTTPCaching: Level = {
 	},
 	problem: {
 		observation:
-			'Same expensive API response computed on every request. 1,000 req/sec all hitting Rails. Even with Rails.cache, every request still reaches the server.',
+			'Same expensive API response computed on every request. 1,000 req/sec all hitting Rails. Even with Rails.cache, every request still reaches the server, and the stock weak ETag only trims bandwidth after the full response has already been rebuilt.',
 		rootCause:
-			'No HTTP-level caching. No Cache-Control headers, no ETags, no CDN. Every request makes a full round-trip to the server.',
+			'No Cache-Control headers (so nothing may be cached) and no record-derived conditional GET (so the stock ETag saves bandwidth but never skips the query and serialization). No CDN edge caching.',
 		codeExample: `# app/services/product_detail.rb
 class ProductDetail < ApplicationService
   Result = Data.define(:product)
@@ -85,17 +85,18 @@ end
 # app/controllers/api/products_controller.rb
 def show
   result = ProductDetail.call(id: params[:id])
-  render json: result.product  # No caching headers!
+  render json: result.product  # No stale? / no Cache-Control
 end
 
-# Every request, even if the product hasn't changed:
-#   First request:  200 OK in 21ms (2 queries)
-#   Second request: 200 OK in 21ms (same computation)
+# Stock Rails (Rack::ETag) still adds a weak ETag:
+#   First request:  200 OK in 21ms (2 queries + serialize)
+#   Second request: 304 Not Modified in 20ms
+#     (bandwidth saved, but query + serialize still ran)
 #
-# No Cache-Control headers means:
-# - Browsers don't cache API responses
-# - CDNs can't cache anything
-# - Every user request hits Rails`,
+# No Cache-Control header means:
+# - No browser or CDN may store the response
+# - Every user request still reaches Rails
+# - stale?(record) would skip the work before render`,
 		goal: 'Explore uncached HTTP requests to discover the problem, then configure Cache-Control headers, ETags, and CDN caching for different endpoint types.',
 		thresholds: { maxLatency: 10 },
 	},
@@ -104,7 +105,7 @@ end
 	unlockedNodes: [],
 	learningContent: {
 		title: 'HTTP Caching: Cache-Control, ETags & CDNs',
-		goal: `In this level, you'll:\n- learn HTTP-level caching, the first line of defense that prevents requests from reaching your server at all.\n- use conditional requests and ETags to return 304 Not Modified.\n- configure Cache-Control headers for different scenarios.\n- set up CDN caching for static assets.`,
+		goal: `In this level, you'll:\n- learn HTTP-level caching, the first line of defense that prevents requests from reaching your server at all.\n- use conditional requests and ETags to return 304 Not Modified.\n- configure Cache-Control headers for different scenarios.\n- set up CDN edge caching for public API responses.`,
 		conceptExplanation: `HTTP-level caching is the first line of defense before requests even hit Rails. It prevents requests from reaching your server at all.
 
 **Production benchmarks:**
@@ -113,21 +114,27 @@ No HTTP caching:
   First request:  200 OK in 21ms (ActiveRecord: 9.6ms, 2 queries)
   Second request: 200 OK in 21ms (same computation repeated)
 
-With ETag + stale?:
+Stock Rails (Rack::ETag only):
   First request:  200 OK in 21ms (ActiveRecord: 9.6ms, 2 queries)
-  Second request: 304 Not Modified in 6ms (1 query, no serialization) → 3.5x faster
+  Second request: 304 Not Modified in 20ms (STILL queried + serialized) → bandwidth saved, compute wasted
+
+With stale?(record):
+  First request:  200 OK in 21ms (ActiveRecord: 9.6ms, 2 queries)
+  Second request: 304 Not Modified in 6ms (1 cheap query, no serialize) → 3.5x faster
 
 With CDN:
   Without CDN: Client → Origin server (60-100ms round trip)
   With CDN:    Client → Edge server (~5ms) → cache hit → instant response
 \`\`\`
 
-**How ETags work:**
-1. Rails generates a weak ETag (hash of response body)
-2. Browser sends it back as \`If-None-Match\` on next request
-3. If the product hasn't changed, Rails returns 304 (empty body)
-4. No serialization, no rendering, no second DB query
-5. The \`stale?\` helper checks \`product.updated_at\` in a single fast query
+**Two different ETag mechanisms (this is the key distinction):**
+
+*Stock Rails ships \`Rack::ETag\` + \`Rack::ConditionalGet\`.* Every GET already gets a weak ETag: Rails runs your action to completion, builds the full response body, then hashes that body into the ETag. If the incoming \`If-None-Match\` matches, it strips the body and returns 304. This saves download **bandwidth**, but the query and serialization already ran to produce the body it hashed. It is a bandwidth win, not a compute win.
+
+*\`stale?(record)\` / \`fresh_when(record)\` are different.* They derive the validator from the record itself (its \`cache_key\`, backed by \`updated_at\`) using one cheap query, BEFORE you render. If the request is fresh, \`stale?\` returns \`false\`, you skip the \`render json:\` block entirely, and Rails returns 304 having done almost no work. That is the **compute** win: no serialization, no full body build.
+
+- \`stale?\` returns a boolean and wraps an explicit \`render json:\` (the API-controller shape).
+- \`fresh_when\` sets the validator and halts Rails implicit rendering, so it fits actions that render implicitly.
 
 **Key Cache-Control directives:**
 - \`max-age=N\`: Client can reuse for N seconds without asking server
@@ -136,14 +143,14 @@ With CDN:
 - \`public\`: CDN and browser can both cache
 - \`private\`: Only browser can cache (user-specific data)
 - \`stale-while-revalidate=N\`: Serve stale cache while fetching fresh copy in background
-- \`immutable\`: Asset will never change (use with fingerprinted filenames)
+- \`immutable\`: The resource at this URL will never change (use with versioned URLs)
 
 **CDN benefits:**
 - Geographically distributed edge servers
 - User in Tokyo hits a CDN edge in Tokyo: sub-10ms response
 - Without CDN, the request travels to your server in Virginia: 60-100ms
-- For static assets with fingerprinted filenames: set \`max-age: 1 year\` + \`immutable\`
-- Asset URL changes on every deploy, so stale cache is impossible`,
+- For versioned reference endpoints (a new version means a new URL): set \`max-age: 1 year\` + \`immutable\`
+- The URL changes when the data changes, so a stale cache is impossible`,
 		railsCodeExample: `# === Service provides data, controller handles HTTP caching ===
 
 # app/services/product_detail.rb
@@ -182,28 +189,30 @@ end
 #   Cache-Control: public, s-maxage=3600
 # User-specific data (browser only):
 #   Cache-Control: private, max-age=60, stale-while-revalidate=30
-# Fingerprinted assets (immutable):
+# Versioned/immutable reference data (a new version = new URL):
 #   Cache-Control: public, max-age=31536000, immutable
 
-# === CDN configuration ===
-# config/environments/production.rb
-config.asset_host = "https://cdn.example.com"
-config.public_file_server.headers = {
-  "Cache-Control" => "public, max-age=31536000, immutable"
-}
+# === CDN in front of the API ===
+# This is an API-only app; Rails does not serve the React
+# bundle (a static host / CDN does). Rails 8 production also
+# already sets far-future Cache-Control on any files it does
+# serve from public/. So the lever here is the Cache-Control
+# on your API responses, which tells the CDN edge what it may
+# store and for how long.
 
-# === Conditional GET flow ===
+# === Conditional GET flow (stale?) ===
 # Client: GET /api/products/42, If-None-Match: "abc123"
-# Server: 304 Not Modified (empty body, 6ms vs 21ms)`,
+# Server: stale? derives the validator from the record,
+#         returns 304 (empty body, 6ms) WITHOUT re-serializing`,
 		commonMistakes: [
-			'Not using stale? for GET endpoints (every request recomputes the response)',
+			'Not using stale? for GET endpoints (the stock ETag saves bandwidth but the query and serialize still run every time)',
 			"Setting Cache-Control: public on user-specific data (CDN would serve wrong user's data)",
-			'Not using fingerprinted asset filenames (stale CSS/JS after deploy)',
-			'Setting very long max-age without ETag (no way to invalidate if data changes)',
-			'Forgetting to add s-maxage for CDN (defaults to max-age which might be too short)',
+			'Relying on the stock body-hash ETag for compute savings (it is computed after the full response is built)',
+			'Setting a very long max-age on data that can change without giving the URL a version (no way to invalidate)',
+			'Forgetting to add s-maxage for the CDN (defaults to max-age, which might be too short for a shared edge cache)',
 		],
 		whenToUse:
-			'Every read-heavy GET endpoint. Use ETags for dynamic content (API responses). Use long max-age + immutable for static assets with fingerprinted filenames. Add a CDN for geographically distributed users.',
+			'Every read-heavy GET endpoint. Use stale?/fresh_when for dynamic content (API responses) so a 304 skips the work, not just the bandwidth. Use long max-age + immutable for versioned reference data. Add a CDN and s-maxage for geographically distributed users.',
 		furtherReading: [
 			{
 				title: 'Rails fresh_when and stale?',

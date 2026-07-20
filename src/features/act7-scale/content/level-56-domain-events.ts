@@ -82,7 +82,7 @@ Result: 3 out of 4 succeed. Email retries independently.
 
 **Progression, Wisper to Karafka:**
 
-**In-process (Wisper):** Events stay within the Rails process. Simple, no infrastructure. Best for decoupling within a monolith.
+**In-process (Wisper):** Events stay within the Rails process. Simple, no infrastructure. Best for decoupling within a monolith. Wisper itself is synchronous and has no built-in async; for durable, off-the-request-thread work, a listener enqueues a background job (Solid Queue, the Rails 8 default) instead of doing the work inline.
 
 **Out-of-process (Karafka + Kafka):** Events published to Kafka topics, consumed by independent worker processes. Guaranteed delivery, replay, and ordering. Choose when subscribers live in separate services.
 - Producing: \`Karafka.producer.produce_sync(topic: 'payments', payload: {...}.to_json)\`
@@ -90,24 +90,22 @@ Result: 3 out of 4 succeed. Email retries independently.
 - Routing: \`topic :payments do; consumer PaymentsConsumer; end\`
 - Karafka Web dashboard at \`/karafka\` for monitoring
 
-**Hybrid:** Publish in-process with Wisper, fan out to Sidekiq jobs. Good middle ground before Kafka.
+**Hybrid:** Publish in-process with Wisper, and have each listener fan out to its own Solid Queue job. Good middle ground before Kafka: the publish stays synchronous and fast, while the actual work runs on durable jobs with independent retries.
 
 **Monolith philosophy:** "Stick with a monolith for as long as possible (and no longer)." Jason Warner (CTO GitHub): "One of the biggest architectural mistakes of the past decade was going full microservice."`,
 		railsCodeExample: `# Using Wisper for in-process domain events
 # Gemfile
 gem 'wisper'
-gem 'wisper-sidekiq'  # async subscribers
+# No async adapter gem: Wisper has no built-in async, and
+# listeners delegate to Solid Queue jobs (the Rails 8 default)
+# rather than spawning threads.
 
-# app/events/order_completed_event.rb
-class OrderCompletedEvent
+# app/events/order_completed.rb
+class OrderCompleted
   include Wisper::Publisher
 
-  def initialize(order)
-    @order = order
-  end
-
-  def call
-    broadcast(:order_completed, @order)
+  def call(order)
+    broadcast(:order_completed, order)
   end
 end
 
@@ -116,57 +114,69 @@ class CheckoutService
   def call(order)
     order.complete!
 
-    # Publish event, does NOT call subscribers directly
-    OrderCompletedEvent.new(order).call
+    # Publish event, does NOT call listeners directly
+    OrderCompleted.new.call(order)
     # That's it! No direct dependencies on Email, Inventory, etc.
   end
 end
 
-# app/subscribers/email_subscriber.rb
-class EmailSubscriber
+# app/listeners/email_listener.rb
+# The listener method name matches the broadcast name.
+# It enqueues a job instead of doing the work inline, so the
+# side effect runs on Solid Queue with retries and persistence.
+class EmailListener
   def order_completed(order)
-    OrderMailer.receipt(order).deliver_later
+    EmailJob.perform_later(order.id)
   end
 end
 
-# app/subscribers/inventory_subscriber.rb
-class InventorySubscriber
+# app/listeners/inventory_listener.rb
+class InventoryListener
   def order_completed(order)
     ReserveInventoryJob.perform_later(order.id)
   end
 end
 
-# app/subscribers/analytics_subscriber.rb
-class AnalyticsSubscriber
+# app/listeners/analytics_listener.rb
+class AnalyticsListener
   def order_completed(order)
     TrackPurchaseJob.perform_later(order.id)
   end
 end
 
-# app/subscribers/shipping_subscriber.rb
-class ShippingSubscriber
+# app/listeners/shipping_listener.rb
+class ShippingListener
   def order_completed(order)
     ScheduleDeliveryJob.perform_later(order.id)
   end
 end
 
-# config/initializers/event_subscriptions.rb
-Rails.application.config.after_initialize do
-  OrderCompletedEvent.subscribe(EmailSubscriber.new)
-  OrderCompletedEvent.subscribe(InventorySubscriber.new)
-  OrderCompletedEvent.subscribe(AnalyticsSubscriber.new)
-  OrderCompletedEvent.subscribe(ShippingSubscriber.new)
-  # Add new subscribers here. CheckoutService never changes!
+# app/jobs/email_job.rb  (each listener has its own job)
+class EmailJob < ApplicationJob
+  retry_on StandardError, wait: :polynomially_longer
+
+  def perform(order_id)
+    OrderMailer.receipt(Order.find(order_id)).deliver_later
+  end
 end
 
-# Async subscribers with Wisper-Sidekiq
-OrderCompletedEvent.subscribe(EmailSubscriber, async: true)
+# config/initializers/event_subscriptions.rb
+Rails.application.config.after_initialize do
+  Wisper.subscribe(EmailListener.new)
+  Wisper.subscribe(InventoryListener.new)
+  Wisper.subscribe(AnalyticsListener.new)
+  Wisper.subscribe(ShippingListener.new)
+  # Add new listeners here. CheckoutService never changes!
+end
+
+# Async without a thread adapter: the listener enqueues a job,
+# and Solid Queue handles retries and persistence per listener.
 
 # Testing in isolation:
 RSpec.describe CheckoutService do
   it 'publishes order_completed event' do
     events = spy('events')
-    allow(OrderCompletedEvent).to receive(:new).and_return(events)
+    allow(OrderCompleted).to receive(:new).and_return(events)
     allow(events).to receive(:call)
 
     CheckoutService.new.call(order)

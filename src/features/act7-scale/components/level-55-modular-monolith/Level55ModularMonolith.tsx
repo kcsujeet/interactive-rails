@@ -495,6 +495,14 @@ export const OBSERVE_PROBE_FRAMES: Record<string, AnimFrame[]> = {
 // Packwerk README recommendation. Nothing blocks at runtime; the bad
 // change never reaches production in the first place.
 
+// Mechanism-honest: after the refactor, billing calls the notifications
+// PUBLIC surface (Notifications::Public::SendReceipt) through a DECLARED
+// dependency, so it no longer touches the internal ReceiptFormatter. The
+// same rename that broke production now ships safely: nothing to catch,
+// nothing breaks. (Core Packwerk checks dependencies, not which internal
+// constant is referenced; that privacy check lives in packwerk-extensions,
+// which this level does not install. So this scenario is ALLOWED, not a
+// CI catch.) Source: https://github.com/Shopify/packwerk/blob/main/USAGE.md
 const REWARD_RENAME_FRAMES: AnimFrame[] = [
 	{
 		zones: {
@@ -508,17 +516,21 @@ const REWARD_RENAME_FRAMES: AnimFrame[] = [
 	{
 		zones: {
 			ci: {
-				flash: 'red',
-				sublabel: 'boundary check: billing references this constant',
-				badge: 'CHECK FAILED',
+				flash: 'green',
+				sublabel: 'billing no longer touches the renamed internal',
+				badge: 'CHECK PASSED',
+			},
+			billing: {
+				flash: 'green',
+				sublabel: 'calls Notifications::Public::SendReceipt',
 			},
 		},
 		edges: {
 			eCiDeploy: {
 				active: true,
-				reverse: true,
-				label: 'PR blocked before merge',
-				dotColor: '#ef4444',
+				reverse: false,
+				label: 'safe rename ships',
+				dotColor: '#22c55e',
 			},
 		},
 	},
@@ -526,10 +538,9 @@ const REWARD_RENAME_FRAMES: AnimFrame[] = [
 		zones: {
 			notifications: {
 				flash: 'green',
-				sublabel: 'rename ships via the public API',
+				sublabel: 'internal renamed freely, no callers outside',
 				badge: 'MERGED',
 			},
-			billing: { flash: 'green', sublabel: 'switched to the public API' },
 			customer: {
 				flash: 'green',
 				sublabel: 'receipts never stopped',
@@ -621,13 +632,35 @@ const REWARD_OWNER_FRAMES: AnimFrame[] = [
 	},
 ];
 
+// The genuinely-caught violation in a dependency-only setup: a new billing
+// reference to a package it never declared. Billing's dependencies list is
+// packs/notifications and packs/orders, so reaching into packs/inventory is
+// an undeclared-dependency violation and fails the PR before merge.
+// Source: https://github.com/Shopify/packwerk/blob/main/USAGE.md
 const REWARD_STRICT_FRAMES: AnimFrame[] = [
 	{
 		zones: {
-			ci: {
+			billing: {
 				flash: 'amber',
-				sublabel: 'legacy violations recorded in TODO lists',
-				badge: 'ADOPTING',
+				sublabel: 'new PR reaches into packs/inventory',
+				badge: 'PR',
+			},
+		},
+	},
+	{
+		zones: {
+			ci: {
+				flash: 'red',
+				sublabel: 'billing references packs/inventory, never declared',
+				badge: 'CHECK FAILED',
+			},
+		},
+		edges: {
+			eCiDeploy: {
+				active: true,
+				reverse: true,
+				label: 'PR blocked before merge',
+				dotColor: '#ef4444',
 			},
 		},
 	},
@@ -635,12 +668,13 @@ const REWARD_STRICT_FRAMES: AnimFrame[] = [
 		zones: {
 			ci: {
 				flash: 'green',
-				sublabel: 'strict mode: no NEW violations can land',
+				sublabel: 'boundaries hold: only declared references merge',
 				badge: 'STRICT',
 			},
-			billing: { flash: 'green', sublabel: 'old debt shrinks PR by PR' },
-			orders: { flash: 'green', sublabel: 'boundaries hold from here on' },
+			billing: { flash: 'green', sublabel: 'declares the dep or drops it' },
+			inventory: { flash: 'green', sublabel: 'no undeclared reach-in' },
 		},
+		edges: { eCiDeploy: { active: false, label: '' } },
 	},
 ];
 
@@ -705,16 +739,17 @@ export const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'internal-rename',
 		label: 'Rename a notifications helper (their own code)',
-		description: 'CI boundary check fails the PR before merge',
+		description:
+			'Billing no longer touches the internal; the rename ships safely',
 		method: 'PR',
-		path: 'rename ReceiptFormatter (referenced by billing)',
+		path: 'rename ReceiptFormatter (a notifications internal)',
 		actor: 'notifications team',
-		expectedResult: 'blocked',
+		expectedResult: 'allowed',
 		story: [
 			'Same developer, same rename, PR opened.',
-			'The CI boundary check reads every constant reference and finds billing calling this class.',
-			'The PR fails BEFORE merge with the exact file and line; production never sees the break.',
-			'The rename ships an hour later with billing switched to the public API. Receipts never stop.',
+			'Billing was refactored to call Notifications::Public::SendReceipt, so it no longer references the internal ReceiptFormatter at all.',
+			'The boundary check passes: nothing outside notifications touches the renamed class.',
+			'The rename ships the same day, and receipts never stop.',
 		],
 	},
 	{
@@ -750,17 +785,17 @@ export const STRESS_SCENARIOS: StressScenario[] = [
 	},
 	{
 		id: 'strict-mode',
-		label: 'Turn the boundary check to strict',
-		description: 'Legacy violations grandfathered; no NEW ones can land',
+		label: 'Reach into a package billing never declared',
+		description: 'Undeclared cross-package reference fails the PR before merge',
 		method: 'PR',
-		path: 'packs/*/package.yml: enforce_dependencies: strict',
-		actor: 'platform team',
-		expectedResult: 'allowed',
+		path: 'billing references packs/inventory (not in its dependencies)',
+		actor: 'billing team',
+		expectedResult: 'blocked',
 		story: [
-			'Adoption is honest about the past: existing violations are recorded, not fixed overnight.',
-			'Strict mode draws the line: recorded debt stays visible, but no NEW violation can merge.',
-			'Old debt shrinks pull request by pull request; the boundary holds from here on.',
-			'The tangle stops growing the day the gate turns on.',
+			'A new billing feature reaches into packs/inventory, a package billing never declared.',
+			'Billing declared only packs/notifications and packs/orders, so this reference crosses an undeclared boundary.',
+			'The dependency check fails the PR BEFORE merge, naming the exact file and constant; production never sees it.',
+			'The fix is a choice made in review: declare the dependency on purpose, or drop the reference. The tangle does not grow by accident.',
 		],
 	},
 ];

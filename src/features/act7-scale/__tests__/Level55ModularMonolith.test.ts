@@ -81,16 +81,33 @@ describe('Level 55: mechanism honesty (static analysis in CI, not runtime)', () 
 		}
 	});
 
-	test('the blocked scenario is a PR failing in CI before merge', () => {
+	test('the blocked scenario is an undeclared-dependency PR failing in CI', () => {
+		// Core Packwerk checks DEPENDENCIES only; privacy / public-API
+		// enforcement lives in the separate packwerk-extensions gem, which this
+		// level does not install. So the only violation CI can genuinely catch
+		// is an UNDECLARED cross-package reference, not the notifications rename
+		// (billing declared packs/notifications, so referencing it passes).
+		// Source: https://github.com/Shopify/packwerk/blob/main/USAGE.md
 		const blocked = STRESS_SCENARIOS.filter(
 			(s) => s.expectedResult === 'blocked',
 		);
-		expect(blocked.map((s) => s.id)).toEqual(['internal-rename']);
+		expect(blocked.map((s) => s.id)).toEqual(['strict-mode']);
 		const scenario = blocked[0];
 		expect(scenario?.method).toBe('PR');
 		expect(scenario?.description).toContain('before merge');
+		expect(scenario?.path).toContain('not in its dependencies');
 		expect(scenario?.story?.some((line) => line.includes('BEFORE merge'))).toBe(
 			true,
+		);
+	});
+
+	test('the renamed-internal scenario now ships safely (allowed)', () => {
+		// The refactor routed billing through the notifications public surface,
+		// so the same rename no longer breaks anything and nothing is caught.
+		const rename = STRESS_SCENARIOS.find((s) => s.id === 'internal-rename');
+		expect(rename?.expectedResult).toBe('allowed');
+		expect(rename?.story?.join(' ')).toContain(
+			'Notifications::Public::SendReceipt',
 		);
 	});
 
@@ -105,7 +122,7 @@ describe('Level 55: mechanism honesty (static analysis in CI, not runtime)', () 
 			);
 		}
 		// The reward frame for the blocked PR must say where blocking happens.
-		expect(JSON.stringify(REWARD_PROBE_FRAMES['internal-rename'])).toContain(
+		expect(JSON.stringify(REWARD_PROBE_FRAMES['strict-mode'])).toContain(
 			'PR blocked before merge',
 		);
 	});

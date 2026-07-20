@@ -237,8 +237,11 @@ const ZONE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 		stageId: 'cache',
 		title: 'Cache Layer (Missing)',
 		description:
-			'Nothing in the code path ever calls the cache. A store exists, but a cache no code reads or writes may as well not be there: every request falls through to the service.',
-		code: `# app/services/trending_products.rb
+			'This app was generated with --skip-solid, so no Solid Cache store is configured and nothing in the code path ever calls the cache. Every request falls straight through to the service.',
+		code: `# config/environments/production.rb
+# No config.cache_store line: caching is off.
+
+# app/services/trending_products.rb
 def call
   # No Rails.cache.fetch wrapper anywhere.
   # The ranking recomputes from 50K products
@@ -330,7 +333,11 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		expectedResult: 'allowed',
 		responseLines: [
 			{ text: '200 OK  X-Cache: HIT  2ms', color: 'green' },
-			{ text: 'Served from Solid Cache. DB not touched.', color: 'green' },
+			{
+				text: 'One cheap MAX(updated_at) for the key, then a cache hit.',
+				color: 'green',
+			},
+			{ text: 'The 512ms ranking query is skipped entirely.', color: 'green' },
 		],
 	},
 	{
@@ -504,7 +511,7 @@ const dbPrepareCommands: TerminalCommand[] = [
 ];
 
 const dbPrepareOutput: TerminalOutputLine[] = [
-	{ text: "Created database 'blog_cache'", color: 'green' },
+	{ text: "Created database 'store_api_production_cache'", color: 'green' },
 	{ text: 'Loaded cache schema', color: 'green' },
 ];
 
@@ -551,6 +558,12 @@ const CONFIGURE_STORE_OPTIONS: StepOption[] = [
 	},
 ];
 
+// race_condition_ttl only protects the SAME key when its TTL lapses with no
+// data change (the 5-minute timer). When a review touches a product the key
+// ROTATES to a new updated_at, so every request sees a brand-new empty key and
+// race_condition_ttl offers no coordination there. That is intended: a rotation
+// means the data actually changed, so a recompute is correct.
+// https://api.rubyonrails.org/classes/ActiveSupport/Cache/Store.html#method-i-fetch
 const CACHE_FETCH_OPTIONS: StepOption[] = [
 	{
 		id: 'wrong-read',
@@ -629,7 +642,7 @@ const OPTION_STEP_CONFIG: Record<
 	4: {
 		title: 'Add Cache Fetch',
 		description:
-			'The trending query runs on every request. Wrap it so the first request computes and stores the result. Two constraints: (1) the cache must respect both expiration AND changes to the underlying records, so a fresh review is reflected immediately, and (2) under heavy traffic, when the key expires only ONE concurrent request should recompute, while the rest keep serving the slightly-stale value.',
+			'The trending query runs on every request. Wrap it so the first request computes and stores the result. Two constraints: (1) the cache must respect both expiration AND changes to the underlying records, so a fresh review is reflected immediately, and (2) when nothing has changed but the 5-minute timer lapses under heavy traffic, only ONE concurrent request should recompute while the rest keep serving the slightly-stale value.',
 		options: CACHE_FETCH_OPTIONS,
 	},
 	5: {
@@ -1381,8 +1394,9 @@ export function Level28Caching({ onComplete }: LevelComponentProps) {
 			title: 'Install Cache Gem',
 			description: (
 				<p className="text-sm text-muted-foreground">
-					Rails 8 ships with a database-backed cache store that eliminates the
-					need for Redis. Install it as a project dependency.
+					Rails 8 offers a database-backed cache store that eliminates the need
+					for Redis, but this app was generated with --skip-solid so it is not
+					present. Add it back as a project dependency.
 				</p>
 			),
 			commands: installGemCommands,

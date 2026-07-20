@@ -62,7 +62,7 @@ describe('Act 3 homework exercises', () => {
 			'ProductQuery.new.by_seller(1).sorted.results.explain',
 		);
 		expect(commandsOf('act3-level20-error-handling')).toContain(
-			'curl http://localhost:3000/api/v1/products/999999 -H "Authorization: Bearer <token>"',
+			'curl http://localhost:3000/api/products/999999 -H "Authorization: Bearer <token>"',
 		);
 	});
 });

@@ -73,7 +73,7 @@ type Phase = 'observe' | 'build' | 'reward';
 // Discovery definitions (observe phase)
 // ──────────────────────────────────────────────
 
-const DISCOVERY_DEFS: DiscoveryDef[] = [
+export const DISCOVERY_DEFS: DiscoveryDef[] = [
 	{ id: 'raw-500-stacktrace', label: 'Raw 500 with stack trace' },
 	{ id: 'plain-text-404', label: 'Plain text 404' },
 	{ id: 'inconsistent-shapes', label: 'Inconsistent JSON shapes' },
@@ -84,7 +84,7 @@ const DISCOVERY_DEFS: DiscoveryDef[] = [
 // Probe configurations (observe phase)
 // ──────────────────────────────────────────────
 
-const PROBES: ProbeConfig[] = [
+export const PROBES: ProbeConfig[] = [
 	{
 		id: 'missing-product',
 		label: 'GET /api/products/999',
@@ -158,28 +158,37 @@ const PROBES: ProbeConfig[] = [
 ];
 
 // Map probe IDs to discovery IDs they trigger
-const PROBE_DISCOVERY_MAP: Record<string, string> = {
+export const PROBE_DISCOVERY_MAP: Record<string, string> = {
 	'missing-product': 'raw-500-stacktrace',
 	'bad-params': 'inconsistent-shapes',
 	'missing-user': 'plain-text-404',
 };
 
-// Map probe IDs to pipeline node display during observe
+// Map probe IDs to pipeline node display during observe. There is no shared
+// error handler node; the controller raises unhandled, and the response
+// carries whatever inconsistent format that action happened to produce.
 const PROBE_PIPELINE_MAP: Record<
 	string,
-	{ handlerSublabel: string; responseBadge: string }
+	{
+		controllerSublabel: string;
+		responseBadge: string;
+		responseSublabel: string;
+	}
 > = {
 	'missing-product': {
-		handlerSublabel: 'NO HANDLER',
+		controllerSublabel: 'no rescue, exception escapes',
 		responseBadge: '500!',
+		responseSublabel: 'HTML stack trace',
 	},
 	'bad-params': {
-		handlerSublabel: 'NO HANDLER',
+		controllerSublabel: 'own rescue, own format',
 		responseBadge: '400!',
+		responseSublabel: '{ message: "..." }',
 	},
 	'missing-user': {
-		handlerSublabel: 'NO HANDLER',
+		controllerSublabel: 'own rescue, own format',
 		responseBadge: '404!',
+		responseSublabel: 'plain text "Not found"',
 	},
 };
 
@@ -187,7 +196,7 @@ const PROBE_PIPELINE_MAP: Record<
 // Stage inspector data (observe phase)
 // ──────────────────────────────────────────────
 
-const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
+export const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 	request: {
 		stageId: 'request',
 		title: 'Incoming Request',
@@ -198,14 +207,11 @@ const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 		stageId: 'controller',
 		title: 'ProductsController',
 		description:
-			'Each controller action has its own begin/rescue block. Some return JSON, some return plain text, some let exceptions bubble up as raw 500s with stack traces.',
+			'There is no shared error handler. Each action fends for itself: show has no rescue at all (a missing record bubbles up as a raw 500 with a stack trace), while create has its own rescue with yet another format. Clients cannot parse errors reliably.',
 		code: `def show
-  begin
-    @product = Product.find(params[:id])
-    render json: @product
-  rescue ActiveRecord::RecordNotFound
-    render plain: "Not found", status: 500
-  end
+  @product = Product.find(params[:id])
+  render json: @product
+  # No rescue -- RecordNotFound becomes a raw 500!
 end
 
 def create
@@ -217,12 +223,6 @@ def create
   end
 end`,
 	},
-	'error-handler': {
-		stageId: 'error-handler',
-		title: 'Error Handler (Missing!)',
-		description:
-			'There is no centralized error handling. Each controller action catches exceptions independently with different rescue blocks. The result: three different error formats across endpoints. Clients cannot parse errors reliably.',
-	},
 	response: {
 		stageId: 'response',
 		title: 'API Response',
@@ -231,17 +231,19 @@ end`,
 	},
 };
 
-// Map stage IDs to discovery IDs they trigger
-const STAGE_DISCOVERY_MAP: Record<string, string> = {
-	'error-handler': 'no-centralized-handling',
-	controller: 'inconsistent-shapes',
+// Map stage IDs to discovery IDs they trigger. The controller stage reveals
+// that there is no shared error handler (some actions rescue, some don't).
+// Each probe owns exactly one of the other three discoveries; nothing here
+// duplicates a probe discovery.
+export const STAGE_DISCOVERY_MAP: Record<string, string> = {
+	controller: 'no-centralized-handling',
 };
 
 // ──────────────────────────────────────────────
 // Stress test scenarios (reward phase)
 // ──────────────────────────────────────────────
 
-const STRESS_SCENARIOS: StressScenario[] = [
+export const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'missing-product',
 		label: 'GET /api/products/999',
@@ -257,7 +259,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		description: 'POST with missing product key (was inconsistent JSON)',
 		method: 'POST',
 		path: '/api/products',
-		actor: 'attacker',
+		actor: 'frontend_dev',
 		expectedResult: 'blocked',
 	},
 	{
@@ -311,7 +313,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 // Step definitions (3 OptionCard steps)
 // ──────────────────────────────────────────────
 
-const STEP_DEFS: StepDef[] = [
+export const STEP_DEFS: StepDef[] = [
 	{ id: 'choose-strategy', title: 'Choose Error Handling Strategy' },
 	{ id: 'map-exceptions', title: 'Map Exceptions to Status Codes' },
 	{ id: 'define-shape', title: 'Define Error Response Shape' },
@@ -329,7 +331,7 @@ interface StepOption {
 }
 
 // Step 0: Choose Error Handling Strategy
-const STRATEGY_OPTIONS: StepOption[] = [
+export const STRATEGY_OPTIONS: StepOption[] = [
 	{
 		id: 'per-action',
 		label: 'begin/rescue in each controller action',
@@ -359,7 +361,7 @@ const STRATEGY_OPTIONS: StepOption[] = [
 ];
 
 // Step 1: Map Exceptions to Status Codes
-const MAPPING_OPTIONS: StepOption[] = [
+export const MAPPING_OPTIONS: StepOption[] = [
 	{
 		id: 'all-500',
 		label:
@@ -385,7 +387,7 @@ const MAPPING_OPTIONS: StepOption[] = [
 ];
 
 // Step 2: Define Error Response Shape
-const SHAPE_OPTIONS: StepOption[] = [
+export const SHAPE_OPTIONS: StepOption[] = [
 	{
 		id: 'flat-hash',
 		label: '{ message: "Not found", status: 404 }',
@@ -451,8 +453,7 @@ const OPTION_STEP_CONFIG: Record<
 const OBSERVE_CONNECTIONS: PipelineConnection[] = [
 	{ from: 'request', to: 'router', dots: 'mixed' },
 	{ from: 'router', to: 'controller', dots: 'mixed' },
-	{ from: 'controller', to: 'error-handler', dots: 'mixed' },
-	{ from: 'error-handler', to: 'response', dots: 'mixed' },
+	{ from: 'controller', to: 'response', dots: 'mixed' },
 ];
 
 const REWARD_CONNECTIONS: PipelineConnection[] = [
@@ -475,7 +476,7 @@ const REWARD_CONNECTION_IDS = REWARD_CONNECTIONS.map(
 // Code preview helper
 // ──────────────────────────────────────────────
 
-function getCodeFiles(phase: Phase, furthestStep: number) {
+export function getCodeFiles(phase: Phase, furthestStep: number) {
 	const files = [];
 
 	// Observe phase: show scattered error handling
@@ -485,12 +486,10 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
 			language: 'ruby',
 			code: `class Api::ProductsController < ApplicationController
   def show
-    begin
-      @product = Product.find(params[:id])
-      render json: @product
-    rescue ActiveRecord::RecordNotFound
-      render plain: "Not found", status: 500
-    end
+    @product = Product.find(params[:id])
+    render json: @product
+    # No rescue -- RecordNotFound bubbles up as a raw 500
+    # with an HTML stack trace!
   end
 
   def create
@@ -502,28 +501,28 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
     end
   end
 
-  # Every action has its own begin/rescue!
-  # 3 different error formats across endpoints
+  # No shared handler: some actions rescue, some don't.
+  # 3 different error formats across endpoints.
 end`,
-			highlight: [3, 6, 7, 12, 15, 16],
+			highlight: [3, 4, 5, 6, 13, 14],
 		});
 		return files;
 	}
 
 	// Build / reward phases: show evolving code
-	if (furthestStep === 0) {
-		// Step 0: same as observe (player is choosing the strategy)
+	if (furthestStep <= 0) {
+		// Step 0: same as observe (player is choosing the strategy).
+		// products#show has NO rescue, so a missing record bubbles up as a
+		// raw 500 (matches the observe probe). create still has its own
+		// inconsistent rescue.
 		files.push({
 			filename: 'app/controllers/api/products_controller.rb',
 			language: 'ruby',
 			code: `class Api::ProductsController < ApplicationController
   def show
-    begin
-      @product = Product.find(params[:id])
-      render json: @product
-    rescue ActiveRecord::RecordNotFound
-      render plain: "Not found", status: 500
-    end
+    @product = Product.find(params[:id])
+    render json: @product
+    # No rescue -- RecordNotFound bubbles up as a raw 500!
   end
 
   def create
@@ -535,7 +534,7 @@ end`,
     end
   end
 end`,
-			highlight: [3, 6, 7, 12, 15, 16],
+			highlight: [3, 4, 5, 12, 13],
 		});
 	}
 
@@ -546,6 +545,9 @@ end`,
 			code:
 				furthestStep >= 3
 					? `class ApplicationController < ActionController::API
+  # Registered first so the specific handlers below take
+  # priority (rescue_from matches bottom-up).
+  rescue_from StandardError, with: :handle_internal_error
   rescue_from ActiveRecord::RecordNotFound,
               with: :handle_not_found
   rescue_from ActiveRecord::RecordInvalid,
@@ -556,6 +558,17 @@ end`,
               with: :handle_forbidden
 
   private
+
+  def handle_internal_error(exception)
+    Rails.logger.error(exception.message)
+    render json: {
+      error: {
+        code: "internal_error",
+        message: "An unexpected error occurred",
+        details: {}
+      }
+    }, status: :internal_server_error
+  end
 
   def handle_not_found(exception)
     render json: {
@@ -599,6 +612,7 @@ end`,
 end`
 					: furthestStep >= 2
 						? `class ApplicationController < ActionController::API
+  rescue_from StandardError, with: :handle_internal_error
   rescue_from ActiveRecord::RecordNotFound,
               with: :handle_not_found
   rescue_from ActiveRecord::RecordInvalid,
@@ -609,6 +623,10 @@ end`
               with: :handle_forbidden
 
   private
+
+  def handle_internal_error(exception)
+    render json: { error: "..." }, status: :internal_server_error
+  end
 
   def handle_not_found(exception)
     render json: { error: "..." }, status: :not_found
@@ -629,6 +647,7 @@ end`
   # What should the error shape look like?
 end`
 						: `class ApplicationController < ActionController::API
+  rescue_from StandardError, with: :handle_internal_error
   rescue_from ActiveRecord::RecordNotFound,
               with: :handle_not_found
   rescue_from ActiveRecord::RecordInvalid,
@@ -644,10 +663,10 @@ end`
 end`,
 			highlight:
 				furthestStep >= 3
-					? [14, 15, 16, 17, 25, 26, 27, 35, 36]
+					? [4, 5, 6, 7, 27, 28, 29, 30]
 					: furthestStep >= 2
-						? [14, 18, 22, 26]
-						: [2, 3, 4, 5, 6, 7, 8, 9],
+						? [15, 19, 23, 27]
+						: [2, 3, 4, 5, 6, 7, 8, 9, 10],
 		});
 	}
 
@@ -741,22 +760,15 @@ export function Level20ErrorHandling({ onComplete }: LevelComponentProps) {
 			{
 				id: 'controller',
 				label: 'Controller',
+				sublabel: probeDisplay ? probeDisplay.controllerSublabel : undefined,
+				variant: (probeDisplay ? 'danger' : 'default') as 'danger' | 'default',
 				inspectable: true,
 				inspected: inspectedStages.has('controller'),
 			},
 			{
-				id: 'error-handler',
-				label: 'Error Handler',
-				sublabel: probeDisplay ? probeDisplay.handlerSublabel : '(missing!)',
-				variant: (probeDisplay ? 'danger' : 'inactive') as
-					| 'danger'
-					| 'inactive',
-				inspectable: true,
-				inspected: inspectedStages.has('error-handler'),
-			},
-			{
 				id: 'response',
 				label: 'Response',
+				sublabel: probeDisplay ? probeDisplay.responseSublabel : undefined,
 				badge: probeDisplay ? probeDisplay.responseBadge : undefined,
 				variant: (probeDisplay ? 'danger' : 'default') as 'danger' | 'default',
 				inspectable: true,
@@ -1126,7 +1138,7 @@ export function Level20ErrorHandling({ onComplete }: LevelComponentProps) {
 					files={getCodeFiles(
 						phase,
 						phase === 'reward'
-							? STEP_DEFS.length - 1
+							? STEP_DEFS.length
 							: stepper.isCurrentStepCompleted
 								? stepper.currentStep
 								: stepper.currentStep - 1,

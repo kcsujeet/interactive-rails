@@ -214,7 +214,7 @@ const DEFAULT_SVC_C_REWARD: ServiceVizState = {
 export const DISCOVERY_DEFS: DiscoveryDef[] = [
 	{
 		id: 'sequential-latency',
-		label: 'Six round trips make one screen take 2.4s',
+		label: 'Six round trips repeat auth and setup the client cannot avoid',
 	},
 	{
 		id: 'payload-overfetch',
@@ -237,7 +237,7 @@ export const PROBES: ProbeConfig[] = [
 		id: 'latency-compound',
 		label: 'Open the dashboard on 4G',
 		command:
-			'GET /users/me, /orders, /stock, /notifications, /billing/summary, /metrics (one after another)',
+			'GET /users/me, /orders, /stock, /notifications, /billing/summary, /metrics',
 		responseLines: [
 			{ text: 'GET /users/me          -> 200 OK (390ms)', color: 'yellow' },
 			{ text: 'GET /orders            -> 200 OK (410ms)', color: 'yellow' },
@@ -246,18 +246,25 @@ export const PROBES: ProbeConfig[] = [
 			{ text: 'GET /billing/summary   -> 200 OK (430ms)', color: 'red' },
 			{ text: 'GET /metrics           -> 200 OK (440ms)', color: 'red' },
 			{ text: '', color: 'muted' },
-			{ text: 'Total: 2400ms. Six round trips, one at a time.', color: 'red' },
 			{
-				text: 'Most of each 400ms is the phone network, not the server.',
+				text: 'Six requests: six auth checks, six connections to open.',
 				color: 'yellow',
+			},
+			{
+				text: 'Even fired in parallel, the screen waits on the slowest (440ms)',
+				color: 'yellow',
+			},
+			{
+				text: 'and every one re-runs the same session lookup and setup.',
+				color: 'red',
 			},
 		],
 		story: [
 			'A customer opens the dashboard on a 4G connection.',
-			'The app fetches six endpoints, one after another.',
-			'Each round trip costs about 400ms, and the server work is only a fraction of it; the rest is the cellular network.',
-			'Six trips in a row add up to 2.4 seconds of spinner.',
-			'The same six answers could ride back on one round trip.',
+			'The app fetches six endpoints. A smart client can fire them in parallel, so the wall-clock wait is closer to the slowest call than to their sum.',
+			'But each of the six still opens its own connection and re-runs the same authentication, work that repeats six times for one screen.',
+			'And parallel or not, the client is the piece you cannot redeploy: it owns the stitching, the payload sizes, and the six paths.',
+			'One request to one entry point removes the repeated auth and setup, and moves the stitching to the server.',
 		],
 	},
 	{
@@ -410,17 +417,17 @@ const LATENCY_FRAMES: AnimFrame[] = [
 		client: {
 			label: 'Dashboard loaded',
 			flash: 'red',
-			sublabel: '2400ms of spinner',
+			sublabel: '6 auth checks, 6 connections',
 		},
 		svcC: {
 			flash: 'red',
-			sublabel: '6 sequential round trips',
-			badge: '2400ms',
+			sublabel: 'waits on the slowest call',
+			badge: '440ms+',
 		},
 		edgeC: {
 			active: true,
 			reverse: true,
-			label: '2400ms total',
+			label: 'repeated auth + setup, x6',
 			dotColor: '#ef4444',
 		},
 	},
@@ -637,11 +644,11 @@ const REWARD_LATENCY_FRAMES: AnimFrame[] = [
 		client: {
 			label: 'Dashboard loaded',
 			flash: 'green',
-			sublabel: '~400ms (was 2400ms)',
+			sublabel: 'one round trip, one auth check',
 		},
 		gateway: {
 			flash: 'green',
-			sublabel: '1 round trip instead of 6',
+			sublabel: '1 connection instead of 6',
 			badge: '400ms',
 		},
 		edgeIn: {
@@ -913,7 +920,7 @@ export const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'latency-compound',
 		label: 'Open the dashboard on 4G',
-		description: '1 round trip, ~400ms (was 6 trips, 2400ms)',
+		description: 'One request: one auth, one connection, one round trip',
 		method: 'GET',
 		path: '/api/v1/dashboard',
 		actor: 'customer',
@@ -921,8 +928,8 @@ export const STRESS_SCENARIOS: StressScenario[] = [
 		story: [
 			'Same customer, same 4G connection, same dashboard.',
 			'The app now makes ONE request to /api/v1/dashboard.',
-			'The gateway authenticates once and gathers all five sections in-process.',
-			'The screen renders after a single ~400ms round trip instead of six.',
+			'The gateway authenticates once and gathers all five sections in-process (method calls, not network hops).',
+			'One connection, one session check, one round trip: the repeated per-call auth and setup are gone.',
 		],
 	},
 	{
@@ -1040,6 +1047,14 @@ const generateGatewayOutput: TerminalOutputLine[] = [
 		color: 'green',
 	},
 	{ text: 'route   get "api/v1/gateway/dashboard"', color: 'cyan' },
+	{
+		text: '# Generated path nests under gateway/. You will point the',
+		color: 'muted',
+	},
+	{
+		text: '# route at "api/v1/dashboard" when you wire up the sections.',
+		color: 'muted',
+	},
 ];
 
 // ─── Steps 1-5 (OptionCard) ───────────────────────────────────────────
@@ -1415,7 +1430,8 @@ the screen shows a generic error.`,
 			code: `Rails.application.routes.draw do
   namespace :api do
     namespace :v1 do
-      # One stable entry point for the dashboard screen:
+      # Replace the generated "gateway/dashboard" path with one
+      # stable, screen-named entry point for the dashboard:
       get "dashboard", to: "gateway#dashboard"
 
       # The six section routes still exist for older

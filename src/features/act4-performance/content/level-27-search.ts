@@ -171,16 +171,24 @@ end
 gem 'pg_search'
 
 # app/models/product.rb
+# Point the scope at the precomputed 'searchable' column the trigger
+# keeps in sync, so the GIN index is used (no per-query to_tsvector).
 class Product < ApplicationRecord
   include PgSearch::Model
 
   pg_search_scope :search,
-    against: { name: 'A', description: 'B' },  # A = highest weight
+    against: :searchable,
     using: {
-      tsearch: { prefix: true, dictionary: 'english' },
-      trigram: { threshold: 0.3 }  # fuzzy matching
+      tsearch: {
+        tsvector_column: 'searchable',
+        dictionary: 'english'
+      }
     }
 end
+
+# Advanced: column weighting (name ranked above description) needs a
+# custom trigger that calls setweight(). tsvector_update_trigger cannot
+# apply weights, so it produces an unweighted document. See further reading.
 
 # Service object:
 class ProductSearch < ApplicationService
@@ -213,7 +221,7 @@ Product.where(id: Product.connection.select_values(
 			"Using LIKE '%query%' for search (cannot use indexes, no ranking)",
 			'Not adding GIN indexes on tsvector columns (search will be slow)',
 			'Forgetting to backfill the search column for existing records',
-			'Not weighting title higher than body in search results',
+			'Recomputing to_tsvector on every query instead of pointing the scope at the indexed tsvector column (the GIN index goes unused)',
 			'Building search without pagination (returning all matches)',
 		],
 		whenToUse:
@@ -226,6 +234,11 @@ Product.where(id: Product.connection.select_values(
 			{
 				title: 'PostgreSQL Full-Text Search',
 				url: 'https://www.postgresql.org/docs/current/textsearch.html',
+			},
+			{
+				title:
+					'PostgreSQL setweight (advanced: weighted tsvectors need a custom trigger)',
+				url: 'https://www.postgresql.org/docs/current/textsearch-controls.html#TEXTSEARCH-RANKING',
 			},
 			{
 				title: 'SQLite FTS5',
@@ -247,10 +260,10 @@ Product.where(id: Product.connection.select_values(
 					'The plan is a Seq Scan: a leading % wildcard cannot use a B-tree index, so every row is read and there is no relevance ranking.',
 			},
 			{
-				task: "Install pg_search and add a search scope on Product weighting name ('A') above description ('B'), using tsearch with prefix: true and the english dictionary.",
+				task: 'Add a tsvector column plus GIN index (kept in sync by a trigger), then add a pg_search scope on Product that points at that column via tsvector_column, using tsearch with the english dictionary.',
 				commands: ['bundle add pg_search'],
 				verify:
-					'Product.search("seed") returns matches with name hits ranked above description hits, and a stemmed query like "chairs" still finds products named "chair".',
+					'The query plan for Product.search("seed") shows a Bitmap Heap Scan using the GIN index (not a Seq Scan), and a stemmed query like "chairs" still finds products described with "chair".',
 			},
 		],
 	},

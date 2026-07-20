@@ -301,9 +301,13 @@ const KNOWN_OBSERVE_PHASE_PLACEHOLDERS = new Set<string>([
 	// L11 placeholder "Policy (missing)" node removed 2026-07-19 (staff review).
 	'src/features/act1-foundation/components/level-7-controller/Level7Controller.tsx',
 	'src/features/act2-users-security/components/level-9-authentication/Level9Authentication.tsx',
-	'src/features/act3-clean-architecture/components/level-20-error-handling/Level20ErrorHandling.tsx',
+	// L20 placeholder "Error Handler (Missing!)" node removed 2026-07-20
+	// (review fix): observe now shows only request/router/controller/response,
+	// and probes communicate the absence of a shared handler.
 	'src/features/act4-performance/components/level-28-caching/Level28Caching.tsx',
-	'src/features/act4-performance/components/level-29-http-caching/Level29HTTPCaching.tsx',
+	// L29 placeholder "HTTP Cache Layer (Missing)" removed 2026-07-20: the
+	// observe phase now honestly shows stock Rails already ships a weak ETag,
+	// and the cache node is labelled "(No Cache-Control)" rather than "(Missing)".
 	'src/features/act5-production/components/level-35-action-mailer/Level35ActionMailer.tsx',
 ]);
 

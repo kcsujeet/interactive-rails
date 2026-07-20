@@ -9,7 +9,7 @@ export const level19QueryObjects: Level = {
 	trigger: {
 		type: 'code_review',
 		description:
-			'Code review finds a 60-line admin controller action with inline .where().joins().group().order() chains. The same filtering logic is duplicated in the API controller and CSV export job.',
+			'Code review finds a 60-line admin controller action with inline .where().joins().group().order() chains. The same filtering logic is duplicated in the API controller and a CSV export object.',
 	},
 	startingPipeline: {
 		nodes: [
@@ -54,21 +54,21 @@ export const level19QueryObjects: Level = {
 	},
 	problem: {
 		observation:
-			'The admin dashboard controller has a 60-line index action with inline .where().joins().group().order() chains. The same filtering logic is copy-pasted in the API controller and CSV export job with slight inconsistencies.',
+			'The admin dashboard controller has a 60-line index action with inline .where().joins().group().order() chains. The same filtering logic is copy-pasted in the API controller and a CSV export object with slight inconsistencies.',
 		rootCause:
 			'Complex query logic is embedded in the controller instead of being extracted into a composable query object in app/queries/.',
-		codeExample: `# app/controllers/api/admin/products_controller.rb
-class Api::Admin::ProductsController < ApplicationController
+		codeExample: `# app/controllers/admin/products_controller.rb
+class Admin::ProductsController < ApplicationController
   def index
     @products = Product.all
 
     # 60 lines of inline query chains!
     if params[:listed].present?
-      @products = @products.where.not(listed_at: nil)
+      @products = @products.where(status: "listed")
     end
 
-    if params[:seller_id].present?
-      @products = @products.where(seller_id: params[:seller_id])
+    if params[:user_id].present?
+      @products = @products.where(user_id: params[:user_id])
     end
 
     if params[:since].present?
@@ -82,18 +82,18 @@ class Api::Admin::ProductsController < ApplicationController
         .having("COUNT(reviews.id) >= ?", params[:min_reviews])
     end
 
-    if params[:tag].present?
-      @products = @products.joins(:tags).where(tags: { name: params[:tag] })
+    if params[:featured].present?
+      @products = @products.where(featured: true)
     end
 
-    @products = @products.order(params[:sort] || :listed_at => :desc)
+    @products = @products.order(listed_at: :desc)
 
     render json: @products
   end
 end
 
 # app/controllers/api/products_controller.rb -- SAME LOGIC COPY-PASTED
-# app/jobs/csv_export_job.rb -- AND AGAIN with slight differences`,
+# app/exports/csv_product_export.rb -- AND AGAIN with slight differences`,
 		goal: 'Extract query logic into a composable ProductQuery object with chainable filter methods that returns ActiveRecord::Relation.',
 		thresholds: {},
 	},
@@ -133,7 +133,7 @@ A query object that returns \`Product.all\` returns every product, including one
 def index
   base = policy_scope(Product)            # Pundit narrows to what user can see
   products = ProductQuery.new(base)
-    .by_seller(params[:seller_id])
+    .by_seller(params[:user_id])
     .results
   render json: products
 end
@@ -169,30 +169,28 @@ Before shipping a query object method, run \`Product.all.explain\` (or \`Product
 **Subquery composition: \`where(id: relation)\`, not \`pluck\`:**
 The wrong shape:
 \`\`\`ruby
-hot_seller_ids = User.where(...).pluck(:id)        # materializes IDs in Ruby
-@scope = @scope.where(seller_id: hot_seller_ids)   # then sends them all back
+hot_seller_ids = User.where(...).pluck(:id)      # materializes IDs in Ruby
+@scope = @scope.where(user_id: hot_seller_ids)   # then sends them all back
 \`\`\`
 The right shape:
 \`\`\`ruby
-@scope = @scope.where(seller_id: User.where(...))  # one SQL subquery, indexed
+@scope = @scope.where(user_id: User.where(...))  # one SQL subquery, indexed
 \`\`\`
 \`pluck\` followed by \`where(id: array)\` is the same query expressed in the worst possible way: round-trip through Ruby memory, then a giant IN clause. Pass the relation, let Postgres push down the join.
 
-**OR composition needs \`merge\` or \`.or\`:**
-Chained \`where\` is implicitly AND. To express "active products that are EITHER discounted OR in the top tag," use \`.or\`:
+**OR composition needs \`.or\` on two relations:**
+Chained \`where\` is implicitly AND. To express "products that are EITHER on sale OR featured," call \`.or\` and pass the second relation:
 
 \`\`\`ruby
-def discounted_or_top_tagged
-  @scope = @scope.where(active: true).where(
-    discounted_scope.or(top_tagged_scope).where_clause.ast
-  )
+def on_sale_or_featured
+  @scope = @scope.where(on_sale: true).or(@scope.where(featured: true))
   self
 end
 \`\`\`
-Or compose by merging two named scopes. Mixing \`.or\` with eager loading has gotchas (\`includes\` may be silently dropped); test with EXPLAIN.
+The two relations must be structurally compatible: same model, differing only in \`where\` (or \`having\` when grouped). If they differ in \`limit\`, \`offset\`, \`distinct\`, or joins, \`.or\` raises \`ArgumentError\`, it does not silently drop anything. To combine two named scopes that each add conditions, \`merge\` them instead. Verify the generated SQL with EXPLAIN before shipping. See the Active Record query guide: https://guides.rubyonrails.org/active_record_querying.html
 
 **Read replicas: route reads to the replica, writes to primary:**
-Most billion-dollar SaaS apps have a primary database for writes and one or more read replicas for analytical queries. Wrapping the query object body in a \`connected_to\` block lets Rails route the SELECTs to the replica:
+Most billion-dollar SaaS apps have a primary database for writes and one or more read replicas for analytical queries. Wrapping the query in a \`connected_to\` block routes its SELECT to the replica, but only code that runs inside the block uses the replica connection. ActiveRecord relations are lazy, so you must force the query to load inside the block (\`.load\`, \`.to_a\`, or iterate). Returning the lazy relation runs it later on the primary:
 
 \`\`\`ruby
 def call
@@ -200,10 +198,11 @@ def call
     ProductQuery.new
       .listed(params[:listed])
       .results
+      .load           # execute inside the block, on the replica
   end
 end
 \`\`\`
-Replicas have replication lag (typically 50-500ms). Never use a replica for "I just wrote this row, now read it back" flows; that race condition is the cause of "ghost data" reports.`,
+Replicas have replication lag (typically 50-500ms). Never use a replica for "I just wrote this row, now read it back" flows; that race condition is the cause of "ghost data" reports. See the multiple-databases guide: https://guides.rubyonrails.org/active_record_multiple_databases.html`,
 		railsCodeExample: `# app/queries/application_query.rb
 class ApplicationQuery
   attr_reader :scope
@@ -228,14 +227,14 @@ class ProductQuery < ApplicationQuery
   def listed(flag)
     return self if flag.blank?
 
-    @scope = @scope.where.not(listed_at: nil)
+    @scope = @scope.where(status: "listed")
     self
   end
 
-  def by_seller(seller_id)
-    return self if seller_id.blank?
+  def by_seller(user_id)
+    return self if user_id.blank?
 
-    @scope = @scope.where(seller_id: seller_id)
+    @scope = @scope.where(user_id: user_id)
     self
   end
 
@@ -256,10 +255,10 @@ class ProductQuery < ApplicationQuery
     self
   end
 
-  def by_tag(tag_name)
-    return self if tag_name.blank?
+  def featured(flag)
+    return self if flag.blank?
 
-    @scope = @scope.joins(:tags).where(tags: { name: tag_name })
+    @scope = @scope.where(featured: true)
     self
   end
 
@@ -280,15 +279,15 @@ class ProductQuery < ApplicationQuery
   end
 end
 
-# app/controllers/api/admin/products_controller.rb -- clean!
-class Api::Admin::ProductsController < ApplicationController
+# app/controllers/admin/products_controller.rb -- clean!
+class Admin::ProductsController < ApplicationController
   def index
     products = ProductQuery.new
       .listed(params[:listed])
-      .by_seller(params[:seller_id])
+      .by_seller(params[:user_id])
       .since(params[:since])
       .with_min_reviews(params[:min_reviews])
-      .by_tag(params[:tag])
+      .featured(params[:featured])
       .sorted(params[:sort], params[:direction])
       .results
 
@@ -299,9 +298,9 @@ end
 # Reuse in API controller with different base scope:
 class Api::ProductsController < ApplicationController
   def index
-    products = ProductQuery.new(Product.where.not(listed_at: nil))
-      .by_seller(params[:seller_id])
-      .by_tag(params[:tag])
+    products = ProductQuery.new(Product.where(status: "listed"))
+      .by_seller(params[:user_id])
+      .featured(params[:featured])
       .sorted
       .results
 
@@ -309,9 +308,9 @@ class Api::ProductsController < ApplicationController
   end
 end
 
-# Reuse from a CSV exporter (any caller can compose
-# the same query, controllers, scripts, later you'll
-# see this called from a background job too):
+# Reuse from a plain CSV export object (a PORO, no HTTP;
+# any caller can compose the same query, controllers and
+# scripts alike):
 class CsvProductExport
   def initialize(filters)
     @filters = filters
@@ -330,14 +329,14 @@ end
 
 # test/queries/product_query_test.rb
 class ProductQueryTest < ActiveSupport::TestCase
-  test "listed filters to products with listed_at" do
-    listed = products(:with_listed_at)
-    unlisted = products(:without_listed_at)
+  test "listed filters to products with status listed" do
+    listed = products(:listed_mug)      # status: "listed"
+    draft = products(:draft_mug)        # status: "draft"
 
     results = ProductQuery.new.listed(true).results
 
     assert_includes results, listed
-    refute_includes results, unlisted
+    refute_includes results, draft
   end
 
   test "blank params are skipped" do
@@ -380,7 +379,7 @@ end`,
 			'Caller does .results.map(&:reviews) and triggers N+1. Embed .includes in the query object so the eager load is part of the contract',
 			"OFFSET pagination on a table that grows to millions of rows. Use cursor pagination (where('id > ?', last_id)) for any list that scrolls past the first few pages",
 			'Shipping a new query method without running .explain to verify the plan. "Fast in dev, sequential scan in prod" is the most common scaling bug',
-			'Materializing a subquery via pluck (round-trip through Ruby memory). Pass the relation directly: where(seller_id: User.where(...)) lets Postgres push the join down',
+			'Materializing a subquery via pluck (round-trip through Ruby memory). Pass the relation directly: where(user_id: User.where(...)) lets Postgres push the join down',
 			'Using read replicas for write-then-read flows (replication lag causes ghost-data reports). Reads after writes go to primary',
 		],
 		whenToUse:
@@ -417,7 +416,7 @@ end`,
 			{
 				task: 'Move the index filtering onto the query object so the controller shrinks back to HTTP work: parse params, compose the query, render.',
 				commands: [
-					'curl "http://localhost:3000/api/v1/products?seller_id=1" -H "Authorization: Bearer <token>"',
+					'curl "http://localhost:3000/api/products?user_id=1" -H "Authorization: Bearer <token>"',
 				],
 				verify:
 					'Filtered requests return only matching products, and the index action no longer contains inline where chains.',

@@ -121,13 +121,13 @@ const PROBES: ProbeConfig[] = [
 		responseLines: [
 			{ text: 'SELECT * FROM users;', color: 'yellow' },
 			{ text: '-- 30 columns loaded, only 2 needed (id, email)', color: 'red' },
-			{ text: '-- big_text_column: 75 KB per row', color: 'red' },
+			{ text: '-- big_text_column: 60 KB per row', color: 'red' },
 			{ text: 'Memory: 681 MB for 10K rows', color: 'red' },
 			{ text: 'Needed: 2.35 MB (id + email only)', color: 'green' },
 		],
 		story: [
 			'An admin exports all users to CSV for a quarterly report.',
-			'The query loads all 30 columns, including a 75 KB big_text_column per row.',
+			'The query loads all 30 columns, including a 60 KB big_text_column per row.',
 			'Only id and email are needed for the export.',
 			'681 MB of memory is allocated when 2.35 MB would suffice.',
 		],
@@ -140,14 +140,17 @@ const PROBES: ProbeConfig[] = [
 			{ text: 'categories = Category.all', color: 'yellow' },
 			{ text: 'categories.map { |c| [c.id, c.name] }', color: 'yellow' },
 			{ text: '-- 10K ActiveRecord objects instantiated', color: 'red' },
-			{ text: '-- Each object: 2.5 KB overhead for 2 values', color: 'red' },
-			{ text: 'Plain arrays would use 80 bytes each', color: 'green' },
+			{
+				text: '-- 2.5 KB overhead x 10K = 25 MB for 2 values',
+				color: 'red',
+			},
+			{ text: 'Plain arrays (80 bytes each) would use 0.8 MB', color: 'green' },
 		],
 		story: [
 			'The frontend fetches a dropdown of categories for a product form.',
 			'Category.all instantiates 10,000 full ActiveRecord objects.',
-			'Each object carries 2.5 KB of overhead, but only id and name are used.',
-			'Plain arrays at 80 bytes each would use a fraction of the memory.',
+			'Each object carries 2.5 KB of overhead: 2.5 KB x 10K = 25 MB for two values.',
+			'Plain arrays at 80 bytes each would use 0.8 MB, a fraction of the memory.',
 		],
 	},
 	{
@@ -195,7 +198,7 @@ const PROBE_MEMORY: Record<
 		neededPct: 0.35,
 	},
 	'dropdown-api': {
-		total: '245 MB',
+		total: '25 MB',
 		needed: '0.8 MB',
 		totalPct: 36,
 		neededPct: 0.12,
@@ -216,19 +219,19 @@ const BIG_TEXT_INSPECTOR: StageInspectorData = {
 	stageId: 'big_text_column',
 	title: 'big_text_column (TEXT)',
 	description:
-		'PostgreSQL TEXT columns can store up to 1 GB per cell. This column averages 75 KB per row.\n\n' +
-		'75 KB per row x 10,000 rows = 750 MB for just one column.\n\n' +
+		'PostgreSQL TEXT columns can store up to 1 GB per cell. This column averages 60 KB per row.\n\n' +
+		'60 KB per row x 10,000 rows = 600 MB from this single column, most of the 681 MB that SELECT * loads.\n\n' +
 		'A user once stored the entire U.S. Constitution in a TEXT field. ' +
 		'The SELECT * forced the DB to write to disk mid-response, causing double-digit second latency for an endpoint that only needed id and name.',
-	code: `# 75 KB per row in big_text_column
+	code: `# 60 KB per row in big_text_column
 10_000.times { |i|
   User.create!(
-    big_text_column: "..." # avg 75 KB
+    big_text_column: "..." # avg 60 KB
   )
 }
 
 # SELECT * loads ALL of it:
-User.all  # 750 MB just from this column!
+User.all  # 600 MB just from this one column!
 
 # SELECT id, name skips it entirely:
 User.pluck(:id, :name)  # 2.35 MB total`,
@@ -309,7 +312,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		responseLines: [
 			{ text: 'User.all', color: 'yellow' },
 			{ text: '-- SELECT * FROM users (30 columns, 50K rows)', color: 'red' },
-			{ text: '-- big_text_column: 75 KB per row', color: 'red' },
+			{ text: '-- big_text_column: 60 KB per row', color: 'red' },
 			{ text: 'Memory: 3.4 GB, server OOM killed', color: 'red' },
 		],
 	},
@@ -329,7 +332,7 @@ const STRESS_MEMORY: Record<string, { label: string; pct: number }> = {
 	'dropdown-pluck': { label: '0.8 MB', pct: 0.12 },
 	'api-select': { label: '12.1 MB', pct: 1.8 },
 	'batch-sync': { label: '~50 MB/batch', pct: 7.3 },
-	'wide-fetch': { label: '681 MB', pct: 100 },
+	'wide-fetch': { label: '3.4 GB', pct: 100 },
 };
 
 // ──────────────────────────────────────────────
@@ -366,7 +369,7 @@ const OPTION_STEP_CONFIG: Record<
 	0: {
 		title: 'CSV Export Strategy',
 		description:
-			'Admin dashboard exports 50K user records to CSV. Only id and email are needed. The users table has 30 columns including a 75KB TEXT column (bio).',
+			'Admin dashboard exports 10K user records to CSV. Only id and email are needed. The users table has 30 columns including a 60KB TEXT column (big_text_column).',
 		codeContext: `# Current service (slow, high memory)
 class UserExport < ApplicationService
   def call
@@ -383,7 +386,7 @@ end`,
 				label: 'User.all.map { |u| [u.id, u.email] }',
 				correct: false,
 				feedback:
-					'This loads full ActiveRecord objects with all 30 columns including the 75KB bio field. Massive memory waste when you only need two columns.',
+					'This loads full ActiveRecord objects with all 30 columns including the 60KB big_text_column. Massive memory waste when you only need two columns.',
 			},
 			{
 				id: 'pluck',
@@ -571,22 +574,22 @@ end`,
 		files.push({
 			filename: 'benchmark_comparison.rb',
 			language: 'ruby',
-			code: `# Memory benchmarks (100K products, 30 columns)
+			code: `# Memory benchmarks (10K users, 30 columns)
 
 # Wide fetch: loads everything
-Product.all
+User.all
 #=> 681 MB, 149K objects allocated
 
 # Select: partial AR objects
-Product.select(:id, :title)
+User.select(:id, :first_name)
 #=> 12.1 MB, 107K objects  (56x less)
 
 # Pluck: plain Ruby arrays
-Product.pluck(:id, :title)
+User.pluck(:id, :email)
 #=> 2.35 MB, 45K objects   (290x less)
 
 # Batch: constant memory
-Product.find_in_batches(batch_size: 1000) { |batch|
+User.find_in_batches(batch_size: 1000) { |batch|
   # ~50 MB per batch regardless of total
 }`,
 			highlight: [4, 8, 12, 16],
@@ -781,7 +784,7 @@ function DataTableHeatmap({
 											: 'text-muted-foreground',
 									)}
 								>
-									75 KB/row
+									60 KB/row
 								</span>
 							)}
 						</button>
@@ -1034,14 +1037,17 @@ export function Level23NarrowFetching({ onComplete }: LevelComponentProps) {
 			const isBlocked = scenario.expectedResult === 'blocked';
 			const isBatched = scenarioId === 'batch-sync';
 
-			// Phase 0: columns light up
-			// For allowed: show 681 MB (what SELECT * would load) vs actual narrow amount
-			// For blocked: show 681 MB as the actual load
+			// Phase 0: columns light up.
+			// The "total" is what a wide SELECT * would load at this scale:
+			// 681 MB for the 10K-row endpoints, 3.4 GB for the 50K wide fetch.
+			// For allowed scenarios it is the wasted-memory comparison; for the
+			// blocked wide fetch it is the actual load.
+			const wideTotal = isBlocked ? '3.4 GB' : '681 MB';
 			setRewardHeatmap({
 				animPhase: 0,
 				neededColumns: neededCols,
 				memory: {
-					total: '681 MB',
+					total: wideTotal,
 					needed: memData?.label ?? '',
 					totalPct: 100,
 					neededPct: memData?.pct ?? 0,
@@ -1176,7 +1182,7 @@ export function Level23NarrowFetching({ onComplete }: LevelComponentProps) {
 								SELECT *
 							</code>{' '}
 							when they only need a few columns. The users table has 30 columns
-							including a 75KB TEXT field.
+							including a 60KB TEXT field.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							{phase === 'observe'

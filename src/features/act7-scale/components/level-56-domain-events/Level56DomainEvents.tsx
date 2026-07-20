@@ -300,12 +300,15 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'add-loyalty',
 		label: 'Add LoyaltyService to checkout',
-		command: 'rails generate service Loyalty',
+		command: 'grep -n "Service\\." app/services/checkout_service.rb',
 		responseLines: [
-			{ text: 'create  app/services/loyalty_service.rb', color: 'cyan' },
+			{
+				text: 'CheckoutService already calls 4 services directly.',
+				color: 'yellow',
+			},
 			{ text: '', color: 'muted' },
 			{
-				text: 'Now edit CheckoutService to add LoyaltyService.award_points call.',
+				text: 'To add loyalty points, edit CheckoutService and insert the call.',
 				color: 'yellow',
 			},
 			{ text: 'Must decide WHERE in the chain to insert it.', color: 'yellow' },
@@ -1576,7 +1579,7 @@ const ASYNC_OPTIONS: StepOption[] = [
 		name: 'Wisper.subscribe(EmailListener.new, async: true)',
 		correct: false,
 		feedback:
-			'The async: true option spawns bare threads: no retries, no persistence, gone on restart. You already run infrastructure that does this reliably.',
+			'Wisper has no built-in async; the async: true flag does nothing on its own and needs a separate adapter gem. Reach for the durable background-job infrastructure this app already runs instead.',
 	},
 	{
 		id: 'correct',

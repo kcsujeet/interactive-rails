@@ -8,11 +8,11 @@ export const level23NarrowFetching: Level = {
 	trigger: {
 		type: 'performance_alert',
 		description:
-			'Multiple endpoints are eating memory. Explore the Data Table Heatmap to see how SELECT * loads 30 columns when only 2 are needed, then choose the right fetching strategy for each scenario.',
+			'Production memory alerts are firing. A CSV export, a dropdown endpoint, and the nightly sync job are each loading far more data than they use, and the nightly sync just OOM-killed the server. Cut each one down to only the columns and rows it actually needs.',
 	},
 	problem: {
 		observation:
-			'Several endpoints use SELECT * when they only need a few columns. A CSV export loads 50K full objects for just id and email. A dropdown fetches 10K AR objects for simple key-value pairs. A nightly sync loads everything at once instead of batching.',
+			'Several endpoints use SELECT * when they only need a few columns. A CSV export loads 10K full objects for just id and email. A dropdown fetches 10K AR objects for simple key-value pairs. A nightly sync loads all 50K records at once instead of batching.',
 		rootCause:
 			'SELECT * fetches every column including large TEXT fields. No narrow fetching (pluck/select) or batch processing (find_in_batches).',
 		codeExample: `# app/services/user_export.rb
@@ -52,7 +52,7 @@ User.all.each { |u| SyncService.process(u) }
 		goal: `In this level, you'll:\n- learn how to fetch only the data you actually need.\n- choose between raw arrays and lightweight model objects for different use cases.\n- process large datasets in manageable chunks instead of loading everything into memory.`,
 		conceptExplanation: `After fixing N+1 and adding eager loading, the next performance win is fetching less data: not just fewer queries, but fewer columns and smaller batches.
 
-**Production benchmarks (10K products with 75KB description column):**
+**Production benchmarks (10K products with a 60KB TEXT column):**
 \`\`\`
 Product.all (wide):           212ms | 681 MB  | 149,000 objects
 Product.select(:id, :name):  53ms |  12 MB  | 107,000 objects → 4x faster, 56x less memory
@@ -101,12 +101,13 @@ Product.select(:id, :name, :user_id).includes(:user)
 # product.description → raises ActiveModel::MissingAttributeError
 
 # === find_in_batches: process huge datasets ===
+# find_in_batches yields an ARRAY of loaded records, so it is
+# for when you need the model objects themselves.
 Product.find_in_batches(batch_size: 1000) do |batch|
-  csv_rows = batch.pluck(:id, :name).map { |r| r.join(",") }
-  File.open("export.csv", "a") { |f| f.write(csv_rows.join("\\n")) }
+  batch.each { |product| SyncService.process(product) }
 end
-# Generates: SELECT * FROM products WHERE id > 0 LIMIT 1000
-#            SELECT * FROM products WHERE id > 1000 LIMIT 1000
+# Generates: SELECT * FROM products ORDER BY id ASC LIMIT 1000
+#            SELECT * FROM products WHERE id > 1000 ORDER BY id ASC LIMIT 1000
 #            ... (1000 records at a time, not 50K at once)
 
 # === Combine for maximum efficiency ===
@@ -115,9 +116,10 @@ def export
   headers["Content-Type"] = "text/csv"
   headers["Content-Disposition"] = "attachment; filename=products.csv"
 
-  # Stream CSV in batches, never loads all records at once
-  Product.active.find_in_batches(batch_size: 2000) do |batch|
-    rows = batch.pluck(:id, :name, :created_at)
+  # in_batches yields a RELATION, so relation.pluck runs
+  # SELECT id, name, created_at per batch (no AR objects).
+  Product.active.in_batches(of: 2000) do |relation|
+    rows = relation.pluck(:id, :name, :created_at)
     response.stream.write(rows.map { |r| r.join(",") }.join("\\n") + "\\n")
   end
 ensure
@@ -157,12 +159,12 @@ User.pluck(:id, :name)`,
 				task: 'Seed 50,000 products so data volume is real, then time wide fetching against pluck.',
 				commands: [
 					'bin/rails console',
-					'Product.insert_all(50_000.times.map { |i| { name: "Seed #{i}", price: rand(100.0).round(2), created_at: Time.current, updated_at: Time.current } })',
+					'50_000.times.each_slice(5_000) { |batch| Product.insert_all(batch.map { |i| { name: "Seed #{i}", price: rand(100.0).round(2), created_at: Time.current, updated_at: Time.current } }) }',
 					'Benchmark.measure { Product.all.map { |p| [p.id, p.name] } }.real',
 					'Benchmark.measure { Product.pluck(:id, :name) }.real',
 				],
 				verify:
-					'pluck issues SELECT id, name (visible in the log) and comes back several times faster than materializing 50,000 full ActiveRecord objects.',
+					'The seed runs in slices (one big insert_all of 50K rows would blow past PostgreSQL 65,535 bind-parameter limit). Then pluck issues SELECT id, name (visible in the log) and comes back several times faster than materializing 50,000 full ActiveRecord objects.',
 			},
 			{
 				task: 'See what select really returns: lightweight objects that only carry the columns you asked for.',

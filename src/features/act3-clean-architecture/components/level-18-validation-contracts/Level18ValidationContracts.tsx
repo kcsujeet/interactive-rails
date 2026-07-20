@@ -74,37 +74,37 @@ const INTRO_SECTIONS: AnnotatedSection[] = [
 		id: 'email-check',
 		label: 'Inline: Email Check',
 		variant: 'scattered',
-		code: `if @params[:email].blank?\n  return Result.new(success?: false, errors: ["Email required"])\nend`,
+		code: `if @params[:email_address].blank?\n  return Result.new(success?: false, user: nil, errors: ["Email required"])\nend`,
 	},
 	{
 		id: 'password-check',
 		label: 'Inline: Password Check',
 		variant: 'scattered',
-		code: `if @params[:password].length < 8\n  return Result.new(success?: false, errors: ["Password too short"])\nend`,
+		code: `if @params[:password].length < 8\n  return Result.new(success?: false, user: nil, errors: ["Password too short"])\nend`,
 	},
 	{
 		id: 'name-check',
 		label: 'Inline: Display Name Check',
 		variant: 'scattered',
-		code: `if @params[:display_name].blank?\n  return Result.new(success?: false, errors: ["Name required"])\nend`,
+		code: `if @params[:display_name].blank?\n  return Result.new(success?: false, user: nil, errors: ["Name required"])\nend`,
 	},
 	{
 		id: 'digest-check',
 		label: 'Inline: Digest Frequency',
 		variant: 'scattered',
-		code: `unless %w[daily weekly monthly never].include?(@params[:digest])\n  return Result.new(success?: false, errors: ["Bad digest"])\nend`,
+		code: `unless %w[daily weekly monthly never].include?(@params[:email_digest])\n  return Result.new(success?: false, user: nil, errors: ["Bad digest"])\nend`,
 	},
 	{
 		id: 'cross-field',
 		label: 'Buried: Cross-Field Rule',
 		variant: 'buried',
-		code: `if @params[:role] == "creator" && @params[:digest] != "weekly"\n  return Result.new(success?: false, errors: ["Creators need weekly"])\nend`,
+		code: `if @params[:role] == "creator" && @params[:email_digest] != "weekly"\n  return Result.new(success?: false, user: nil, errors: ["Creators need weekly"])\nend`,
 	},
 	{
 		id: 'create',
 		label: 'Core: Record Creation',
 		variant: 'core',
-		code: `user = User.create!(email: @params[:email], ...)\nProfile.create!(user: user, ...)\nNotificationPref.create!(user: user, ...)`,
+		code: `user = User.create!(\n  email_address: @params[:email_address], ...\n)`,
 	},
 ];
 
@@ -112,7 +112,7 @@ const INTRO_SECTIONS: AnnotatedSection[] = [
 // Step definitions (1 terminal + 3 OptionCard)
 // ──────────────────────────────────────────────
 
-const STEP_DEFS: StepDef[] = [
+export const STEP_DEFS: StepDef[] = [
 	{ id: 'install-gem', title: 'Install dry-validation' },
 	{ id: 'schema-approach', title: 'Choose Schema Approach' },
 	{ id: 'compose-contract', title: 'Create the Contract' },
@@ -123,7 +123,7 @@ const STEP_DEFS: StepDef[] = [
 // Terminal step data (step 0)
 // ──────────────────────────────────────────────
 
-const INSTALL_GEM_COMMANDS = [
+export const INSTALL_GEM_COMMANDS = [
 	{
 		id: 'npm-install',
 		label: 'npm install dry-validation',
@@ -148,13 +148,13 @@ const INSTALL_GEM_COMMANDS = [
 	},
 ];
 
-const INSTALL_GEM_OUTPUT = [
+export const INSTALL_GEM_OUTPUT = [
 	{ text: 'Fetching dry-validation 1.10.0', color: 'muted' as const },
-	{ text: 'Fetching dry-schema 1.13.4', color: 'muted' as const },
+	{ text: 'Fetching dry-schema 1.13.4 (dependency)', color: 'muted' as const },
 	{ text: 'Installing dry-schema 1.13.4', color: 'green' as const },
 	{ text: 'Installing dry-validation 1.10.0', color: 'green' as const },
 	{
-		text: 'Bundle updated! dry-validation and dry-schema added to Gemfile.',
+		text: 'Bundle updated! dry-validation added to Gemfile (dry-schema comes along as a dependency).',
 		color: 'green' as const,
 	},
 ];
@@ -179,7 +179,7 @@ interface StepOption {
 }
 
 // Step 1: Choose Schema Approach
-const SCHEMA_APPROACH_OPTIONS: StepOption[] = [
+export const SCHEMA_APPROACH_OPTIONS: StepOption[] = [
 	{
 		id: 'inline-checks',
 		label: 'Keep inline if/else checks in the service',
@@ -196,7 +196,7 @@ const SCHEMA_APPROACH_OPTIONS: StepOption[] = [
 	},
 	{
 		id: 'dry-schema',
-		label: 'Dry::Schema.Params { required(:email).filled(:string) }',
+		label: 'Dry::Schema.Params { required(:email_address).filled(:string) }',
 		correct: true,
 	},
 	{
@@ -209,30 +209,30 @@ const SCHEMA_APPROACH_OPTIONS: StepOption[] = [
 ];
 
 // Step 2: Create the Contract
-const COMPOSE_CONTRACT_OPTIONS: StepOption[] = [
+export const COMPOSE_CONTRACT_OPTIONS: StepOption[] = [
 	{
 		id: 'single-schema',
 		label: 'params(RegistrationSchema)',
 		correct: false,
 		feedback:
-			'One giant schema defeats the purpose. Individual schemas per model are reusable across different contracts.',
+			'One giant schema defeats the purpose. Separate schemas per concern are reusable across different contracts.',
 	},
 	{
-		id: 'nested-schemas',
-		label: 'params { schema UserSchema; schema ProfileSchema }',
+		id: 'and-operator',
+		label: 'params(CredentialsSchema & ProfileSchema & NotifPrefsSchema)',
 		correct: false,
 		feedback:
-			'That is not valid dry-validation syntax. Schemas compose with a different operator.',
+			'A schema is not a set you intersect. dry-validation reuses several predefined schemas a different way when you pass them to the definition method.',
 	},
 	{
-		id: 'composed-and',
-		label: 'params(UserSchema & ProfileSchema & NotifPrefsSchema)',
+		id: 'composed-args',
+		label: 'params(CredentialsSchema, ProfileSchema, NotifPrefsSchema)',
 		correct: true,
 	},
 ];
 
 // Step 3: Add Cross-Field Rule
-const CROSS_FIELD_RULE_OPTIONS: StepOption[] = [
+export const CROSS_FIELD_RULE_OPTIONS: StepOption[] = [
 	{
 		id: 'validate-method',
 		label: `validate :check_creator_digest\ndef check_creator_digest\n  errors.add(:role, "...") if ...\nend`,
@@ -245,7 +245,7 @@ const CROSS_FIELD_RULE_OPTIONS: StepOption[] = [
 		label: `before_action :validate_creator_digest\ndef validate_creator_digest\n  # check in controller\nend`,
 		correct: false,
 		feedback:
-			'That puts the logic back in the service. The whole point is to keep business rules in the contract.',
+			'That drags the rule back into the controller. Every other caller (imports, tests) would have to re-implement it. Business rules belong where the validation lives.',
 	},
 	{
 		id: 'rule-block',
@@ -272,13 +272,13 @@ const OPTION_STEP_CONFIG: Record<
 	2: {
 		title: 'Create the Contract',
 		description:
-			'You have three separate schemas: UserSchema, ProfileSchema, and NotifPrefsSchema. How do you compose them into a single contract that validates the entire registration payload?',
+			'You have three separate schemas: CredentialsSchema, ProfileSchema, and NotifPrefsSchema. How do you reuse all three inside a single contract that validates the entire registration payload?',
 		options: COMPOSE_CONTRACT_OPTIONS,
 	},
 	3: {
 		title: 'Add Cross-Field Rule',
 		description:
-			'Creator accounts must enable weekly digest. This business rule spans two fields (role and email_digest). How do you add it to the contract?',
+			'Creator accounts must enable the weekly digest. This business rule spans two fields (role and email_digest). How do you add it to the contract?',
 		options: CROSS_FIELD_RULE_OPTIONS,
 	},
 };
@@ -287,7 +287,7 @@ const OPTION_STEP_CONFIG: Record<
 // Code preview helper
 // ──────────────────────────────────────────────
 
-function getCodeFiles(phase: Phase, furthestStep: number) {
+export function getCodeFiles(phase: Phase, furthestStep: number) {
 	const files = [];
 
 	// Intro phase: show service with scattered validations (service exists from L16)
@@ -297,41 +297,41 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
 			language: 'ruby',
 			code: `# Service exists from L16, but validations are scattered inline!
 class UserRegistration < ApplicationService
+  Result = Data.define(:success?, :user, :errors)
+
   def call
-    # User validations (inline!)
-    if @params[:email].blank?
-      return Result.new(success?: false, errors: ["Email required"])
+    # Credential validations (inline!)
+    if @params[:email_address].blank?
+      return Result.new(success?: false, user: nil, errors: ["Email required"])
     end
     if @params[:password].length < 8
-      return Result.new(success?: false, errors: ["Password too short"])
+      return Result.new(success?: false, user: nil, errors: ["Password too short"])
     end
 
     # Profile validations (inline!)
     if @params[:display_name].blank?
-      return Result.new(success?: false, errors: ["Name required"])
+      return Result.new(success?: false, user: nil, errors: ["Name required"])
     end
     if @params[:bio]&.length.to_i > 500
-      return Result.new(success?: false, errors: ["Bio too long"])
+      return Result.new(success?: false, user: nil, errors: ["Bio too long"])
     end
 
     # Notification prefs (inline!)
     digests = %w[daily weekly monthly never]
-    unless digests.include?(@params[:digest])
-      return Result.new(success?: false, errors: ["Bad digest"])
+    unless digests.include?(@params[:email_digest])
+      return Result.new(success?: false, user: nil, errors: ["Bad digest"])
     end
 
     # Cross-field rule (also inline!)
-    if @params[:role] == "creator" && @params[:digest] != "weekly"
-      return Result.new(success?: false, errors: ["Creators need weekly"])
+    if @params[:role] == "creator" && @params[:email_digest] != "weekly"
+      return Result.new(success?: false, user: nil, errors: ["Creators need weekly"])
     end
 
-    user = User.create!(email: @params[:email], ...)
-    Profile.create!(user: user, ...)
-    NotificationPref.create!(user: user, ...)
-    Result.new(success?: true, data: user)
+    user = User.create!(@params)
+    Result.new(success?: true, user: user, errors: [])
   end
 end`,
-			highlight: [5, 6, 8, 9, 13, 14, 16, 17, 22, 23, 27, 28],
+			highlight: [7, 8, 10, 11, 15, 16, 18, 19, 24, 25, 29, 30],
 		});
 		return files;
 	}
@@ -366,10 +366,10 @@ gem "dry-validation"`,
 
 	if (furthestStep >= 2 && furthestStep < 3) {
 		files.push({
-			filename: 'app/schemas/user_schema.rb',
+			filename: 'app/schemas/credentials_schema.rb',
 			language: 'ruby',
-			code: `UserSchema = Dry::Schema.Params do
-  required(:email).filled(:string,
+			code: `CredentialsSchema = Dry::Schema.Params do
+  required(:email_address).filled(:string,
     format?: URI::MailTo::EMAIL_REGEXP)
   required(:password).filled(:string, min_size?: 8)
   optional(:role).filled(:string)
@@ -401,7 +401,7 @@ end`,
 			filename: 'app/contracts/registration_contract.rb',
 			language: 'ruby',
 			code: `class RegistrationContract < Dry::Validation::Contract
-  params(UserSchema & ProfileSchema & NotifPrefsSchema)
+  params(CredentialsSchema, ProfileSchema, NotifPrefsSchema)
 
   # Add cross-field rules here...
 end`,
@@ -414,7 +414,7 @@ end`,
 			filename: 'app/contracts/registration_contract.rb',
 			language: 'ruby',
 			code: `class RegistrationContract < Dry::Validation::Contract
-  params(UserSchema & ProfileSchema & NotifPrefsSchema)
+  params(CredentialsSchema, ProfileSchema, NotifPrefsSchema)
 
   rule(:role, :email_digest) do
     if values[:role] == "creator" &&
@@ -430,24 +430,25 @@ end`,
 			language: 'ruby',
 			code: `# Service from L16, now delegates validation to the contract
 class UserRegistration < ApplicationService
-  def call
-    result = RegistrationContract.new.call(@params)
+  Result = Data.define(:success?, :user, :errors)
 
-    if result.failure?
-      return Result.new(success?: false, errors: result.errors.to_h)
+  def initialize(params)
+    @params = params
+  end
+
+  def call
+    validation = RegistrationContract.new.call(@params)
+
+    if validation.failure?
+      return Result.new(success?: false, user: nil,
+                        errors: validation.errors.to_h)
     end
 
-    attrs = result.to_h
-    user = User.create!(email: attrs[:email],
-                        password: attrs[:password])
-    Profile.create!(user: user,
-                    display_name: attrs[:display_name])
-    NotificationPref.create!(user: user,
-                             email_digest: attrs[:email_digest])
-    Result.new(success?: true, data: user)
+    user = User.create!(validation.to_h)
+    Result.new(success?: true, user: user, errors: [])
   end
 end`,
-			highlight: [4, 6, 7],
+			highlight: [10, 12, 13, 14],
 		});
 	}
 
@@ -515,17 +516,18 @@ export function Level18ValidationContracts({
 					{/* Scenario (always visible) */}
 					<div className="p-4 border-b border-border space-y-3">
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							The registration service (extracted in L16) creates a User,
-							Profile, and NotificationPrefs. Validations are scattered inline
-							inside the service with duplicated{' '}
+							The registration service (extracted in L16) creates a User from a
+							rich signup payload: credentials, profile fields, and notification
+							preferences. Validations are scattered inline inside the service
+							with duplicated{' '}
 							<code className="text-foreground text-xs bg-muted px-1 py-0.5 rounded">
 								Result.new
 							</code>{' '}
 							calls and inconsistent error formats.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							Cross-field rules like "creator accounts must enable weekly
-							digest" are buried between model checks. You need a validation
+							Cross-field rules like "creator accounts must enable the weekly
+							digest" are buried between the field checks. You need a validation
 							contract to centralize all of this.
 						</p>
 					</div>
@@ -756,11 +758,12 @@ export function Level18ValidationContracts({
 										>
 											Delegates to Contract
 										</Badge>
-										<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">{`result = RegistrationContract.new.call(@params)
-if result.failure?
-  return Result.new(success?: false, errors: result.errors.to_h)
+										<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">{`validation = RegistrationContract.new.call(@params)
+if validation.failure?
+  return Result.new(success?: false, user: nil,
+                    errors: validation.errors.to_h)
 end
-# create records from result.to_h`}</pre>
+user = User.create!(validation.to_h)`}</pre>
 									</div>
 									<div className="mt-1 text-xs text-success font-medium px-3">
 										Clean (12 lines, no inline validation)
@@ -778,10 +781,10 @@ end
 												className="text-[10px] mb-1 border-success/50 text-success bg-success/10"
 												variant="outline"
 											>
-												UserSchema
+												CredentialsSchema
 											</Badge>
 											<pre className="text-[10px] font-mono text-foreground/70 whitespace-pre-wrap">
-												email, password{'\n'}role
+												email_address{'\n'}password, role
 											</pre>
 										</div>
 										<div className="border-l-2 border-l-success bg-success/5 dark:bg-success/10 rounded-r-md px-2 py-1.5">

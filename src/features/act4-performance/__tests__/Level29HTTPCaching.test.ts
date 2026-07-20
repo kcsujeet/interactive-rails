@@ -18,9 +18,16 @@ interface DiscoveryDef {
 
 const DISCOVERY_DEFS: DiscoveryDef[] = [
 	{ id: 'no-cache-headers', label: 'No Cache-Control headers on responses' },
-	{ id: 'no-etag', label: 'No ETag or conditional GET support' },
+	{
+		id: 'etag-after-work',
+		label:
+			'Stock ETag saves bandwidth, but only after the full response is rebuilt',
+	},
 	{ id: 'origin-every-time', label: 'Every request hits the origin server' },
-	{ id: 'assets-uncached', label: 'Static assets re-downloaded every visit' },
+	{
+		id: 'assets-uncached',
+		label: 'No CDN edge caching for the public catalog',
+	},
 ];
 
 interface ProbeConfig {
@@ -39,7 +46,10 @@ const PROBES: ProbeConfig[] = [
 			{ text: 'Request 1: 200 OK in 200ms (origin)', color: 'red' },
 			{ text: 'Request 2: 200 OK in 200ms (origin)', color: 'red' },
 			{ text: '', color: 'muted' },
-			{ text: 'Same 200ms both times. No caching, no 304.', color: 'yellow' },
+			{
+				text: 'No Cache-Control header, so no cache may store this.',
+				color: 'yellow',
+			},
 			{ text: 'Server recomputed the exact same response.', color: 'red' },
 		],
 	},
@@ -49,29 +59,37 @@ const PROBES: ProbeConfig[] = [
 		command: 'GET /api/products/42 (first), then GET /api/products/42 (second)',
 		responseLines: [
 			{ text: 'Request 1: 200 OK in 21ms (query + serialize)', color: 'red' },
-			{ text: 'Request 2: 200 OK in 21ms (query + serialize)', color: 'red' },
+			{
+				text: 'Request 2: 304 Not Modified in 20ms (still queried + serialized)',
+				color: 'yellow',
+			},
 			{ text: '', color: 'muted' },
 			{
-				text: 'No ETag header. Browser cannot send If-None-Match.',
+				text: 'Stock Rack::ETag hashed the body, so the 304 saved bandwidth.',
 				color: 'yellow',
 			},
 			{
-				text: 'Product unchanged, but full response generated again.',
+				text: 'But the full query + serialize ran first to build that body.',
 				color: 'red',
 			},
 		],
 	},
 	{
-		id: 'static-asset',
-		label: 'GET static asset (reload)',
-		command: 'GET /assets/app-a1b2c3.js (after reload)',
+		id: 'catalog-no-cdn',
+		label: 'GET products from 3 regions',
+		command: 'GET /api/products from Tokyo, Sydney, London',
 		responseLines: [
-			{ text: 'Request 1: 200 OK in 50ms', color: 'red' },
-			{ text: 'Request 2: 200 OK in 50ms (full re-download)', color: 'red' },
+			{ text: 'Tokyo:  200 OK in 180ms (origin, Virginia)', color: 'red' },
+			{ text: 'Sydney: 200 OK in 220ms (origin, Virginia)', color: 'red' },
+			{ text: 'London: 200 OK in 90ms  (origin, Virginia)', color: 'red' },
 			{ text: '', color: 'muted' },
 			{
-				text: 'No Cache-Control on static assets. Browser re-fetches every time.',
+				text: 'No s-maxage, so a CDN edge is not allowed to cache this.',
 				color: 'yellow',
+			},
+			{
+				text: 'Every user in every region pays the full round-trip to origin.',
+				color: 'red',
 			},
 		],
 	},
@@ -79,13 +97,13 @@ const PROBES: ProbeConfig[] = [
 
 const PROBE_DISCOVERY_MAP: Record<string, string> = {
 	'repeat-products': 'origin-every-time',
-	'repeat-product': 'no-etag',
-	'static-asset': 'assets-uncached',
+	'repeat-product': 'etag-after-work',
+	'catalog-no-cdn': 'assets-uncached',
 };
 
 const STAGE_DISCOVERY_MAP: Record<string, string> = {
 	cache: 'no-cache-headers',
-	server: 'no-etag',
+	server: 'etag-after-work',
 };
 
 interface StressScenario {
@@ -130,15 +148,18 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	},
 	{
 		id: 'static-immutable',
-		label: 'GET static asset (cached)',
-		description: 'Fingerprinted JS file served from browser cache',
+		label: 'GET regions (cached)',
+		description: 'Versioned reference endpoint served from browser cache',
 		method: 'GET',
-		path: '/assets/app-a1b2c3.js',
+		path: '/api/v1/regions',
 		actor: 'any user',
 		expectedResult: 'allowed',
 		responseLines: [
 			{ text: 'from disk cache (0ms)', color: 'green' },
-			{ text: 'Cache-Control: immutable, max-age=31536000', color: 'yellow' },
+			{
+				text: 'Cache-Control: public, max-age=31536000, immutable',
+				color: 'yellow',
+			},
 			{ text: 'No network request at all.', color: 'green' },
 		],
 	},
@@ -238,10 +259,10 @@ const OPTION_STEP_CONFIG: Record<
 			},
 			{
 				id: 'fresh-when',
-				label: 'fresh_when last_modified: @product.updated_at',
+				label: 'fresh_when @product',
 				correct: false,
 				feedback:
-					'Last-Modified only has 1-second precision. If the product is updated twice in the same second, the second update could be missed.',
+					'fresh_when sets the validator but only halts Rails implicit rendering. This action renders JSON explicitly, so you need the form that returns a boolean you can branch on to skip the explicit render.',
 			},
 			{
 				id: 'stale',
@@ -251,23 +272,23 @@ const OPTION_STEP_CONFIG: Record<
 		],
 	},
 	2: {
-		title: 'Fingerprinted Static Assets',
+		title: 'Immutable Reference Data',
 		description:
-			'CSS/JS bundles with fingerprinted filenames (e.g., app-a1b2c3.js). New deploy = new filename. Which Cache-Control header?',
+			'A versioned reference endpoint (e.g. GET /api/v1/regions) whose payload never changes for a given version: a new version means a new URL. Which Cache-Control header lets the CDN and browser hold it as long as possible?',
 		options: [
 			{
 				id: 'max-age-1day',
 				label: 'Cache-Control: public, max-age=86400',
 				correct: false,
 				feedback:
-					'Only caches for 1 day. Fingerprinted assets can be cached forever since the URL changes on every deploy.',
+					'Only caches for 1 day. A versioned resource whose URL changes when the data changes can be cached far longer than that.',
 			},
 			{
 				id: 'no-cache',
 				label: 'Cache-Control: no-cache',
 				correct: false,
 				feedback:
-					'Forces revalidation on every request, completely defeats the purpose of fingerprinted filenames which guarantee uniqueness.',
+					'Forces revalidation on every request, which defeats the point of a versioned URL that is guaranteed never to change its contents.',
 			},
 			{
 				id: 'immutable',
@@ -517,14 +538,14 @@ describe('Level 31: HTTP Caching & CDNs', () => {
 			);
 			expect(buildEndpoints).toContain('Public Product Catalog');
 			expect(buildEndpoints).toContain('Product Detail Endpoint');
-			expect(buildEndpoints).toContain('Fingerprinted Static Assets');
+			expect(buildEndpoints).toContain('Immutable Reference Data');
 			expect(buildEndpoints).toContain('User Order History');
 
-			// Stress scenarios cover: products, product detail, static, orders, orders CDN blocked, updated product
+			// Stress scenarios cover: products, product detail, reference data, orders, orders CDN blocked, updated product
 			const stressEndpointPaths = STRESS_SCENARIOS.map((s) => s.path);
 			expect(stressEndpointPaths).toContain('/api/products');
 			expect(stressEndpointPaths).toContain('/api/products/42');
-			expect(stressEndpointPaths).toContain('/assets/app-a1b2c3.js');
+			expect(stressEndpointPaths).toContain('/api/v1/regions');
 			expect(stressEndpointPaths).toContain('/api/dashboard/orders');
 		});
 	});

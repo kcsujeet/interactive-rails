@@ -89,7 +89,7 @@ const PROBES: ProbeConfig[] = [
 		label: 'GET /products (100 products)',
 		command: 'GET /api/products (100 products in DB)',
 		responseLines: [
-			{ text: 'HTTP/1.1 200 OK (850ms)', color: 'yellow' },
+			{ text: 'HTTP/1.1 200 OK (202ms)', color: 'yellow' },
 			{ text: '', color: 'muted' },
 			{ text: 'SQL queries executed: 101', color: 'red' },
 			{
@@ -99,7 +99,11 @@ const PROBES: ProbeConfig[] = [
 			{ text: '  SELECT * FROM users WHERE id = ... (x100)', color: 'red' },
 			{ text: '', color: 'muted' },
 			{
-				text: '101 queries, 850ms. Each product.user call fires a query.',
+				text: '101 queries, one at a time. Each round trip to the database costs ~2ms.',
+				color: 'red',
+			},
+			{
+				text: '101 round trips x ~2ms = 202ms. Each product.user call fires a query.',
 				color: 'red',
 			},
 		],
@@ -109,15 +113,15 @@ const PROBES: ProbeConfig[] = [
 		label: 'GET /products (1000 products)',
 		command: 'GET /api/products (1000 products in DB)',
 		responseLines: [
-			{ text: 'HTTP/1.1 200 OK (4873ms)', color: 'red' },
+			{ text: 'HTTP/1.1 200 OK (2002ms)', color: 'red' },
 			{ text: '', color: 'muted' },
 			{ text: 'SQL queries executed: 1001', color: 'red' },
 			{
-				text: '1001 queries, 4.9 seconds. The page is unusable.',
+				text: '1001 round trips x ~2ms = 2.0 seconds. The page is unusable.',
 				color: 'red',
 			},
 			{
-				text: 'Memory: 1,564 MB | Objects allocated: 5,301,574',
+				text: 'Memory: 18 MB | Objects allocated: 210,000',
 				color: 'red',
 			},
 		],
@@ -130,9 +134,11 @@ const PROBE_DISCOVERY_MAP: Record<string, string> = {
 	'get-products-1000': 'no-eager-load',
 };
 
+// Only the serializer zone click unlocks a discovery. The database zone
+// opens its inspector without unlocking one, so PROBE_DISCOVERY_MAP stays
+// 1:1 (no-eager-load is owned by the 1000-product probe alone).
 const STAGE_DISCOVERY_MAP: Record<string, string> = {
 	serializer: 'hidden-in-serializer',
-	database: 'no-eager-load',
 };
 
 const STAGE_INSPECTOR_MAP_KEYS = ['controller', 'serializer', 'database'];
@@ -168,27 +174,32 @@ const addProsopiteCommands: TerminalCommand[] = [
 	},
 ];
 
+// Prosopite must be ACTIVATED (around_action calling scan/finish), not just
+// configured. The correct option wires the around_action AND sets raise = true.
+// Verified against the Prosopite README:
+// https://github.com/charkost/prosopite/blob/main/README.md
 const PROSOPITE_CONFIG_OPTIONS: StepOption[] = [
 	{
-		id: 'wrong-log-only',
-		label: 'config.after_initialize do\n  Prosopite.rails_logger = true\nend',
+		id: 'wrong-config-only',
+		label:
+			'# config/environments/development.rb\nconfig.after_initialize do\n  Prosopite.rails_logger = true\n  Prosopite.raise = true\nend',
 		correct: false,
 		feedback:
-			'Logging alone means N+1 warnings get buried in the log. You want it to stop execution so you notice immediately.',
+			'These settings only choose how findings get reported. Nothing here tells Prosopite when a request starts and ends, so it never actually watches a single query.',
+	},
+	{
+		id: 'wrong-no-raise',
+		label:
+			'# config/environments/development.rb\nconfig.after_initialize do\n  Prosopite.rails_logger = true\nend\n\n# app/controllers/application_controller.rb\naround_action :n_plus_one_detection\n\ndef n_plus_one_detection\n  Prosopite.scan\n  yield\nensure\n  Prosopite.finish\nend',
+		correct: false,
+		feedback:
+			'This wires the scan into every request, but a warning that only lands in the development log gets scrolled past and ignored. You want the N+1 to stop execution so you notice immediately.',
 	},
 	{
 		id: 'correct',
 		label:
-			'config.after_initialize do\n  Prosopite.rails_logger = true\n  Prosopite.raise = true\nend',
+			'# config/environments/development.rb\nconfig.after_initialize do\n  Prosopite.rails_logger = true\n  Prosopite.raise = true\nend\n\n# app/controllers/application_controller.rb\naround_action :n_plus_one_detection\n\ndef n_plus_one_detection\n  Prosopite.scan\n  yield\nensure\n  Prosopite.finish\nend',
 		correct: true,
-	},
-	{
-		id: 'wrong-prod',
-		label:
-			'config.after_initialize do\n  Prosopite.raise = true\n  Prosopite.prosopite_logger = true\nend',
-		correct: false,
-		feedback:
-			'prosopite_logger writes to a separate file, so the warnings never appear alongside the request logs you are already watching. You want them in the log you actually read.',
 	},
 ];
 
@@ -615,6 +626,18 @@ describe('Level 23: N+1 Problem', () => {
 			const probeIds = new Set(PROBES.map((p) => p.id));
 			const mapKeys = new Set(Object.keys(PROBE_DISCOVERY_MAP));
 			expect(probeIds).toEqual(mapKeys);
+		});
+
+		test('PROBE_DISCOVERY_MAP is 1:1 (each probe unlocks a distinct discovery)', () => {
+			const discoveryIds = Object.values(PROBE_DISCOVERY_MAP);
+			expect(new Set(discoveryIds).size).toBe(discoveryIds.length);
+		});
+
+		test('stage discovery does not duplicate any probe discovery', () => {
+			const probeDiscoveries = new Set(Object.values(PROBE_DISCOVERY_MAP));
+			for (const stageDiscovery of Object.values(STAGE_DISCOVERY_MAP)) {
+				expect(probeDiscoveries.has(stageDiscovery)).toBe(false);
+			}
 		});
 
 		test('stage discovery map keys are valid zone IDs', () => {

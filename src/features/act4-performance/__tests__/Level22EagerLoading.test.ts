@@ -100,7 +100,7 @@ const PROBES: ProbeConfig[] = [
 				color: 'green',
 			},
 			{
-				text: 'joins(:user)      => 101 queries! (loads nothing into memory)',
+				text: 'joins(:user)      => filters only; each product.user still lazy-loads (101 queries)',
 				color: 'red',
 			},
 		],
@@ -124,7 +124,7 @@ const PROBES: ProbeConfig[] = [
 				color: 'green',
 			},
 			{
-				text: 'eager_load(c: :user)      => 1 wide JOIN (high memory)',
+				text: 'eager_load(reviews: :user) => 1 wide JOIN (high memory)',
 				color: 'yellow',
 			},
 			{
@@ -144,11 +144,11 @@ const PROBES: ProbeConfig[] = [
 			},
 			{ text: '', color: 'muted' },
 			{
-				text: 'eager_load(:tags).where(tags: { active: true }) => 1 JOIN query',
+				text: 'includes(:tags).where(tags: { active: true }) => 1 JOIN query (auto-promoted)',
 				color: 'green',
 			},
 			{
-				text: 'includes(:tags).where(...)  => works (auto-switches to JOIN)',
+				text: 'eager_load(:tags).where(...) => same JOIN, forced explicitly',
 				color: 'yellow',
 			},
 			{
@@ -156,7 +156,7 @@ const PROBES: ProbeConfig[] = [
 				color: 'red',
 			},
 			{
-				text: 'When filtering on associations, you need a JOIN strategy.',
+				text: 'When filtering on associations, includes is idiomatic: it auto-promotes to a JOIN.',
 				color: 'yellow',
 			},
 		],
@@ -274,12 +274,12 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		expectedResult: 'allowed',
 	},
 	{
-		id: 'filtered-eager',
+		id: 'filtered-includes',
 		label: 'Filtered by active tags',
 		description: 'Load products filtered by association column',
 		method: 'GET',
 		path: '/api/products?tag=active',
-		actor: 'eager_load(:tags)',
+		actor: 'includes(:tags)',
 		expectedResult: 'allowed',
 	},
 	{
@@ -322,8 +322,8 @@ const REWARD_LANE_DATA: Record<string, RewardLaneData> = {
 		totalLabel: '3 queries',
 		result: 'works',
 	},
-	'filtered-eager': {
-		strategy: 'eager_load(:tags).where(...)',
+	'filtered-includes': {
+		strategy: 'includes(:tags).where(...)',
 		blocks: [
 			{
 				label: 'SELECT products LEFT JOIN tags WHERE active',
@@ -331,7 +331,7 @@ const REWARD_LANE_DATA: Record<string, RewardLaneData> = {
 				wide: true,
 			},
 		],
-		totalLabel: '1 query (JOIN)',
+		totalLabel: '1 query (auto-JOIN)',
 		result: 'works',
 	},
 	'no-eager-basic': {
@@ -606,13 +606,16 @@ describe('Level 24: Eager Loading', () => {
 			expect(probeIds).toContain('filtered-assoc');
 		});
 
-		test('reward scenarios cover all three fix strategies', () => {
+		test('reward scenarios cover all three fix strategies (includes everywhere)', () => {
 			const strategies = Object.values(REWARD_LANE_DATA).map((d) => d.strategy);
 			expect(strategies.some((s) => s.includes('includes(:user)'))).toBe(true);
 			expect(
 				strategies.some((s) => s.includes('includes(reviews: :user)')),
 			).toBe(true);
-			expect(strategies.some((s) => s.includes('eager_load'))).toBe(true);
+			// The filtered case uses includes too (it auto-promotes to a JOIN),
+			// so no reward strategy should force eager_load explicitly.
+			expect(strategies.some((s) => s.includes('includes(:tags)'))).toBe(true);
+			expect(strategies.every((s) => !s.includes('eager_load'))).toBe(true);
 		});
 
 		test('observe and reward both cover /api/ endpoints', () => {
