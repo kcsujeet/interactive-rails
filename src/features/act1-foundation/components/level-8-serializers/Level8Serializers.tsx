@@ -1250,8 +1250,9 @@ export function Level8Serializers({ onComplete }: LevelComponentProps) {
 											completed={isViewingCompletedStep}
 											description={
 												<p className="text-sm text-muted-foreground">
-													The gem is in your Gemfile. Now install it so it is
-													available in your Rails app.
+													The serializer gem is not in your app yet. Pick the
+													command that adds it to the project's dependencies and
+													installs it.
 												</p>
 											}
 											hasNext={hasNextStep}

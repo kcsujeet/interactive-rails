@@ -90,7 +90,7 @@ interface HomepageDamage {
 }
 
 interface AccountDamage {
-	deletedByStranger: true;
+	editedByStranger: true;
 }
 
 interface LoginDamage {
@@ -117,8 +117,8 @@ const DISCOVERY_DEFS: DiscoveryDef[] = [
 		label: 'Spam product appears FEATURED on the homepage',
 	},
 	{
-		id: 'product-deleted-by-stranger',
-		label: "Customer's own product is deleted by a stranger",
+		id: 'product-edited-by-stranger',
+		label: "Customer's own product is edited by a stranger",
 	},
 	{
 		id: 'login-down-overnight',
@@ -164,7 +164,7 @@ const PROBES: DamagedProbe[] = [
 		],
 	},
 	{
-		id: 'product-deleted-by-stranger',
+		id: 'product-edited-by-stranger',
 		label: 'A teammate refactors authorize and forgets to put it back',
 		command: 'bundle exec rspec',
 		responseLines: [
@@ -172,17 +172,17 @@ const PROBES: DamagedProbe[] = [
 			{ text: '# no specs run. nothing flagged this.', color: 'muted' },
 		],
 		damage: {
-			account: { deletedByStranger: true },
+			account: { editedByStranger: true },
 			incidentLog: [
-				'Alice opened a support ticket: "Where did my product go?"',
+				'Alice opened a support ticket: "Someone renamed my product."',
 				'Trust score down.',
 				'Restored manually from a backup.',
 			],
 		},
 		story: [
-			'A teammate refactors destroy in the products controller. The ownership check looks unused at a glance and gets removed.',
-			"A non-owner sends DELETE /api/products/:id against Alice's mug. Without the ownership check, the destroy goes through.",
-			'Alice opens her account page. The mug is gone, replaced by a strikethrough card labelled "DELETED by user_99".',
+			'A teammate refactors update in the products controller. The ownership check looks unused at a glance and gets removed.',
+			"A non-owner sends PATCH /api/products/:id against Alice's mug. Without the ownership check, the edit goes through.",
+			'Alice opens her account page. Her "Ceramic Mug" now reads "Hijacked by user_99", edited by someone who does not own it.',
 			'Alice files a support ticket. The team restores the product from a backup. Trust score drops.',
 		],
 	},
@@ -215,7 +215,7 @@ const PROBES: DamagedProbe[] = [
 // customer damage, each piece is surfaced by exactly one probe.
 const PROBE_DISCOVERY_MAP: Record<string, string> = {
 	'spam-product-on-homepage': 'spam-product-on-homepage',
-	'product-deleted-by-stranger': 'product-deleted-by-stranger',
+	'product-edited-by-stranger': 'product-edited-by-stranger',
 	'login-down-overnight': 'login-down-overnight',
 };
 
@@ -268,10 +268,10 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		],
 	},
 	{
-		id: 'product-deleted-by-stranger',
+		id: 'product-edited-by-stranger',
 		label: 'A teammate refactors authorize and forgets to put it back',
 		description:
-			'Same regression as the observe probe. The request spec asserts that a non-owner DELETE returns 404 or 403. With the authorize call missing, the suite goes red before merge.',
+			'Same regression as the observe probe. The request spec asserts that a non-owner PATCH returns 403 Forbidden. With the authorize call missing, the suite goes red before merge.',
 		method: 'rspec',
 		path: 'spec/requests/products_spec.rb',
 		actor: 'before merge',
@@ -283,15 +283,15 @@ const STRESS_SCENARIOS: StressScenario[] = [
 			{ text: '', color: 'muted' },
 			{ text: 'Failures:', color: 'red' },
 			{
-				text: '  1) Api::Products PATCH /api/products/:id blocks a non-owner with 404 (Pundit + scoped policy)',
+				text: '  1) Api::Products PATCH /api/products/:id blocks a non-owner with 403 (authorize)',
 				color: 'red',
 			},
 			{
-				text: '     Failure/Error: expect(response).to have_http_status(:not_found).or have_http_status(:forbidden)',
+				text: '     Failure/Error: expect(response).to have_http_status(:forbidden)',
 				color: 'red',
 			},
 			{
-				text: '       expected the response to have status :not_found or :forbidden, got 200',
+				text: '       expected the response to have status :forbidden, got 200',
 				color: 'red',
 			},
 			{ text: '', color: 'muted' },
@@ -302,10 +302,10 @@ const STRESS_SCENARIOS: StressScenario[] = [
 			{ text: '6 examples, 1 failure', color: 'red' },
 		],
 		story: [
-			'Same teammate, same edit: they remove the ownership check from destroy.',
-			'But you wrote a spec at L14 that deletes a product as a non-owner and expects 404 or 403.',
+			'Same teammate, same edit: they remove the ownership check from update.',
+			'But you wrote a spec at L14 that edits a product as a non-owner and expects 403 Forbidden.',
 			'rspec runs in 0.3 seconds and reports 6 examples, 1 failure.',
-			'Alice never opens a support ticket. Her product stays in her account.',
+			'Alice never opens a support ticket. Her product stays exactly as she left it.',
 		],
 	},
 	{
@@ -320,7 +320,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		responseLines: [
 			{ text: '$ bundle exec rspec', color: 'cyan' },
 			{ text: 'Run options: include {:focus=>true}', color: 'muted' },
-			{ text: 'EEEEEE', color: 'red' },
+			{ text: 'FFFFFF', color: 'red' },
 			{ text: '', color: 'muted' },
 			{ text: 'Failures:', color: 'red' },
 			{
@@ -337,7 +337,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 			},
 			{ text: '', color: 'muted' },
 			{
-				text: 'Finished in 0.4 seconds (files took 1.2 seconds to load)',
+				text: 'Finished in 0.3 seconds (files took 1.2 seconds to load)',
 				color: 'muted',
 			},
 			{ text: '6 examples, 6 failures', color: 'red' },
@@ -697,7 +697,7 @@ end`,
     patch "/api/products/#{product.id}",
           params: { product: { name: "Hijacked" } },
           headers: headers, as: :json
-    expect(response).to have_http_status(:not_found).or have_http_status(:forbidden)
+    expect(response).to have_http_status(:forbidden)
     expect(product.reload.name).to eq("Theirs")
   end
 end`,
@@ -913,12 +913,12 @@ RSpec.describe "Api::Products", type: :request do
       expect(product.reload.name).to eq("New")
     end
 
-    it "blocks a non-owner with 404 (Pundit + scoped policy)" do
+    it "blocks a non-owner with 403 (authorize)" do
       product = create(:product, user: other_user, name: "Theirs")
       patch "/api/products/#{product.id}",
             params: { product: { name: "Hijacked" } },
             headers: headers, as: :json
-      expect(response).to have_http_status(:not_found).or have_http_status(:forbidden)
+      expect(response).to have_http_status(:forbidden)
       expect(product.reload.name).to eq("Theirs")
     end
   end
@@ -939,7 +939,7 @@ interface ProductCardSpec {
 	price: string;
 	featured?: boolean;
 	spam?: boolean;
-	deleted?: boolean;
+	hijacked?: boolean;
 }
 
 const HOMEPAGE_IDLE: ProductCardSpec[] = [
@@ -959,8 +959,8 @@ const ACCOUNT_IDLE: ProductCardSpec[] = [
 	{ name: 'Notebook', price: '$4.99' },
 ];
 
-const ACCOUNT_DELETED: ProductCardSpec[] = [
-	{ name: 'Ceramic Mug', price: '$19.99', deleted: true },
+const ACCOUNT_HIJACKED: ProductCardSpec[] = [
+	{ name: 'Hijacked by user_99', price: '$19.99', hijacked: true },
 	{ name: 'Notebook', price: '$4.99' },
 ];
 
@@ -984,17 +984,17 @@ function ProductCard({ product }: ProductCardProps) {
 			</div>
 		);
 	}
-	if (product.deleted) {
+	if (product.hijacked) {
 		return (
 			<div className="rounded-md border-2 border-destructive bg-destructive/10 p-2 relative flex-1 min-h-0 flex flex-col justify-center">
 				<div className="absolute -top-1.5 -right-1.5 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold px-1.5 py-0.5 shadow-md">
-					DELETED
+					EDITED
 				</div>
-				<div className="text-xs font-bold text-destructive line-through truncate">
+				<div className="text-xs font-bold text-destructive truncate">
 					{product.name}
 				</div>
 				<div className="text-[10px] text-destructive font-semibold">
-					by user_99
+					was "Ceramic Mug"
 				</div>
 			</div>
 		);
@@ -1047,7 +1047,7 @@ interface AccountListProps {
 }
 
 function AccountList({ damage }: AccountListProps) {
-	const products = damage ? ACCOUNT_DELETED : ACCOUNT_IDLE;
+	const products = damage ? ACCOUNT_HIJACKED : ACCOUNT_IDLE;
 	return (
 		<ColumnPanel title="Account Page (Alice)">
 			<div className="flex flex-col gap-1.5 flex-1 min-h-0">

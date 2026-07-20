@@ -155,18 +155,17 @@ Examples:
 
 ## Progression
 
-Interactive Rails currently has 8 acts and 58 levels.
+Interactive Rails currently has 7 acts and 58 levels.
 
 | Act | Name | Levels | Focus |
 |-----|------|--------|-------|
-| 1 | The Foundation | L1-L8 | Environment, app boot, models, CRUD, routes, controllers, serializers, associations |
-| 2 | Guards & Gates | L9-L15 | Authentication, validations, callbacks, authorization, testing, strong params, CORS |
-| 3 | Clean Architecture | L16-L22 | Service objects, concerns, contracts, query objects, error handling, mailers, background jobs |
-| 4 | Performance | L23-L31 | N+1, eager loading, narrow fetching, indexing, counter caches, pagination, search, caching |
-| 5 | Production Features | L32-L40 | Polymorphic associations, transactions, locking, storage, encryption, real-time, external APIs, webhooks, versioning |
-| 6 | Operations | L41-L49 | Middleware, rate limiting, soft deletes, safe migrations, recurring jobs, data lifecycle, monitoring, deployment, feature flags |
-| 7 | Scale | L50-L55 | Multi-database, state machines, multi-tenancy, observability, modular monolith, domain events |
-| 8 | Mastery | L56-L58 | API gateway, sharding, capstone architecture |
+| 1 | Foundation | L1-L8 | Environment, app boot, models, CRUD, associations, routes, controllers, serializers |
+| 2 | Users & Security | L9-L14 | Authentication, encryption, authorization, validations, strong params, testing |
+| 3 | Clean Architecture | L15-L20 | Callbacks, service objects, concerns, validation contracts, query objects, error handling |
+| 4 | Performance | L21-L29 | N+1, eager loading, narrow fetching, indexing, counter caches, pagination, search, caching, HTTP caching |
+| 5 | Production | L30-L39 | Polymorphism, soft deletes, transactions, locking, storage, mailers, background jobs, real-time, external APIs, webhooks |
+| 6 | Operations | L40-L50 | Middleware, CORS, rate limiting, safe migrations, recurring jobs, data lifecycle, error monitoring, observability, versioning, deployment, feature flags |
+| 7 | Scale | L51-L58 | Multi-database, multi-tenancy, sharding, state machines, modular monolith, domain events, API gateway, capstone architecture |
 
 Levels unlock sequentially. In development mode, the app can unlock all levels through the local storage override used by the acts registry.
 

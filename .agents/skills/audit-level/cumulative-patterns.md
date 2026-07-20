@@ -36,15 +36,15 @@ The per-act sections below track both axes: each level's introduced concept (exi
 
 ### L3: First Model (Product)
 - **Pattern**: `bin/rails generate model Product name:string description:text price:decimal`, then `bin/rails db:migrate`
-- **Applies to**: Product is the canonical e-commerce resource. Schema is `name (string)`, `description (text)`, `price (decimal)`. **No validations, no associations, no encryption** — those are L12 / L4 / L10.
+- **Applies to**: Product is the canonical e-commerce resource. Schema is `name (string)`, `description (text)`, `price (decimal)`. **No validations, no associations, no encryption** — those are L12 / L5 / L10.
 
-### L4: Associations
-- **Pattern**: `has_many :reviews, dependent: :destroy` on Product, `belongs_to :product` on Review. Migration uses `t.references :product, null: false, foreign_key: true`.
-- **Applies to**: Review is the second model. Pre-L4: only Product exists. **No User model yet** (that's L9), so reviews don't reference users at L4.
-
-### L5: CRUD via Rails Console
+### L4: CRUD via Rails Console
 - **Pattern**: `bin/rails console`, then `Product.create(...)`, `Product.find(id)`, `product.update(...)`, `product.destroy`
 - **Applies to**: First exposure to Active Record CRUD. **No controllers, no routes, no API** (those are L6/L7).
+
+### L5: Associations
+- **Pattern**: `has_many :reviews, dependent: :destroy` on Product, `belongs_to :product` on Review. Migration uses `t.references :product, null: false, foreign_key: true`.
+- **Applies to**: Review is the second model. Pre-L5: only Product exists. **No User model yet** (that's L9), so reviews don't reference users at L5.
 
 ### L6: RESTful Routes with API Namespace
 - **Pattern**: `namespace :api do; resources :products; end` → `/api/products`
@@ -93,7 +93,11 @@ The per-act sections below track both axes: each level's introduced concept (exi
 
 ---
 
-## Act 3: Clean Architecture (L16-L22) -- CRITICAL PATTERNS
+## Act 3: Clean Architecture (L15-L20) -- CRITICAL PATTERNS
+
+### L15: Callbacks & Normalizations
+- **Pattern**: `normalizes :name, with: ->(n) { n.strip }` for write-and-query normalization; `before_validation`/`before_save` for normalization ONLY. Side effects (emails, jobs, related-record creation) are NEVER in callbacks; they go in explicit service calls (which L16 introduces).
+- **Applies to**: Model normalization from L15 onward uses `normalizes`. The "side effects belong in services, not callbacks" rule is the bridge into L16.
 
 ### L16: Service Objects (Non-Negotiable from L17+)
 - **Base class**: `ApplicationService` with `self.call(...)` delegating to `new(...).call`
@@ -103,8 +107,8 @@ The per-act sections below track both axes: each level's introduced concept (exi
 
 ```ruby
 # The pattern (L16+)
-class PostSearch < ApplicationService
-  Result = Data.define(:success?, :posts, :errors)
+class ProductSearch < ApplicationService
+  Result = Data.define(:success?, :products, :errors)
 
   def initialize(query:)
     @query = query
@@ -116,12 +120,12 @@ class PostSearch < ApplicationService
 end
 
 # Controller (thin, delegates to service)
-# Pre-L48: `Api::PostsController`. Post-L48: `Api::V1::PostsController`.
-class Api::PostsController < ApplicationController
+# Pre-L48: `Api::ProductsController`. Post-L48: `Api::V1::ProductsController`.
+class Api::ProductsController < ApplicationController
   def index
-    result = PostSearch.call(query: params[:q])
+    result = ProductSearch.call(query: params[:q])
     if result.success?
-      render json: result.posts
+      render json: result.products
     else
       render json: { errors: result.errors }, status: :unprocessable_entity
     end
@@ -135,7 +139,7 @@ end
 
 ### L18: Validation Contracts (dry-validation gem) (Non-Negotiable from L19+)
 - **Schema definition**: `Dry::Schema.Params { required(:field).filled(:string) }`
-- **Schema composition**: `UserSchema & ProfileSchema` (composable via `&`)
+- **Schema composition**: pass multiple schemas as arguments, `params(UserSchema, ProfileSchema, NotifPrefsSchema)` (all errors returned at once). Do NOT use the `&` operator: it is experimental in dry-schema and short-circuits, so it does not return all errors together.
 - **Contract class**: `class MyContract < Dry::Validation::Contract; params(Schema); rule(:field) { ... }; end`
 - **Usage in services**: `validation = MyContract.new.call(params); return failure if validation.failure?`
 - **Error extraction**: `validation.errors.to_h` for structured field errors
@@ -165,69 +169,89 @@ end
 - **Applies to**: Complex query logic should be extracted to query objects, not inlined in services/controllers
 
 ### L20: Error Handling (rescue_from)
-- **Pattern**: `rescue_from ActiveRecord::RecordNotFound` in `ApplicationController`
+- **Pattern**: `rescue_from ActiveRecord::RecordNotFound` in `ApplicationController`; register `rescue_from StandardError` first so more specific handlers (registered later) take priority (bottom-up matching).
 - **Error shape**: `{ error: { code: "NOT_FOUND", message: "...", details: {} } }`
-- **Applies to**: All controller error responses should follow this consistent shape
-
-### L21: Action Mailer
-- **Pattern**: `generates_token_for(:password_reset)` for secure tokens
-- **Applies to**: Token generation for any secure flow
-
-### L22: Background Jobs (Solid Queue)
-- **Pattern**: `class MyJob < ApplicationJob; queue_as :default; end`, Solid Queue adapter
-- **Applies to**: Any async work should use ActiveJob with Solid Queue
+- **Applies to**: All controller error responses should follow this consistent shape. Service-object Result vs `rescue_from`: pick one layer per failure class (documented in L20 content).
 
 ---
 
-## Act 4: Performance (L23-L31)
+## Act 4: Performance (L21-L29)
 
-### L23: N+1 Detection (Prosopite gem)
-- **Pattern**: `include Prosopite::Detectors`, `strict_loading_by_default = true`
+### L21: The N+1 Problem (Prosopite gem)
+- **Pattern**: `bundle add prosopite pg_query --group development`; activate with an `around_action` (or the Rack middleware) calling `Prosopite.scan`/`Prosopite.finish` (config alone does NOT scan); `strict_loading_by_default = true` on models with N+1 risk.
+- **Applies to**: The Prosopite detector, once installed, is cumulative: later levels' before-states cannot silently run flagrant N+1s without acknowledging the detector surfaced them.
 
-### L24: Eager Loading
-- **Pattern**: `Product.includes(:reviews)`, `preload(:categories)`, `eager_load(:user)`
-- **Applies to**: All queries with associations should eager load
+### L22: Eager Loading
+- **Pattern**: `Product.includes(:user)` is the idiomatic default (Rails picks preload vs JOIN, and auto-promotes to a JOIN when you filter on the joined table). `preload` when you specifically do not want a JOIN; `eager_load` only to force an explicit JOIN. `joins` does NOT load into memory.
+- **Applies to**: All queries with associations accessed in serializers/loops should eager load. Keep `strict_loading_by_default = true` (enabled in L21) shown as enabled.
 
-### L26: Database Indexing
-- **Pattern**: `add_index :posts, :author_id`, composite indexes, EXPLAIN plans
-- **Applies to**: Migrations should include appropriate indexes
+### L23: Narrow Fetching
+- **Pattern**: `select(:id, :name)` to avoid loading wide TEXT columns; `pluck` for raw values; `find_each`/`in_batches` for large iterations (streams in chunks; `in_batches` yields a relation so `relation.pluck` runs SQL).
+- **Applies to**: Any endpoint or job loading many rows or wide columns.
 
-### L27: Counter Caches
-- **Pattern**: `belongs_to :post, counter_cache: true`, migration adding `comments_count` column
-- **Applies to**: Frequently-counted relationships should use counter caches
+### L24: Database Indexing
+- **Pattern**: `add_index :users, :email` for lookup columns; composite indexes obey the leftmost-prefix rule; `add_index ..., algorithm: :concurrently` requires `disable_ddl_transaction!`. Note: `t.references`/`add_reference` already indexes by default, so bare `t.bigint :user_id` is the only unindexed-FK case.
+- **Applies to**: Migrations should index lookup and foreign-key columns (unless `t.references` already did).
 
-### L28: Pagination (Pagy gem)
-- **Pattern**: `include Pagy::Backend`, `pagy(Product.all, items: 20)`, RFC 5988 Link headers
-- **Applies to**: Any endpoint returning collections should be paginated
+### L25: Counter Caches
+- **Pattern**: `belongs_to :product, counter_cache: true`, migration adding `reviews_count` column; `reset_counters` to recompute (counter columns should be treated as read-only, so a plain `update(reviews_count:)` is the wrong tool).
+- **Applies to**: Frequently-counted relationships should use counter caches.
 
-### L29: Full-Text Search (pg_search gem)
-- **Pattern**: `include PgSearch::Model`, `pg_search_scope :search, against: { title: 'A', body: 'B' }`
-- **GIN index**: `add_index :posts, :searchable, using: :gin`
+### L26: Pagination (Pagy gem)
+- **Pattern**: current Pagy API (`Pagy::Method`, `Pagy::OPTIONS[:limit]`, `pagy(:offset, scope)`, `headers_hash`), RFC 8288 Link headers.
+- **Applies to**: Any endpoint returning collections should be paginated.
 
-### L30: Caching (Solid Cache)
-- **Pattern**: `Rails.cache.fetch("key", expires_in: 1.hour) { ... }`, Solid Cache adapter
+### L27: Search (pg_search gem)
+- **Pattern**: `include PgSearch::Model`, a trigger-maintained `searchable` tsvector column + GIN index, and `pg_search_scope :search, against: :searchable, using: { tsearch: { tsvector_column: 'searchable', dictionary: 'english' } }` so the GIN index is actually used.
+- **GIN index**: `add_index :products, :searchable, using: :gin`.
+
+### L28: Caching (Solid Cache)
+- **Pattern**: `Rails.cache.fetch([Product.maximum(:updated_at).to_i, "key"], expires_in: ...) { ... }` (versioned key, not static). Solid Cache is the Rails 8 default cache store (preconfigured for production). `race_condition_ttl` only coordinates rebuilds when the SAME key's TTL lapses.
+- **Applies to**: Expensive computed reads.
+
+### L29: HTTP Caching & CDNs
+- **Pattern**: `stale?(record)` / `fresh_when` short-circuit BEFORE serialization (compute savings). Stock Rails already ships Rack::ETag + Rack::ConditionalGet (weak body-hash ETag, bandwidth savings only, after full recompute). `Cache-Control`/`s-maxage` for CDN edge caching.
+- **Applies to**: Cacheable GET endpoints.
 
 ---
 
-## Act 5: Production (L32-L39)
+## Act 5: Production (L30-L39)
 
-### L32: Polymorphic Associations
-- **Pattern**: `has_many :reviews, as: :commentable`, `polymorphic: true`
+### L30: Polymorphic Associations
+- **Pattern**: `belongs_to :reviewable, polymorphic: true` (with `t.references :reviewable, polymorphic: true`, which creates the composite index); validate the type against an allowlist before `constantize`.
 
-### L33: Transactions (Atomicity)
-- **Pattern**: `ActiveRecord::Base.transaction { ... }`, `raise ActiveRecord::Rollback`
-- **Domain**: Boost a post (User credits, Boost, CreditLog). Three-step operation wrapped in a transaction for atomicity.
-- **Applies to**: Any multi-step database operation that must be all-or-nothing
+### L31: Soft Deletes & Audit Trails
+- **Pattern**: `discard` gem (`discard`/`.kept`/`.discarded`; NO default scope, so `.kept` is explicit) + PaperTrail (`has_paper_trail`, `set_paper_trail_whodunnit` + `user_for_paper_trail` returning `Current.user&.id`).
+- **Applies to**: Destructive operations become soft deletes; changes are audited from L31 onward.
 
-### L34: Locking (Concurrency Control)
-- **Pattern**: `Account.lock.find(id)` (pessimistic, SELECT ... FOR UPDATE), `lock_version:integer` column (optimistic), `ActiveRecord::StaleObjectError` handling
-- **Applies to**: Any concurrent access to shared mutable data (financial balances, inventory counts, profile edits)
+### L32: Transactions (Atomicity)
+- **Pattern**: `ActiveRecord::Base.transaction { ... }`, `raise ActiveRecord::Rollback`.
+- **Domain**: Boost a product (User credits, Boost, CreditLog). Three-step operation wrapped in a transaction for atomicity.
+- **Applies to**: Any multi-step database operation that must be all-or-nothing.
 
-### L35: Active Storage
-- **Pattern**: `has_one_attached :avatar`, `has_many_attached :images`, direct upload to S3
+### L33: Locking (Concurrency Control)
+- **Pattern**: `product.with_lock { ... }` (pessimistic, SELECT ... FOR UPDATE), `lock_version:integer` column (optimistic), `ActiveRecord::StaleObjectError` handling.
+- **Applies to**: Any concurrent access to shared mutable data (credits, inventory counts, profile edits).
 
-### L36: Real-Time (Solid Cable)
-- **Pattern**: Action Cable channels, `broadcast_to(@post, action: :updated)`
+### L34: Active Storage
+- **Pattern**: `has_one_attached :avatar`, `has_many_attached :images`, direct upload to S3 (Rails computes the presigned URL locally; no S3 network call during URL generation). Validation happens at attach time, after the file is on S3.
+
+### L35: Action Mailer
+- **Pattern**: `generates_token_for :password_reset, expires_in: ...`, `find_by_token_for`; ERB templates (`.html.erb`/`.text.erb`) are required even in an API-only app; reset links point at the frontend page, not the API route. Mailer URL helpers need `default_url_options[:host]`.
+- **Applies to**: Transactional email from L35 onward.
+
+### L36: Background Jobs (Solid Queue)
+- **Pattern**: `bin/rails solid_queue:install` (configures production.rb, creates `bin/jobs` + `config/recurring.yml`); `class MyJob < ApplicationJob; queue_as :default; end`; job args are IDs, jobs are idempotent (at-least-once, not exactly-once). A worker process (`bin/jobs`) must actually run. Solid Queue has no `unique :until_executed` macro; concurrency control is `limits_concurrency`.
+- **Applies to**: Any async work uses ActiveJob with Solid Queue.
+
+### L37: Real-Time (Solid Cable)
+- **Pattern**: Action Cable channels, `broadcast_to(user, ...)`. `message_retention` is only the messages-table trim cutoff; Action Cable has no client replay/backlog (late subscribers miss prior broadcasts; re-fetch state on reconnect).
+
+### L38: External APIs
+- **Pattern**: Faraday client with timeouts + retries; circuit breaker via Stoplight (constructor kwargs: `Stoplight('name', threshold:, cool_off_time:)`, not the removed builder API); API keys in Rails credentials, not ENV; retries via `PaymentRetryJob.set(wait:).perform_later`.
+
+### L39: Webhooks & Idempotency
+- **Pattern**: verify the HMAC signature on the raw request body; dedup via a unique index + `find_or_create_by!`; re-fetch money-moving amounts from the API rather than trusting the payload; at-least-once delivery (never claim exactly-once). API-only controllers have no CSRF token, so no `skip_before_action :verify_authenticity_token`.
 
 ---
 
@@ -235,10 +259,10 @@ end
 
 Patterns above track code conventions (service objects, contracts, serializers). But players also BUILD infrastructure that persists across all future levels. If a level's "before state" ignores infrastructure the player already built, it contradicts their experience.
 
-**Infrastructure is cumulative the same way patterns are.** Once the player builds structured logging in L41, every future level's "before state" includes structured logging. A level cannot say "errors go to stdout with no logging" if L41 already added a RequestLogger middleware.
+**Infrastructure is cumulative the same way patterns are.** Once the player builds the RequestLogger middleware in L40, every future level's "before state" includes per-request logging. A level cannot say "errors go to stdout with no logging" if L40 already added a RequestLogger middleware (and L47 replaced it with structured lograge output).
 
-### L22+: Background Jobs (Solid Queue)
-- **Infrastructure**: `ApplicationJob`, `perform_later`, Solid Queue processing
+### L36+: Background Jobs (Solid Queue)
+- **Infrastructure**: `ApplicationJob`, `perform_later`, Solid Queue processing, `bin/jobs` worker
 - **Applies to**: Any level mentioning async work must acknowledge Solid Queue exists
 
 ### L37+: Real-Time (Action Cable)
@@ -258,7 +282,7 @@ Patterns above track code conventions (service objects, contracts, serializers).
 - **Post-L48**: routes wrap in `namespace :v1 do ... end` and add `namespace :v2 do ... end`. Controllers become `Api::V1::ProductsController` / `Api::V2::ProductsController`. Deprecation/Sunset headers ship with v1.
 - **Applies to**: Any level showing routes or controllers must use the form for the level it's at: pre-L48 → un-versioned, L48+ → versioned.
 
-### L41+: Middleware Stack (Request ID, Logger, Bot Detection)
+### L40+: Middleware Stack (Request ID, Logger, Bot Detection)
 - **Infrastructure**: RequestIdTracker, RequestLogger (structured JSON), BotDetector middleware
 - **Applies to**: Any level mentioning logging, request tracing, or bot traffic must acknowledge these exist
 
@@ -266,17 +290,25 @@ Patterns above track code conventions (service objects, contracts, serializers).
 - **Infrastructure**: Per-IP throttling, login rate limit, safelist, 429 responses
 - **Applies to**: Any level mentioning API abuse or brute force must acknowledge rate limiting exists
 
-### L43+: Soft Deletes + Audit Trails (Discard + PaperTrail)
+### L31+: Soft Deletes + Audit Trails (Discard + PaperTrail)
 - **Infrastructure**: `discarded_at` column, `has_paper_trail`, version history
 - **Applies to**: Any level mentioning deletions must use `discard` not `destroy`
 
-### L44+: Safe Migrations (strong_migrations)
+### L43+: Safe Migrations (strong_migrations)
 - **Infrastructure**: strong_migrations gem blocking unsafe patterns
 - **Applies to**: Any level with migrations must follow safe migration patterns
 
-### L45+: Recurring Jobs (Solid Queue recurring.yml)
+### L44+: Recurring Jobs (Solid Queue recurring.yml)
 - **Infrastructure**: Scheduled cleanup jobs, config/recurring.yml
 - **Applies to**: Any level mentioning scheduled tasks must reference Solid Queue recurring
+
+### L46+: Structured Error Monitoring (Rails.error)
+- **Infrastructure**: `Rails.error.report`/`handle`/`record`, error subscriber
+- **Applies to**: Any level after L46 can assume errors are captured and reported, not swallowed
+
+### L47+: Observability (lograge + OpenTelemetry + /up)
+- **Infrastructure**: lograge structured request logs, OpenTelemetry traces, a deepened `/up` health check
+- **Applies to**: Any level after L47 can assume one structured line per request and a real health check
 
 ---
 

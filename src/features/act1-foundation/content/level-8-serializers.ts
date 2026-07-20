@@ -66,7 +66,7 @@ A widely-adopted response format for REST APIs (used by Ember Data and many othe
 
 **Picking a serializer library:**
 The Ruby ecosystem ships several serializer libraries; the differences come down to spec conformance, performance, and DSL ergonomics:
-- Some implement the JSON:API spec out of the box, are 100x faster than the legacy ActiveModelSerializers gem, and are still actively maintained.
+- Some implement the JSON:API spec out of the box, benchmark much faster than the legacy ActiveModelSerializers gem, and are still actively maintained.
 - Some produce a flat (non-standardised) JSON shape that is fine for internal APIs but does not match the JSON:API envelope.
 - Some are template-based (closer to a view layer) and slower; useful for complex computed shapes, less useful for high-throughput JSON APIs.
 - The legacy ActiveModelSerializers gem is unmaintained and not a sensible choice for a new app.

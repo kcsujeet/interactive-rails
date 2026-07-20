@@ -179,13 +179,18 @@ expect(token).to be_expired
 For randomness, seed it: \`srand(spec_seed)\` at the top of \`rails_helper.rb\`, plus \`Faker::Config.random = Random.new(spec_seed)\` so a failing test reproduces locally. Faker by default uses \`SecureRandom\`, which makes "flaky in CI, passes locally" almost guaranteed.
 
 **Parallel testing for fast suites:**
-Past ~500 tests, suite time becomes the developer feedback bottleneck. Rails has built-in parallel testing:
+Past ~500 tests, suite time becomes the developer feedback bottleneck. Rails ships built-in parallel testing, but it is Minitest-only: \`parallelize(workers: :number_of_processors)\` lives in \`test/test_helper.rb\` inside \`ActiveSupport::TestCase\` (per the [Rails testing guide](https://guides.rubyonrails.org/testing.html#parallel-testing)). It is not available to RSpec: \`rails_helper.rb\` has no \`parallelize\` method.
 
-\`\`\`ruby
-# spec/rails_helper.rb (or test/test_helper.rb for Minitest)
-parallelize(workers: :number_of_processors)
+For an RSpec suite, the equivalent is the \`parallel_tests\` gem (per its [README](https://github.com/grosser/parallel_tests)):
+
+\`\`\`bash
+# Create one test database per process, then load the schema into each
+bin/rake parallel:create
+bin/rake parallel:prepare
+# Run the suite split across all cores
+bin/rake parallel:spec
 \`\`\`
-Each worker gets its own database (\`myapp_test-1\`, \`myapp_test-2\`, ...). Combined with \`bundle exec spring rspec\` and a hot-reloading worker pool, a 10-minute suite drops to under 90 seconds on a 10-core box. For CI parallelism across machines, \`knapsack_pro\` distributes tests by historical timing.
+Each process gets its own database (\`store_api_test\`, \`store_api_test2\`, ...) keyed off \`ENV["TEST_ENV_NUMBER"]\` in \`config/database.yml\`. A 10-minute suite drops to a couple of minutes on a 10-core box. For CI parallelism across machines, \`knapsack_pro\` distributes tests by historical timing.
 
 **Fixtures vs factories at scale:**
 Factories (FactoryBot) are the default for greenfield apps and are the right choice 95% of the time. But: at 5K+ tests, every test calls \`create(:user)\` and the suite becomes IO-bound on database inserts. Some shops (Shopify, GitHub) have moved key models back to fixtures because Rails fixtures load once, in a single transaction, into the schema. The tradeoff: fixtures are global state, factories are per-test. If a suite is stuck waiting on \`create\` calls, mixing fixtures for "every test needs one of these" entities (a default org, a default plan, a default admin user) and factories for "specific scenarios" is the production answer.
@@ -216,39 +221,39 @@ end
 # rails generate rspec:install
 
 # spec/factories/users.rb
+# email_address (not email): the Rails 8 auth generator names the column
+# email_address, and this app keeps that name. has_secure_password reads the
+# virtual password attribute; there is no username column on this schema.
 FactoryBot.define do
   factory :user do
-    email { Faker::Internet.email }
+    sequence(:email_address) { |n| "user#{n}@example.com" }
     password { "password123" }
-    username { Faker::Internet.username(specifier: 3..20) }
   end
 end
 
 # spec/factories/products.rb
+# Product has name, description, price, and belongs_to :user. No status enum.
 FactoryBot.define do
   factory :product do
+    sequence(:name) { |n| "Product #{n}" }
+    description { "A high-quality product crafted with care." }
+    price { 19.99 }
     user
-    name { Faker::Commerce.product_name }
-    description { Faker::Lorem.paragraphs(number: 3).join("\\n\\n") }
-    price { Faker::Commerce.price(range: 10..500.0) }
-    status { "active" }
-
-    trait :draft do
-      status { "draft" }
-    end
   end
 end
 
 # spec/requests/api/products_spec.rb
 RSpec.describe "Products API", type: :request do
-  let(:user) { create(:user) }
-  let(:token) { user.sessions.create!.token }
-  let(:headers) { { "Authorization" => "Bearer #{token}" } }
+  let(:user)       { create(:user) }
+  let(:other_user) { create(:user) }
+  let(:headers) do
+    session = user.sessions.create!(ip_address: "127.0.0.1", user_agent: "rspec")
+    { "Authorization" => "Bearer #{session.token}" }
+  end
 
   describe "GET /api/products" do
-    it "returns active products" do
+    it "returns the product list to an authenticated user" do
       create_list(:product, 3, user: user)
-      create(:product, :draft, user: user)
 
       get "/api/products", headers: headers
       expect(response).to have_http_status(:ok)
@@ -281,9 +286,9 @@ RSpec.describe "Products API", type: :request do
 
   describe "PATCH /api/products/:id" do
     it "forbids updating another user's product" do
-      other_product = create(:product)  # belongs to another user
+      other_product = create(:product, user: other_user)
       patch "/api/products/#{other_product.id}",
-            params: { product: { name: "Hacked" } },
+            params: { product: { name: "Hijacked" } },
             headers: headers
       expect(response).to have_http_status(:forbidden)
     end
@@ -303,7 +308,7 @@ end`,
 		commonMistakes: [
 			'Testing implementation details instead of behavior',
 			'Not testing error cases (422, 401, 403)',
-			'Using fixtures instead of factories (brittle, hard to maintain)',
+			'Mixing test-data styles at random. This curriculum standardizes on factories (FactoryBot) so each spec builds exactly the records it needs. Fixtures are a valid, deliberate choice some large suites make for shared baseline records, but picking one convention per project and sticking to it beats scattering both',
 			'Slow test suite from not using database_cleaner properly',
 			'Testing controller internals instead of HTTP request/response',
 			'Letting tests make real HTTP calls (slow, flaky, leaks credentials). Set WebMock.disable_net_connect! and stub everything',

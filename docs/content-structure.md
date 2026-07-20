@@ -19,84 +19,82 @@ src/lib/levels-registry.ts          # Level component registry (58 custom)
 ## Content Hierarchy
 
 ```
-Interactive Rails (58 levels, 8 acts)
-├── Act 1: The Foundation (8 levels)
-│   ├── Level 1: First Boot
-│   ├── Level 2: The Model
-│   ├── Level 3: CRUD Operations
-│   ├── Level 4: Routes & Request Lifecycle
-│   ├── Level 5: The Controller
-│   ├── Level 6: Serializers
-│   ├── Level 7: Associations
-│   └── Level 8: Seeds & Sample Data
+Interactive Rails (58 levels, 7 acts)
+├── Act 1: Foundation (L1-L8, 8 levels)
+│   ├── Level 1: The Environment
+│   ├── Level 2: First Boot
+│   ├── Level 3: The Model
+│   ├── Level 4: CRUD Operations
+│   ├── Level 5: Associations
+│   ├── Level 6: Routes & Request Lifecycle
+│   ├── Level 7: The Controller
+│   └── Level 8: Serializers
 │
-├── Act 2: Guards & Gates (L9-L15, 7 levels)
+├── Act 2: Users & Security (L9-L14, 6 levels)
 │   ├── Level 9: Authentication
-│   ├── Level 10: Validations
-│   ├── Level 11: Callbacks & Normalizations
-│   ├── Level 12: Authorization
-│   ├── Level 13: Testing
-│   ├── Level 14: Strong Params
-│   └── Level 15: CORS
+│   ├── Level 10: Encrypted Attributes
+│   ├── Level 11: Authorization
+│   ├── Level 12: Validations
+│   ├── Level 13: Strong Params
+│   └── Level 14: Testing
 │
-├── Act 3: Clean Architecture (L16-L22, 7 levels)
+├── Act 3: Clean Architecture (L15-L20, 6 levels)
+│   ├── Level 15: Callbacks & Normalizations
 │   ├── Level 16: Service Objects
 │   ├── Level 17: Concerns & Modules
 │   ├── Level 18: Validation Contracts
 │   ├── Level 19: Query Objects
-│   ├── Level 20: Error Handling
-│   ├── Level 21: Action Mailer
-│   └── Level 22: Background Jobs
+│   └── Level 20: Error Handling
 │
-├── Act 4: Performance (L23-L31, 9 levels)
-│   ├── Level 23: The N+1 Problem
-│   ├── Level 24: Eager Loading
-│   ├── Level 25: Narrow Fetching
-│   ├── Level 26: Database Indexing
-│   ├── Level 27: Counter Caches
-│   ├── Level 28: Pagination
-│   ├── Level 29: Search
-│   ├── Level 30: Caching
-│   └── Level 31: HTTP Caching & CDNs
+├── Act 4: Performance (L21-L29, 9 levels)
+│   ├── Level 21: The N+1 Problem
+│   ├── Level 22: Eager Loading
+│   ├── Level 23: Narrow Fetching
+│   ├── Level 24: Database Indexing
+│   ├── Level 25: Counter Caches
+│   ├── Level 26: Pagination
+│   ├── Level 27: Search
+│   ├── Level 28: Caching
+│   └── Level 29: HTTP Caching & CDNs
 │
-├── Act 5: Production Features (L32-L40, 9 levels)
-│   ├── Level 32: Polymorphic Associations
-│   ├── Level 33: Transactions
-│   ├── Level 34: Locking
-│   ├── Level 35: Active Storage
-│   ├── Level 36: Encrypted Attributes
+├── Act 5: Production (L30-L39, 10 levels)
+│   ├── Level 30: Polymorphic Associations
+│   ├── Level 31: Soft Deletes & Audit Trails
+│   ├── Level 32: Transactions
+│   ├── Level 33: Locking
+│   ├── Level 34: Active Storage
+│   ├── Level 35: Action Mailer
+│   ├── Level 36: Background Jobs
 │   ├── Level 37: Real-Time
 │   ├── Level 38: External APIs
-│   ├── Level 39: Webhooks & Idempotency
-│   └── Level 40: API Versioning
+│   └── Level 39: Webhooks & Idempotency
 │
-├── Act 6: Operations (L41-L49, 9 levels)
-│   ├── Level 41: Middleware & Rack
+├── Act 6: Operations (L40-L50, 11 levels)
+│   ├── Level 40: Middleware & Rack
+│   ├── Level 41: CORS
 │   ├── Level 42: Rate Limiting
-│   ├── Level 43: Soft Deletes & Audit Trails
-│   ├── Level 44: Safe Migrations
-│   ├── Level 45: Recurring Jobs & Scheduling
-│   ├── Level 46: Data Lifecycle
-│   ├── Level 47: Structured Error Monitoring
-│   ├── Level 48: Deployment
-│   └── Level 49: Feature Flags
+│   ├── Level 43: Safe Migrations
+│   ├── Level 44: Recurring Jobs & Scheduling
+│   ├── Level 45: Data Lifecycle
+│   ├── Level 46: Structured Error Monitoring
+│   ├── Level 47: Observability
+│   ├── Level 48: API Versioning
+│   ├── Level 49: Deployment
+│   └── Level 50: Feature Flags & Staged Rollouts
 │
-├── Act 7: Scale (L50-L55, 6 levels)
-│   ├── Level 50: Multi-Database
-│   ├── Level 51: State Machines
-│   ├── Level 52: Multi-Tenancy
-│   ├── Level 53: Observability
-│   ├── Level 54: Modular Monolith
-│   └── Level 55: Domain Events & Decoupling
-│
-└── Act 8: Mastery (L56-L58, 3 levels)
-    ├── Level 56: API Gateway
-    ├── Level 57: Database Sharding
+└── Act 7: Scale (L51-L58, 8 levels)
+    ├── Level 51: Multi-Database
+    ├── Level 52: Multi-Tenancy
+    ├── Level 53: Database Sharding
+    ├── Level 54: State Machines
+    ├── Level 55: Modular Monolith
+    ├── Level 56: Domain Events & Decoupling
+    ├── Level 57: API Gateway
     └── Level 58: The Architect (Capstone)
 ```
 
 **Current Status:**
-- 8 acts implemented
+- 7 acts implemented
 - 58 total levels
 - Rails 8 API-only focused
 - Testing required from Level 13 onward
@@ -237,34 +235,19 @@ Each level has a corresponding React component registered in `src/lib/levels-reg
 
 ### Component Location
 
+Each level lives in its own directory under its act's `components/` folder
+(see the per-level layout in CLAUDE.md). Newer levels split into phase
+components + `data/` + `__tests__/`; a few legacy levels are still single-file.
+
 ```
 src/features/
-├── act1-foundation/components/
-│   ├── Level1StackChoice.tsx
-│   ├── Level2Model.tsx
-│   ├── Level3CRUD.tsx
-│   ├── Level4Routes.tsx
-│   ├── Level5Controller.tsx
-│   └── Level7Associations.tsx
-├── act2-users-security/components/
-│   ├── Level12Authorization.tsx
-│   ├── Level13Testing.tsx
-│   ├── Level14StrongParams.tsx
-│   └── Level15CORS.tsx
-├── act3-clean-architecture/components/
-│   ├── Level16ServiceObjects.tsx ... Level22BackgroundJobs.tsx
-├── act4-performance/components/
-│   ├── Level23N1Problem.tsx ... Level31HTTPCaching.tsx
-├── act5-production/components/
-│   ├── Level32Polymorphic.tsx ... Level39APIVersioning.tsx
-├── act6-reliability/components/
-│   ├── Level41RateLimiting.tsx ... Level46ErrorMonitoring.tsx
-├── act7-scale/components/
-│   ├── Level47MultiDatabase.tsx ... Level52DomainEvents.tsx
-└── act8-mastery/components/
-    ├── Level53APIGateway.tsx
-    ├── Level54Sharding.tsx
-    └── Level55Architect.tsx
+├── act1-foundation/components/       # level-1-environment ... level-8-serializers
+├── act2-users-security/components/   # level-9-authentication ... level-14-testing
+├── act3-clean-architecture/components/ # level-15-callbacks ... level-20-error-handling
+├── act4-performance/components/      # level-21-n1-problem ... level-29-http-caching
+├── act5-production/components/       # level-30-polymorphic ... level-39-webhooks
+├── act6-operations/components/       # level-40-middleware ... level-50-feature-flags
+└── act7-scale/components/            # level-51-multi-database ... level-58-architect
 ```
 
 ### Level Component Patterns
@@ -390,22 +373,12 @@ Connections:
 - Never skip the serializer (controller → response) in levels that have one
 - The only exception is Level 5 (Serializers) where the puzzle IS to add a serializer
 
-**Currently using templates:**
-- `standardPipeline()`: Act 3 (L16, 19, 20), Act 5 (L34, 32), Act 6 (L40, 42, 43)
-- `middlewarePipeline()`: Act 6 (L41, 46)
-
-**Levels with unique topologies (do NOT use templates):**
-- L1-4, L6-7 (Act 1): Progressively building the pipeline
-- L5 (Act 1): No serializer yet (that's the puzzle)
-- L17, L18 (Act 3): Multiple models → DB, no request cycle
-- L18 (Act 3): Multi-model form pattern
-- L21 (Act 3): Service + mailer branching
-- L32 (Act 5): 3 diverging models
-- L33 (Act 5): 2 concurrent requests
-- L36 (Act 5): Polling with 2 requests
-- L37-38 (Act 5): External API / webhook integration
-- L39 (Act 5): 2 client versions
-- L44 (Act 6): Minimal job pipeline (no response node)
+The templates are one option, not a requirement. Many levels build a unique
+topology instead (a custom `PipelineFlow` / `QueryZoneFlow` / bespoke
+visualization) because their concept needs a specific spatial metaphor. Which
+levels use a template vs a custom topology is not tracked here; the level's own
+component + `startingPipeline` definition is the source of truth. Do not treat
+this section as an inventory (it drifts as levels are redesigned).
 
 ### Custom Initial Nodes
 
@@ -560,75 +533,77 @@ Additional tips:
 
 ### Topics by Act
 
-**Act 1 - The Foundation:**
-- Stack choice (PostgreSQL vs SQLite)
+**Act 1 - Foundation (L1-L8):**
+- The environment (Ruby, Rails, PostgreSQL via mise)
+- First boot (`rails new --api --database=postgresql`)
 - Models and migrations
-- CRUD operations
+- CRUD operations (Rails console)
+- Associations (has_many, belongs_to)
 - Routes and request lifecycle
 - Controllers and actions
 - Serializers (JSON output)
-- Associations (has_many, belongs_to)
 
-**Act 2 - Guards & Gates:**
-- Authentication (Bearer tokens)
-- Validations
-- Callbacks and normalizations
+**Act 2 - Users & Security (L9-L14):**
+- Authentication (Rails 8 built-in, Bearer tokens)
+- Encrypted attributes (Active Record Encryption)
 - Authorization (Pundit)
-- Testing (RSpec/Minitest)
+- Validations
 - Strong Params (`params.expect`)
-- CORS (rack-cors)
+- Testing (RSpec + FactoryBot)
 
-**Act 3 - Clean Architecture:**
-- Service objects
+**Act 3 - Clean Architecture (L15-L20):**
+- Callbacks and normalizations
+- Service objects (Result pattern)
 - Concerns and modules
 - Validation contracts (dry-validation)
 - Query objects
-- Error handling
-- Action Mailer
-- Background jobs (Solid Queue)
+- Error handling (rescue_from)
 
-**Act 4 - Performance:**
-- N+1 query detection
-- Eager loading (includes, preload)
+**Act 4 - Performance (L21-L29):**
+- N+1 query detection (Prosopite)
+- Eager loading (includes, preload, eager_load)
+- Narrow fetching (select, pluck, batches)
 - Database indexing
 - Counter caches
-- Pagination
-- Search (full-text)
+- Pagination (Pagy)
+- Search (full-text, pg_search)
 - Caching (Solid Cache)
+- HTTP caching and CDNs
 
-**Act 5 - Production Features:**
+**Act 5 - Production (L30-L39):**
 - Polymorphic associations
-- Transactions and locking
+- Soft deletes and audit trails
+- Transactions
+- Locking (optimistic and pessimistic)
 - Active Storage (file uploads)
-- Encrypted attributes
+- Action Mailer
+- Background jobs (Solid Queue)
 - Real-time (Action Cable / Solid Cable)
 - External API integrations
 - Webhooks and idempotency
-- API versioning
 
-**Act 6 - Operations:**
+**Act 6 - Operations (L40-L50):**
 - Middleware and Rack
-- Rate limiting (Rails 8 built-in)
-- Soft deletes and audit trails
-- Safe migrations (zero-downtime)
+- CORS (rack-cors)
+- Rate limiting (Rails 8 built-in + Rack::Attack)
+- Safe migrations (strong_migrations)
 - Recurring jobs and scheduling (Solid Queue)
 - Data lifecycle
-- Structured error monitoring
-- Deployment
-- Feature flags
+- Structured error monitoring (Rails.error)
+- Observability (lograge, OpenTelemetry, /up)
+- API versioning
+- Deployment (Kamal 2)
+- Feature flags and staged rollouts
 
-**Act 7 - Scale:**
+**Act 7 - Scale (L51-L58):**
 - Multi-database (read replicas)
-- State machines
 - Multi-tenancy
-- Observability
-- Modular monolith
-- Domain events and decoupling
-
-**Act 8 - Mastery:**
-- API gateway design
 - Database sharding
-- Service extraction (capstone)
+- State machines
+- Modular monolith (Packwerk)
+- Domain events and decoupling
+- API gateway
+- The Architect (service-extraction capstone)
 
 ---
 

@@ -32,21 +32,21 @@ import { describe, expect, test } from 'bun:test';
 
 const PROBE_IDS = [
 	'spam-product-on-homepage',
-	'product-deleted-by-stranger',
+	'product-edited-by-stranger',
 	'login-down-overnight',
 ] as const;
 
 const PROBE_LABELS: Record<string, string> = {
 	'spam-product-on-homepage':
 		'A junior dev refactors the controller and drops a security check',
-	'product-deleted-by-stranger':
+	'product-edited-by-stranger':
 		'A teammate refactors authorize and forgets to put it back',
 	'login-down-overnight': 'A migration renames the email column',
 };
 
 interface DamageShape {
 	homepage?: { spam: true };
-	account?: { deletedByStranger: true };
+	account?: { editedByStranger: true };
 	login?: { serverError: true };
 	incidentLog: string[];
 }
@@ -60,10 +60,10 @@ const PROBE_DAMAGE: Record<string, DamageShape> = {
 			'3-hour exposure window.',
 		],
 	},
-	'product-deleted-by-stranger': {
-		account: { deletedByStranger: true },
+	'product-edited-by-stranger': {
+		account: { editedByStranger: true },
 		incidentLog: [
-			'Alice opened a support ticket: "Where did my product go?"',
+			'Alice opened a support ticket: "Someone renamed my product."',
 			'Trust score down.',
 			'Restored manually from a backup.',
 		],
@@ -88,7 +88,7 @@ const PROBE_RESPONSE_LINES: Record<string, ProbeResponseLine[]> = {
 		{ text: '$ bundle exec rspec', color: 'cyan' },
 		{ text: '# no specs run. nothing flagged this.', color: 'muted' },
 	],
-	'product-deleted-by-stranger': [
+	'product-edited-by-stranger': [
 		{ text: '$ bundle exec rspec', color: 'cyan' },
 		{ text: '# no specs run. nothing flagged this.', color: 'muted' },
 	],
@@ -127,26 +127,26 @@ const FORBIDDEN_VOCAB = [
 
 const DISCOVERY_IDS = [
 	'spam-product-on-homepage',
-	'product-deleted-by-stranger',
+	'product-edited-by-stranger',
 	'login-down-overnight',
 ] as const;
 
 const PROBE_DISCOVERY_MAP: Record<string, string> = {
 	'spam-product-on-homepage': 'spam-product-on-homepage',
-	'product-deleted-by-stranger': 'product-deleted-by-stranger',
+	'product-edited-by-stranger': 'product-edited-by-stranger',
 	'login-down-overnight': 'login-down-overnight',
 };
 
 const SCENARIO_IDS = [
 	'spam-product-on-homepage',
-	'product-deleted-by-stranger',
+	'product-edited-by-stranger',
 	'login-down-overnight',
 	'helper-rename-clean-refactor',
 ] as const;
 
 const SCENARIO_RESULTS: Record<string, 'allowed' | 'blocked'> = {
 	'spam-product-on-homepage': 'allowed',
-	'product-deleted-by-stranger': 'allowed',
+	'product-edited-by-stranger': 'allowed',
 	'login-down-overnight': 'allowed',
 	'helper-rename-clean-refactor': 'allowed',
 };
@@ -154,7 +154,7 @@ const SCENARIO_RESULTS: Record<string, 'allowed' | 'blocked'> = {
 const SCENARIO_LABELS: Record<string, string> = {
 	'spam-product-on-homepage':
 		'A junior dev refactors the controller and drops a security check',
-	'product-deleted-by-stranger':
+	'product-edited-by-stranger':
 		'A teammate refactors authorize and forgets to put it back',
 	'login-down-overnight': 'A migration renames the email column',
 	'helper-rename-clean-refactor': 'Refactor: rename a private helper method',
@@ -162,7 +162,7 @@ const SCENARIO_LABELS: Record<string, string> = {
 
 const SCENARIO_RESPONSE_LINES_NONEMPTY: Record<string, boolean> = {
 	'spam-product-on-homepage': true,
-	'product-deleted-by-stranger': true,
+	'product-edited-by-stranger': true,
 	'login-down-overnight': true,
 	'helper-rename-clean-refactor': true,
 };
@@ -175,13 +175,14 @@ const SCENARIO_RESPONSE_KEY_LINES: Record<string, string[]> = {
 		'1) Api::Products POST /api/products drops featured: true (admin-only field)',
 		'6 examples, 1 failure',
 	],
-	'product-deleted-by-stranger': [
+	'product-edited-by-stranger': [
 		'$ bundle exec rspec',
-		'1) Api::Products PATCH /api/products/:id blocks a non-owner with 404 (Pundit + scoped policy)',
+		'1) Api::Products PATCH /api/products/:id blocks a non-owner with 403 (authorize)',
 		'6 examples, 1 failure',
 	],
 	'login-down-overnight': [
 		'$ bundle exec rspec',
+		'FFFFFF',
 		'1) Api::Products GET /api/products returns the products visible to the current user',
 		'6 examples, 6 failures',
 	],
@@ -342,7 +343,7 @@ const WRITE_SPEC_OPTIONS: OptionShape[] = [
 	{
 		id: 'correct',
 		label:
-			'RSpec.describe "Api::Products", type: :request do\n  let(:user)       { create(:user) }\n  let(:other_user) { create(:user) }\n  let(:headers) do\n    session = user.sessions.create!(ip_address: "127.0.0.1", user_agent: "rspec")\n    { "Authorization" => "Bearer #{session.token}" }\n  end\n\n  it "drops featured: true on create" do\n    params = { product: { name: "X", description: "d", price: 1, featured: true } }\n    post "/api/products", params: params, headers: headers, as: :json\n    expect(Product.last.featured).to be false\n  end\n\n  it "blocks a non-owner from updating" do\n    product = create(:product, user: other_user, name: "Theirs")\n    patch "/api/products/#{product.id}",\n          params: { product: { name: "Hijacked" } },\n          headers: headers, as: :json\n    expect(response).to have_http_status(:not_found).or have_http_status(:forbidden)\n    expect(product.reload.name).to eq("Theirs")\n  end\nend',
+			'RSpec.describe "Api::Products", type: :request do\n  let(:user)       { create(:user) }\n  let(:other_user) { create(:user) }\n  let(:headers) do\n    session = user.sessions.create!(ip_address: "127.0.0.1", user_agent: "rspec")\n    { "Authorization" => "Bearer #{session.token}" }\n  end\n\n  it "drops featured: true on create" do\n    params = { product: { name: "X", description: "d", price: 1, featured: true } }\n    post "/api/products", params: params, headers: headers, as: :json\n    expect(Product.last.featured).to be false\n  end\n\n  it "blocks a non-owner from updating" do\n    product = create(:product, user: other_user, name: "Theirs")\n    patch "/api/products/#{product.id}",\n          params: { product: { name: "Hijacked" } },\n          headers: headers, as: :json\n    expect(response).to have_http_status(:forbidden)\n    expect(product.reload.name).to eq("Theirs")\n  end\nend',
 		correct: true,
 	},
 ];
@@ -432,12 +433,10 @@ describe('Level 14: Testing: probe damage payloads', () => {
 		expect(PROBE_DAMAGE['spam-product-on-homepage'].login).toBeUndefined();
 	});
 
-	test('account-deletion probe targets the account surface', () => {
-		expect(PROBE_DAMAGE['product-deleted-by-stranger'].account).toBeDefined();
-		expect(
-			PROBE_DAMAGE['product-deleted-by-stranger'].homepage,
-		).toBeUndefined();
-		expect(PROBE_DAMAGE['product-deleted-by-stranger'].login).toBeUndefined();
+	test('account-edit probe targets the account surface', () => {
+		expect(PROBE_DAMAGE['product-edited-by-stranger'].account).toBeDefined();
+		expect(PROBE_DAMAGE['product-edited-by-stranger'].homepage).toBeUndefined();
+		expect(PROBE_DAMAGE['product-edited-by-stranger'].login).toBeUndefined();
 	});
 
 	test('login-down probe targets the login surface', () => {
@@ -530,10 +529,8 @@ describe('Level 14: Testing: scenario response lines (rspec terminal)', () => {
 		expect(SCENARIO_RESPONSE_KEY_LINES['spam-product-on-homepage']).toContain(
 			'1) Api::Products POST /api/products drops featured: true (admin-only field)',
 		);
-		expect(
-			SCENARIO_RESPONSE_KEY_LINES['product-deleted-by-stranger'],
-		).toContain(
-			'1) Api::Products PATCH /api/products/:id blocks a non-owner with 404 (Pundit + scoped policy)',
+		expect(SCENARIO_RESPONSE_KEY_LINES['product-edited-by-stranger']).toContain(
+			'1) Api::Products PATCH /api/products/:id blocks a non-owner with 403 (authorize)',
 		);
 		expect(SCENARIO_RESPONSE_KEY_LINES['login-down-overnight']).toContain(
 			'1) Api::Products GET /api/products returns the products visible to the current user',
@@ -544,9 +541,9 @@ describe('Level 14: Testing: scenario response lines (rspec terminal)', () => {
 		expect(SCENARIO_RESPONSE_KEY_LINES['spam-product-on-homepage']).toContain(
 			'6 examples, 1 failure',
 		);
-		expect(
-			SCENARIO_RESPONSE_KEY_LINES['product-deleted-by-stranger'],
-		).toContain('6 examples, 1 failure');
+		expect(SCENARIO_RESPONSE_KEY_LINES['product-edited-by-stranger']).toContain(
+			'6 examples, 1 failure',
+		);
 		expect(SCENARIO_RESPONSE_KEY_LINES['login-down-overnight']).toContain(
 			'6 examples, 6 failures',
 		);
@@ -556,6 +553,12 @@ describe('Level 14: Testing: scenario response lines (rspec terminal)', () => {
 		expect(
 			SCENARIO_RESPONSE_KEY_LINES['helper-rename-clean-refactor'],
 		).toContain('6 examples, 0 failures');
+	});
+
+	test('progress output uses RSpec notation (F for failure), not Minitest E', () => {
+		const login = SCENARIO_RESPONSE_KEY_LINES['login-down-overnight'];
+		expect(login).toContain('FFFFFF');
+		expect(login).not.toContain('EEEEEE');
 	});
 });
 
@@ -647,7 +650,9 @@ describe('Level 14: Testing: narrative consistency with myapp level-14', () => {
 		expect(correct?.label).toContain('/api/products');
 		expect(correct?.label).toContain('featured: true');
 		expect(correct?.label).toContain('Product.last.featured');
-		expect(correct?.label).toContain('not_found');
+		// L11 authorize returns 403 Forbidden, not a 404 from a scoped find.
+		expect(correct?.label).toContain('forbidden');
+		expect(correct?.label).not.toContain('not_found');
 		expect(correct?.label).not.toContain('/api/sessions');
 		// Single-key 'email:' usage (e.g. params { email: ... }) is forbidden;
 		// the column is `email_address`. Checking for the trailing space
@@ -688,7 +693,7 @@ describe('Level 14: Testing: visualization vocabulary (curriculum state)', () =>
 
 	test('discovery IDs describe customer-visible damage, not pipeline stages or tools', () => {
 		expect(DISCOVERY_IDS).toContain('spam-product-on-homepage');
-		expect(DISCOVERY_IDS).toContain('product-deleted-by-stranger');
+		expect(DISCOVERY_IDS).toContain('product-edited-by-stranger');
 		expect(DISCOVERY_IDS).toContain('login-down-overnight');
 		// Forbidden IDs from previous failed redesigns:
 		expect(DISCOVERY_IDS as readonly string[]).not.toContain('editor');
